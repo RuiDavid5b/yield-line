@@ -1,0 +1,10 @@
+name: stock-news
+variables:
+  - name: user_agent
+    value: "{{email}}"
+  - secret: true
+    name: email
+    description: ""
+  - secret: true
+    name: currents-api-key
+    description: ""
