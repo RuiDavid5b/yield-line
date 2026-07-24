@@ -1,0 +1,47 @@
+info:
+  name: recent_company_fillings
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: https://data.sec.gov/submissions/CIK0000883241.json
+  headers:
+    - name: User-Agent
+      value: "{{user_agent}}"
+      disabled: true
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("has filings.recent object", function () {
+          const body = res.getBody();
+          expect(body).to.have.property('filings');
+          expect(body.filings).to.have.property('recent');
+        });
+
+        test("recent filing arrays are the same length", function () {
+          const recent = res.getBody().filings.recent;
+          expect(recent.form.length).to.equal(recent.filingDate.length);
+          expect(recent.form.length).to.equal(recent.accessionNumber.length);
+          expect(recent.form.length).to.equal(recent.primaryDocument.length);
+        });
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+    - expression: res.headers['content-type']
+      operator: contains
+      value: "\tapplication/json"
+    - expression: res.body.cik
+      operator: eq
+      value: '"0000883241"'
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: This request retrieves recent fillings of the CIK's corresponding ticker (0000883241 -> SNPS).

@@ -18,3 +18,9 @@ dev = [
     "pre-commit>=4.6.1",
     "pytest>=9.1.1",
 ]
+
+[tool.black]
+line-length = 88
+
+[tool.isort]
+profile = "black"
