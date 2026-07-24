@@ -1,0 +1,16 @@
+info:
+  name: Get company info
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: https://data.sec.gov/submissions/CIK0000883241.json
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: This request retrieves a list of users from the JSONPlaceholder API.
