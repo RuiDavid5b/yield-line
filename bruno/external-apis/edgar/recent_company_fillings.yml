@@ -5,11 +5,10 @@ info:
 
 http:
   method: GET
-  url: https://data.sec.gov/submissions/CIK0000883241.json
+  url: https://data.sec.gov/submissions/CIK{{CIK_SNPS}}.json
   headers:
     - name: User-Agent
       value: "{{user_agent}}"
-      disabled: true
 
 runtime:
   scripts:

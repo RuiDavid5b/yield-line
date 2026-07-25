@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 
 from stock_news.ingestion.fetchers import (
+    fetch_company_facts,
     fetch_edgar_filing_text,
     fetch_edgar_filings,
     fetch_news,
@@ -81,6 +82,63 @@ def test_fetch_edgar_filing_text(mock_get, mock_sleep):
     assert text == "<html>filing</html>"
     mock_response.raise_for_status.assert_called_once()
     mock_sleep.assert_called_once()
+
+
+@patch("stock_news.ingestion.fetchers.time.sleep")
+@patch("stock_news.ingestion.fetchers.requests.get")
+def test_fetch_company_facts(mock_get, mock_sleep):
+    mock_response = MagicMock()
+    mock_response.json.return_value = {
+        "cik": 883241,
+        "entityName": "SYNOPSYS INC",
+        "facts": {
+            "us-gaap": {
+                "Revenues": {
+                    "label": "Revenues",
+                    "units": {
+                        "USD": [
+                            {
+                                "start": "2026-02-01",
+                                "end": "2026-04-30",
+                                "val": 2275985000,
+                                "accn": "0000883241-26-000018",
+                                "fy": 2026,
+                                "fp": "Q2",
+                                "form": "10-Q",
+                                "filed": "2026-05-27",
+                                "frame": "CY2026Q1",
+                            }
+                        ]
+                    },
+                }
+            }
+        },
+    }
+    mock_get.return_value = mock_response
+
+    facts = fetch_company_facts("883241", "Test test@test.com")
+
+    assert facts["entityName"] == "SYNOPSYS INC"
+    assert "Revenues" in facts["facts"]["us-gaap"]
+
+    mock_response.raise_for_status.assert_called_once()
+    mock_sleep.assert_called_once()
+
+
+@patch("stock_news.ingestion.fetchers.time.sleep")
+@patch("stock_news.ingestion.fetchers.requests.get")
+def test_fetch_company_facts_pads_cik_and_sends_user_agent(mock_get, mock_sleep):
+    mock_response = MagicMock()
+    mock_response.json.return_value = {}
+    mock_get.return_value = mock_response
+
+    fetch_company_facts("1045810", "Test test@test.com")
+
+    called_url = mock_get.call_args[0][0]
+    assert called_url == "https://data.sec.gov/api/xbrl/companyfacts/CIK0001045810.json"
+
+    _, kwargs = mock_get.call_args
+    assert kwargs["headers"]["User-Agent"] == "Test test@test.com"
 
 
 @patch("stock_news.ingestion.fetchers.yf.Ticker")
