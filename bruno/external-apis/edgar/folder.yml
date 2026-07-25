@@ -5,3 +5,7 @@ info:
 
 request:
   auth: inherit
+  variables:
+    - name: CIK_SNPS
+      value: "0000883241"
+      description: Synopsys

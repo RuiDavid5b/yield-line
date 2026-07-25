@@ -77,6 +77,24 @@ def fetch_edgar_filing_text(doc_url: str, user_agent: str) -> str:
     return response.text
 
 
+COMPANY_FACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
+
+
+def fetch_company_facts(cik: str, user_agent: str) -> dict[str, Any]:
+    """
+    Fetch all XBRL-tagged financial facts for a company from SEC EDGAR.
+    """
+    url = COMPANY_FACTS_URL.format(cik=cik.zfill(10))
+    headers = {"User-Agent": user_agent}
+
+    response = requests.get(url, headers=headers, timeout=15)
+    response.raise_for_status()
+    data = response.json()
+
+    time.sleep(EDGAR_RATE_LIMIT_SECONDS)
+    return data
+
+
 def fetch_prices(ticker: str, period: str = "5d", interval: str = "1d") -> pd.DataFrame:
     """
     Fetch recent OHLCV price data for a ticker via yfinance.
