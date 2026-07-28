@@ -1,5 +1,5 @@
 info:
-  name: recent_company_fillings
+  name: recent_company_filings
   type: http
   seq: 1
 
@@ -43,4 +43,4 @@ settings:
   followRedirects: true
   maxRedirects: 5
 
-docs: This request retrieves recent fillings of the CIK's corresponding ticker (0000883241 -> SNPS).
+docs: This request retrieves recent filings of the CIK's corresponding ticker (0000883241 -> SNPS).
