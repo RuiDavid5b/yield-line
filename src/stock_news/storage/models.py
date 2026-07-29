@@ -15,6 +15,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -24,12 +25,10 @@ class Base(DeclarativeBase):
 
 class Company(Base):
     __tablename__ = "companies"
-
     cik: Mapped[str] = mapped_column(String(10), primary_key=True)
     ticker: Mapped[str] = mapped_column(String(10), unique=True, index=True)
     name: Mapped[str] = mapped_column(String(255))
     subarea: Mapped[str] = mapped_column(String(50), index=True)
-
     financial_metrics: Mapped[list["FinancialMetric"]] = relationship(
         back_populates="company"
     )
@@ -67,19 +66,31 @@ class FinancialMetric(Base):
 
 class FilingSignal(Base):
     __tablename__ = "filing_signals"
+    __table_args__ = (
+        UniqueConstraint(
+            "cik",
+            "accession_number",
+            name="uq_filing_signal_accession",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     cik: Mapped[str] = mapped_column(ForeignKey("companies.cik"), index=True)
     accession_number: Mapped[str] = mapped_column(String(25), index=True)
     form: Mapped[str] = mapped_column(String(10))
-    item_type: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    item_codes: Mapped[list[str]] = mapped_column(ARRAY(String(10)), default=list)
+    # e.g. ["2.02"], ["1.01", "2.03"] - empty list for 10-Q/10-K
     filed_date: Mapped[dt.date] = mapped_column(Date)
 
     guidance_commentary: Mapped[str | None] = mapped_column(nullable=True)
     segment_commentary: Mapped[str | None] = mapped_column(nullable=True)
     executive_quote_summary: Mapped[str | None] = mapped_column(nullable=True)
-    mentioned_customers: Mapped[str | None] = mapped_column(nullable=True)
-    mentioned_competitors: Mapped[str | None] = mapped_column(nullable=True)
+    mentioned_customers: Mapped[list[str]] = mapped_column(
+        ARRAY(String(255)), default=list
+    )
+    mentioned_competitors: Mapped[list[str]] = mapped_column(
+        ARRAY(String(255)), default=list
+    )
 
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, server_default=func.now())
 
