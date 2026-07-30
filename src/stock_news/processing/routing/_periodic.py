@@ -38,14 +38,6 @@ def extract_section(text: str, start_pattern: str, end_pattern: str) -> str | No
     """
     Extract the text between the LAST occurrence of start_pattern and the
     first occurrence of end_pattern that follows it.
-
-    Using the last (not first) start match is deliberate: it skips past a
-    document's Table of Contents, which repeats the same header text near
-    the top as a short TOC entry.
-
-    Returns None if start_pattern isn't found at all. If end_pattern isn't
-    found after the start match, returns everything to the end of the text
-    (better than silently returning nothing).
     """
     start_matches = list(re.finditer(start_pattern, text, re.IGNORECASE))
     if not start_matches:
@@ -63,10 +55,6 @@ def extract_section(text: str, start_pattern: str, end_pattern: str) -> str | No
 def extract_filing_sections(text: str, form: str) -> dict[str, str]:
     """
     Extract all configured sections for a given form type (10-Q or 10-K).
-
-    Returns a dict of section_name -> extracted text, omitting any section
-    whose start marker wasn't found (rather than including it with a None
-    or empty value).
     """
     patterns = FORM_SECTION_PATTERNS.get(form, {})
 

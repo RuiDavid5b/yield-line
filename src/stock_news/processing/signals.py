@@ -4,12 +4,14 @@ LLM-based structured extraction of qualitative filing content.
 
 from __future__ import annotations
 
-from langchain_groq import ChatGroq
+# from langchain_groq import ChatGroq
+from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import BaseModel, Field
 
 from stock_news.processing.routing.classifier import FilingClassification
 
-DEFAULT_MODEL = "llama-3.3-70b-versatile"
+# DEFAULT_MODEL = "llama-3.3-70b-versatile"
+DEFAULT_MODEL = "gemini-3.5-flash-lite"
 
 
 class ExtractedFilingSignal(BaseModel):
@@ -91,7 +93,8 @@ def extract_filing_signal(
         for section_name, text in classification.sections.items()
     )
 
-    model = ChatGroq(model=model_name, temperature=0)
+    # model = ChatGroq(model=model_name, temperature=0)
+    model = ChatGoogleGenerativeAI(model=model_name, temperature=0)
     structured_model = model.with_structured_output(ExtractedFilingSignal)
 
     return structured_model.invoke(f"{_EXTRACTION_INSTRUCTIONS}\n\n{combined_text}")

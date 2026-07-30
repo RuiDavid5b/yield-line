@@ -29,33 +29,6 @@ ITEM_REGISTRY: dict[str, tuple[str, bool]] = {
 
 _ITEM_PATTERN = re.compile(r"Item\s+(\d+\.\d+)", re.IGNORECASE)
 
-# 10-Q and 10-K use a different heading scheme entirely from 8-Ks (plain
-# "Item N" within Part I/II, not the "X.XX" decimal format) - MD&A sits at
-# a different item number in each form, so each needs its own start/end
-# heading pattern to slice out just that section.
-_MDNA_SECTION_BOUNDS: dict[str, tuple[re.Pattern, re.Pattern]] = {
-    "10-Q": (
-        re.compile(
-            r"Item\s+2\.?\s+Management.s\s+Discussion\s+and\s+Analysis",
-            re.IGNORECASE,
-        ),
-        re.compile(
-            r"Item\s+3\.?\s+Quantitative\s+and\s+Qualitative\s+Disclosures",
-            re.IGNORECASE,
-        ),
-    ),
-    "10-K": (
-        re.compile(
-            r"Item\s+7\.?\s+Management.s\s+Discussion\s+and\s+Analysis",
-            re.IGNORECASE,
-        ),
-        re.compile(
-            r"Item\s+8\.?\s+Financial\s+Statements",
-            re.IGNORECASE,
-        ),
-    ),
-}
-
 
 def extract_item_codes(filing_text: str) -> list[str]:
     """
