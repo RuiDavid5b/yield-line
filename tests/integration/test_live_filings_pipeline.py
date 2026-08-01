@@ -14,7 +14,7 @@ import os
 import pytest
 from sqlalchemy import select
 
-from stock_news.pipeline import run_company_pipeline
+from stock_news.pipelines.filings import run_company_pipeline
 from stock_news.storage.db import get_session_factory
 from stock_news.storage.models import Company, FilingSignal, FinancialMetric
 

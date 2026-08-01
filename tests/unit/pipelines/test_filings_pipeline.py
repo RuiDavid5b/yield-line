@@ -6,7 +6,7 @@ the summary it returns.
 
 from unittest.mock import MagicMock, patch
 
-from stock_news.pipeline import run_company_pipeline
+from stock_news.pipelines.filings import run_company_pipeline
 
 CIK = "0001045810"
 USER_AGENT = "Test test@example.com"
@@ -23,14 +23,14 @@ def _filing(accession_number, form="8-K", filing_date="2026-05-15"):
     }
 
 
-@patch("stock_news.pipeline.upsert_financial_metrics")
-@patch("stock_news.pipeline.upsert_filing_signal")
-@patch("stock_news.pipeline.extract_filing_signal")
-@patch("stock_news.pipeline.classify_filing")
-@patch("stock_news.pipeline.fetch_company_facts")
-@patch("stock_news.pipeline.fetch_edgar_filing_text")
-@patch("stock_news.pipeline.fetch_edgar_filings")
-@patch("stock_news.pipeline._get_already_processed_accessions")
+@patch("stock_news.pipelines.filings.upsert_financial_metrics")
+@patch("stock_news.pipelines.filings.upsert_filing_signal")
+@patch("stock_news.pipelines.filings.extract_filing_signal")
+@patch("stock_news.pipelines.filings.classify_filing")
+@patch("stock_news.pipelines.filings.fetch_company_facts")
+@patch("stock_news.pipelines.filings.fetch_edgar_filing_text")
+@patch("stock_news.pipelines.filings.fetch_edgar_filings")
+@patch("stock_news.pipelines.filings._get_already_processed_accessions")
 def test_processes_new_filings_and_counts_them(
     mock_already_processed,
     mock_fetch_filings,
@@ -60,14 +60,14 @@ def test_processes_new_filings_and_counts_them(
     mock_upsert_signal.assert_called_once()
 
 
-@patch("stock_news.pipeline.upsert_financial_metrics")
-@patch("stock_news.pipeline.upsert_filing_signal")
-@patch("stock_news.pipeline.extract_filing_signal")
-@patch("stock_news.pipeline.classify_filing")
-@patch("stock_news.pipeline.fetch_edgar_filing_text")
-@patch("stock_news.pipeline.fetch_edgar_filings")
-@patch("stock_news.pipeline.fetch_company_facts")
-@patch("stock_news.pipeline._get_already_processed_accessions")
+@patch("stock_news.pipelines.filings.upsert_financial_metrics")
+@patch("stock_news.pipelines.filings.upsert_filing_signal")
+@patch("stock_news.pipelines.filings.extract_filing_signal")
+@patch("stock_news.pipelines.filings.classify_filing")
+@patch("stock_news.pipelines.filings.fetch_edgar_filing_text")
+@patch("stock_news.pipelines.filings.fetch_edgar_filings")
+@patch("stock_news.pipelines.filings.fetch_company_facts")
+@patch("stock_news.pipelines.filings._get_already_processed_accessions")
 def test_skips_already_processed_filings_without_fetching_text(
     mock_already_processed,
     mock_fetch_facts,
@@ -94,14 +94,14 @@ def test_skips_already_processed_filings_without_fetching_text(
     mock_upsert_signal.assert_not_called()
 
 
-@patch("stock_news.pipeline.upsert_financial_metrics")
-@patch("stock_news.pipeline.upsert_filing_signal")
-@patch("stock_news.pipeline.extract_filing_signal")
-@patch("stock_news.pipeline.classify_filing")
-@patch("stock_news.pipeline.fetch_company_facts")
-@patch("stock_news.pipeline.fetch_edgar_filing_text")
-@patch("stock_news.pipeline.fetch_edgar_filings")
-@patch("stock_news.pipeline._get_already_processed_accessions")
+@patch("stock_news.pipelines.filings.upsert_financial_metrics")
+@patch("stock_news.pipelines.filings.upsert_filing_signal")
+@patch("stock_news.pipelines.filings.extract_filing_signal")
+@patch("stock_news.pipelines.filings.classify_filing")
+@patch("stock_news.pipelines.filings.fetch_company_facts")
+@patch("stock_news.pipelines.filings.fetch_edgar_filing_text")
+@patch("stock_news.pipelines.filings.fetch_edgar_filings")
+@patch("stock_news.pipelines.filings._get_already_processed_accessions")
 def test_continues_past_a_single_filing_failure(
     mock_already_processed,
     mock_fetch_filings,
@@ -131,11 +131,11 @@ def test_continues_past_a_single_filing_failure(
     assert "0001-01" in result.errors[0]
 
 
-@patch("stock_news.pipeline.upsert_financial_metrics")
-@patch("stock_news.pipeline.extract_quarterly_metric")
-@patch("stock_news.pipeline.fetch_company_facts")
-@patch("stock_news.pipeline.fetch_edgar_filings")
-@patch("stock_news.pipeline._get_already_processed_accessions")
+@patch("stock_news.pipelines.filings.upsert_financial_metrics")
+@patch("stock_news.pipelines.filings.extract_quarterly_metric")
+@patch("stock_news.pipelines.filings.fetch_company_facts")
+@patch("stock_news.pipelines.filings.fetch_edgar_filings")
+@patch("stock_news.pipelines.filings._get_already_processed_accessions")
 def test_counts_upserted_financial_metric_rows(
     mock_already_processed,
     mock_fetch_filings,
@@ -155,9 +155,9 @@ def test_counts_upserted_financial_metric_rows(
     assert result.metrics_upserted == 12
 
 
-@patch("stock_news.pipeline.fetch_company_facts")
-@patch("stock_news.pipeline.fetch_edgar_filings")
-@patch("stock_news.pipeline._get_already_processed_accessions")
+@patch("stock_news.pipelines.filings.fetch_company_facts")
+@patch("stock_news.pipelines.filings.fetch_edgar_filings")
+@patch("stock_news.pipelines.filings._get_already_processed_accessions")
 def test_financial_metrics_failure_is_logged_not_raised(
     mock_already_processed,
     mock_fetch_filings,

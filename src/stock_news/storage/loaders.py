@@ -7,11 +7,12 @@ from __future__ import annotations
 import datetime as dt
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
 from stock_news.processing.signals import ExtractedFilingSignal
-from stock_news.storage.models import FilingSignal, FinancialMetric
+from stock_news.storage.models import FilingSignal, FinancialMetric, StockPrice
 
 
 def upsert_financial_metrics(session: Session, rows: list[dict[str, Any]]) -> None:
@@ -78,3 +79,46 @@ def upsert_filing_signal(
     )
     session.execute(stmt)
     session.commit()
+
+
+def upsert_stock_prices(session: Session, rows: list[dict[str, Any]]) -> None:
+    """
+    Insert rows produced by processing.prices.transform_price_history,
+    updating in place on conflict rather than raising or duplicating.
+    """
+    if not rows:
+        return
+
+    stmt = pg_insert(StockPrice).values(rows)
+    stmt = stmt.on_conflict_do_update(
+        index_elements=["cik", "date"],
+        set_={
+            "open": stmt.excluded.open,
+            "high": stmt.excluded.high,
+            "low": stmt.excluded.low,
+            "close": stmt.excluded.close,
+            "volume": stmt.excluded.volume,
+        },
+    )
+    session.execute(stmt)
+    session.commit()
+
+
+def get_stock_price_history(session: Session, cik: str) -> list[dict[str, Any]]:
+    """
+    Fetch all stored price rows for a company, as plain dicts, for use
+    with processing.prices.compute_daily_returns / detect_price_anomalies.
+    """
+    rows = session.execute(
+        select(
+            StockPrice.cik,
+            StockPrice.date,
+            StockPrice.open,
+            StockPrice.high,
+            StockPrice.low,
+            StockPrice.close,
+            StockPrice.volume,
+        ).where(StockPrice.cik == cik)
+    ).all()
+
+    return [dict(row._mapping) for row in rows]

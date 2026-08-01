@@ -23,14 +23,16 @@ def _classification(
 def test_returns_none_without_calling_model_when_should_extract_is_false():
     classification = _classification(should_extract=False, sections={})
 
-    with patch("stock_news.processing.signals.ChatGroq") as mock_chat_groq:
+    with patch(
+        "stock_news.processing.signals.ChatGoogleGenerativeAI"
+    ) as mock_chat_groq:
         result = extract_filing_signal(classification)
 
     assert result is None
     mock_chat_groq.assert_not_called()
 
 
-@patch("stock_news.processing.signals.ChatGroq")
+@patch("stock_news.processing.signals.ChatGoogleGenerativeAI")
 def test_calls_model_with_structured_output_schema_when_should_extract_is_true(
     mock_chat_groq,
 ):
@@ -56,7 +58,7 @@ def test_calls_model_with_structured_output_schema_when_should_extract_is_true(
     mock_structured_model.invoke.assert_called_once()
 
 
-@patch("stock_news.processing.signals.ChatGroq")
+@patch("stock_news.processing.signals.ChatGoogleGenerativeAI")
 def test_combined_text_includes_all_sections_with_labels(mock_chat_groq):
     mock_model = MagicMock()
     mock_structured_model = MagicMock()
@@ -81,7 +83,7 @@ def test_combined_text_includes_all_sections_with_labels(mock_chat_groq):
     assert "Currency exposure commentary here." in prompt_sent
 
 
-@patch("stock_news.processing.signals.ChatGroq")
+@patch("stock_news.processing.signals.ChatGoogleGenerativeAI")
 def test_uses_default_model_name_unless_overridden(mock_chat_groq):
     mock_model = MagicMock()
     mock_structured_model = MagicMock()
@@ -97,7 +99,7 @@ def test_uses_default_model_name_unless_overridden(mock_chat_groq):
     assert kwargs["model"] == DEFAULT_MODEL
 
 
-@patch("stock_news.processing.signals.ChatGroq")
+@patch("stock_news.processing.signals.ChatGoogleGenerativeAI")
 def test_respects_explicit_model_override(mock_chat_groq):
     mock_model = MagicMock()
     mock_structured_model = MagicMock()
