@@ -7,6 +7,7 @@ from __future__ import annotations
 import datetime as dt
 
 from sqlalchemy import (
+    BigInteger,
     Date,
     DateTime,
     ForeignKey,
@@ -35,6 +36,7 @@ class Company(Base):
     filing_signals: Mapped[list["FilingSignal"]] = relationship(
         back_populates="company"
     )
+    stock_prices: Mapped[list["StockPrice"]] = relationship(back_populates="company")
 
 
 class FinancialMetric(Base):
@@ -114,3 +116,19 @@ class PendingEdge(Base):
     evidence_snippet: Mapped[str] = mapped_column(String(500))
     status: Mapped[str] = mapped_column(String(20), default="pending")
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class StockPrice(Base):
+    __tablename__ = "stock_prices"
+    __table_args__ = (UniqueConstraint("cik", "date", name="uq_stock_price_date"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    cik: Mapped[str] = mapped_column(ForeignKey("companies.cik"), index=True)
+    date: Mapped[dt.date] = mapped_column(Date, index=True)
+    open: Mapped[float] = mapped_column(Numeric(12, 4))
+    high: Mapped[float] = mapped_column(Numeric(12, 4))
+    low: Mapped[float] = mapped_column(Numeric(12, 4))
+    close: Mapped[float] = mapped_column(Numeric(12, 4))
+    volume: Mapped[int] = mapped_column(BigInteger)
+
+    company: Mapped["Company"] = relationship(back_populates="stock_prices")

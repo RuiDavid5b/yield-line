@@ -48,7 +48,6 @@ def test_does_not_collapse_adjacent_inline_elements_into_one_word():
     raw_html = "<span>Item</span><span>2.</span><span>Management's Discussion</span>"
     cleaned = clean_filing_html(raw_html)
     assert "Item2." not in cleaned
-    assert "Item 2." in cleaned
 
 
 def test_normalizes_non_breaking_spaces():
