@@ -37,6 +37,7 @@ class Company(Base):
         back_populates="company"
     )
     stock_prices: Mapped[list["StockPrice"]] = relationship(back_populates="company")
+    news_articles: Mapped[list["NewsArticle"]] = relationship(back_populates="company")
 
 
 class FinancialMetric(Base):
@@ -132,3 +133,22 @@ class StockPrice(Base):
     volume: Mapped[int] = mapped_column(BigInteger)
 
     company: Mapped["Company"] = relationship(back_populates="stock_prices")
+
+
+class NewsArticle(Base):
+    __tablename__ = "news_articles"
+    __table_args__ = (UniqueConstraint("cik", "url", name="uq_news_article_url"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    cik: Mapped[str] = mapped_column(ForeignKey("companies.cik"), index=True)
+    url: Mapped[str] = mapped_column(String(1000))
+    title: Mapped[str] = mapped_column(String(500))
+    description: Mapped[str | None] = mapped_column(String(2000), nullable=True)
+    author: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    published_at: Mapped[dt.datetime | None] = mapped_column(
+        DateTime, nullable=True, index=True
+    )
+
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, server_default=func.now())
+
+    company: Mapped["Company"] = relationship(back_populates="news_articles")
