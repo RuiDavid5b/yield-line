@@ -1,5 +1,5 @@
 """
-Deterministic processing of raw fetch_company_facts() output into clean rows.
+Processes raw financial company fact into clean rows.
 """
 
 from __future__ import annotations

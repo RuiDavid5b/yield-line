@@ -1,6 +1,5 @@
 """
-Deterministic processing of stored stock price rows: return calculation
-and anomaly detection.
+Processes stored stock price rows: return calculation and anomaly detection.
 """
 
 from __future__ import annotations

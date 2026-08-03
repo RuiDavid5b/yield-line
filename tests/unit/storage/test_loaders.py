@@ -14,12 +14,20 @@ from sqlalchemy import select
 from stock_news.processing.signals import ExtractedFilingSignal
 from stock_news.storage.db import get_session_factory
 from stock_news.storage.loaders import (
+    get_news_articles,
     get_stock_price_history,
     upsert_filing_signal,
     upsert_financial_metrics,
+    upsert_news_articles,
     upsert_stock_prices,
 )
-from stock_news.storage.models import Company, FilingSignal, FinancialMetric, StockPrice
+from stock_news.storage.models import (
+    Company,
+    FilingSignal,
+    FinancialMetric,
+    NewsArticle,
+    StockPrice,
+)
 
 pytestmark = pytest.mark.skipif(
     not os.environ.get("DATABASE_URL"),
@@ -40,6 +48,9 @@ def session():
             FilingSignal.__table__.delete().where(FilingSignal.cik == TEST_CIK)
         )
         session.execute(StockPrice.__table__.delete().where(StockPrice.cik == TEST_CIK))
+        session.execute(
+            NewsArticle.__table__.delete().where(NewsArticle.cik == TEST_CIK)
+        )
         session.execute(Company.__table__.delete().where(Company.cik == TEST_CIK))
         session.add(
             Company(cik=TEST_CIK, ticker="TEST", name="Test Co", subarea="test")
@@ -55,6 +66,9 @@ def session():
             FilingSignal.__table__.delete().where(FilingSignal.cik == TEST_CIK)
         )
         session.execute(StockPrice.__table__.delete().where(StockPrice.cik == TEST_CIK))
+        session.execute(
+            NewsArticle.__table__.delete().where(NewsArticle.cik == TEST_CIK)
+        )
         session.execute(Company.__table__.delete().where(Company.cik == TEST_CIK))
         session.commit()
 
@@ -273,3 +287,89 @@ def test_get_stock_price_history_only_returns_matching_cik(session):
 def test_get_stock_price_history_empty_for_unknown_cik(session):
     history = get_stock_price_history(session, TEST_CIK)
     assert history == []
+
+
+def _news_row(**overrides):
+    row = {
+        "cik": TEST_CIK,
+        "url": "https://example.com/test-article",
+        "title": "Test headline",
+        "description": "Test description.",
+        "author": "Test Author",
+        "published_at": dt.datetime(2026, 5, 1, 12, 0, 0),
+    }
+    row.update(overrides)
+    return row
+
+
+def test_upsert_news_articles_inserts_new_rows(session):
+    upsert_news_articles(session, [_news_row()])
+
+    rows = session.scalars(select(NewsArticle).where(NewsArticle.cik == TEST_CIK)).all()
+
+    assert len(rows) == 1
+    assert rows[0].title == "Test headline"
+
+
+def test_upsert_news_articles_updates_on_conflict_not_duplicate(session):
+    upsert_news_articles(session, [_news_row(title="Original title")])
+    upsert_news_articles(session, [_news_row(title="Updated title")])
+
+    rows = session.scalars(select(NewsArticle).where(NewsArticle.cik == TEST_CIK)).all()
+
+    assert len(rows) == 1  # no duplicate row
+    assert rows[0].title == "Updated title"
+
+
+def test_upsert_news_articles_different_urls_both_inserted(session):
+    rows = [
+        _news_row(url="https://example.com/article-1"),
+        _news_row(url="https://example.com/article-2"),
+    ]
+    upsert_news_articles(session, rows)
+
+    stored = session.scalars(
+        select(NewsArticle).where(NewsArticle.cik == TEST_CIK)
+    ).all()
+
+    assert len(stored) == 2
+
+
+def test_upsert_news_articles_empty_list_is_noop(session):
+    upsert_news_articles(session, [])  # should not raise
+
+    rows = session.scalars(select(NewsArticle).where(NewsArticle.cik == TEST_CIK)).all()
+    assert rows == []
+
+
+def test_upsert_news_articles_nullable_fields_stored_as_none(session):
+    upsert_news_articles(
+        session,
+        [_news_row(description=None, author=None, published_at=None)],
+    )
+
+    row = session.scalars(select(NewsArticle).where(NewsArticle.cik == TEST_CIK)).one()
+
+    assert row.description is None
+    assert row.author is None
+    assert row.published_at is None
+
+
+def test_get_news_articles_returns_rows_as_dicts(session):
+    upsert_news_articles(
+        session,
+        [
+            _news_row(url="https://example.com/article-1"),
+            _news_row(url="https://example.com/article-2"),
+        ],
+    )
+
+    articles = get_news_articles(session, TEST_CIK)
+
+    assert len(articles) == 2
+    assert all(isinstance(a, dict) for a in articles)
+
+
+def test_get_news_articles_empty_for_unknown_cik(session):
+    articles = get_news_articles(session, TEST_CIK)
+    assert articles == []

@@ -12,7 +12,12 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
 from stock_news.processing.signals import ExtractedFilingSignal
-from stock_news.storage.models import FilingSignal, FinancialMetric, StockPrice
+from stock_news.storage.models import (
+    FilingSignal,
+    FinancialMetric,
+    NewsArticle,
+    StockPrice,
+)
 
 
 def upsert_financial_metrics(session: Session, rows: list[dict[str, Any]]) -> None:
@@ -119,6 +124,46 @@ def get_stock_price_history(session: Session, cik: str) -> list[dict[str, Any]]:
             StockPrice.close,
             StockPrice.volume,
         ).where(StockPrice.cik == cik)
+    ).all()
+
+    return [dict(row._mapping) for row in rows]
+
+
+def upsert_news_articles(session: Session, rows: list[dict[str, Any]]) -> None:
+    """
+    Insert rows produced by processing.news.transform_news_articles,
+    updating in place on conflict rather than raising or duplicating.
+    """
+    if not rows:
+        return
+
+    stmt = pg_insert(NewsArticle).values(rows)
+    stmt = stmt.on_conflict_do_update(
+        index_elements=["cik", "url"],
+        set_={
+            "title": stmt.excluded.title,
+            "description": stmt.excluded.description,
+            "author": stmt.excluded.author,
+            "published_at": stmt.excluded.published_at,
+        },
+    )
+    session.execute(stmt)
+    session.commit()
+
+
+def get_news_articles(session: Session, cik: str) -> list[dict[str, Any]]:
+    """
+    Fetch all stored news articles for a company.
+    """
+    rows = session.execute(
+        select(
+            NewsArticle.cik,
+            NewsArticle.url,
+            NewsArticle.title,
+            NewsArticle.description,
+            NewsArticle.author,
+            NewsArticle.published_at,
+        ).where(NewsArticle.cik == cik)
     ).all()
 
     return [dict(row._mapping) for row in rows]
