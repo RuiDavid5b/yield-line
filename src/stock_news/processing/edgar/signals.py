@@ -8,7 +8,7 @@ from __future__ import annotations
 from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import BaseModel, Field
 
-from stock_news.processing.routing.classifier import FilingClassification
+from stock_news.processing.edgar.routing.classifier import FilingClassification
 
 # DEFAULT_MODEL = "llama-3.3-70b-versatile"
 DEFAULT_MODEL = "gemini-3.5-flash-lite"

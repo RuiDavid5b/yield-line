@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
-from stock_news.processing.signals import ExtractedFilingSignal
+from stock_news.processing.edgar.signals import ExtractedFilingSignal
 from stock_news.storage.models import (
     FilingSignal,
     FinancialMetric,
@@ -38,7 +38,6 @@ def upsert_financial_metrics(session: Session, rows: list[dict[str, Any]]) -> No
         },
     )
     session.execute(stmt)
-    session.commit()
 
 
 def upsert_filing_signal(
@@ -83,7 +82,6 @@ def upsert_filing_signal(
         },
     )
     session.execute(stmt)
-    session.commit()
 
 
 def upsert_stock_prices(session: Session, rows: list[dict[str, Any]]) -> None:
@@ -106,7 +104,6 @@ def upsert_stock_prices(session: Session, rows: list[dict[str, Any]]) -> None:
         },
     )
     session.execute(stmt)
-    session.commit()
 
 
 def get_stock_price_history(session: Session, cik: str) -> list[dict[str, Any]]:
@@ -148,7 +145,6 @@ def upsert_news_articles(session: Session, rows: list[dict[str, Any]]) -> None:
         },
     )
     session.execute(stmt)
-    session.commit()
 
 
 def get_news_articles(session: Session, cik: str) -> list[dict[str, Any]]:

@@ -5,8 +5,7 @@ import os
 import pytest
 
 from stock_news.pipelines.news import run_news_pipeline
-from stock_news.storage.db import get_session_factory
-from stock_news.storage.models import Company, NewsArticle
+from stock_news.storage.models import Company
 
 pytestmark_integration = pytest.mark.skipif(
     not (os.environ.get("DATABASE_URL") and os.environ.get("CURRENTS_API_KEY")),
@@ -19,31 +18,21 @@ TEST_TICKER = "AAPL"
 
 
 @pytest.fixture
-def news_session():
-    session_factory = get_session_factory()
-    with session_factory() as session:
-        session.execute(Company.__table__.delete().where(Company.cik == TEST_CIK))
-        session.add(
-            Company(cik=TEST_CIK, ticker=TEST_TICKER, name="Apple Inc.", subarea="test")
-        )
-        session.commit()
-
-        yield session
-
-        session.execute(
-            NewsArticle.__table__.delete().where(NewsArticle.cik == TEST_CIK)
-        )
-        session.execute(Company.__table__.delete().where(Company.cik == TEST_CIK))
-        session.commit()
+def session(db_session):
+    db_session.add(
+        Company(cik=TEST_CIK, ticker=TEST_TICKER, name="Apple Inc.", subarea="test")
+    )
+    db_session.flush()
+    yield db_session
 
 
 @pytestmark_integration
-def test_run_news_pipeline_fetches_and_persists_real_articles(news_session):
+def test_run_news_pipeline_fetches_and_persists_real_articles(session):
     result = run_news_pipeline(
         cik=TEST_CIK,
         terms=["Apple Inc"],
         api_key=os.environ["CURRENTS_API_KEY"],
-        session=news_session,
+        session=session,
     )
 
     assert result.error is None

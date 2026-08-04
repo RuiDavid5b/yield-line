@@ -11,7 +11,7 @@ import os
 import pytest
 
 from stock_news.ingestion.fetchers import fetch_company_facts, fetch_edgar_filings
-from stock_news.processing.extraction import (
+from stock_news.processing.edgar.extraction import (
     GAAP_METRIC_UNITS,
     GAAP_TAG_CANDIDATES,
     extract_quarterly_metric,

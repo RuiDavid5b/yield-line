@@ -1,5 +1,5 @@
-from stock_news.processing.html_cleaning import clean_filing_html
-from stock_news.processing.routing._periodic import extract_section
+from stock_news.processing.edgar.html_cleaning import clean_filing_html
+from stock_news.processing.edgar.routing._periodic import extract_section
 
 
 def test_strips_basic_html_tags():

@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock, patch
 
-from stock_news.processing.routing.classifier import FilingClassification
-from stock_news.processing.signals import (
+from stock_news.processing.edgar.routing.classifier import FilingClassification
+from stock_news.processing.edgar.signals import (
     DEFAULT_MODEL,
     ExtractedFilingSignal,
     extract_filing_signal,
@@ -24,7 +24,7 @@ def test_returns_none_without_calling_model_when_should_extract_is_false():
     classification = _classification(should_extract=False, sections={})
 
     with patch(
-        "stock_news.processing.signals.ChatGoogleGenerativeAI"
+        "stock_news.processing.edgar.signals.ChatGoogleGenerativeAI"
     ) as mock_chat_groq:
         result = extract_filing_signal(classification)
 
@@ -32,7 +32,7 @@ def test_returns_none_without_calling_model_when_should_extract_is_false():
     mock_chat_groq.assert_not_called()
 
 
-@patch("stock_news.processing.signals.ChatGoogleGenerativeAI")
+@patch("stock_news.processing.edgar.signals.ChatGoogleGenerativeAI")
 def test_calls_model_with_structured_output_schema_when_should_extract_is_true(
     mock_chat_groq,
 ):
@@ -58,7 +58,7 @@ def test_calls_model_with_structured_output_schema_when_should_extract_is_true(
     mock_structured_model.invoke.assert_called_once()
 
 
-@patch("stock_news.processing.signals.ChatGoogleGenerativeAI")
+@patch("stock_news.processing.edgar.signals.ChatGoogleGenerativeAI")
 def test_combined_text_includes_all_sections_with_labels(mock_chat_groq):
     mock_model = MagicMock()
     mock_structured_model = MagicMock()
@@ -83,7 +83,7 @@ def test_combined_text_includes_all_sections_with_labels(mock_chat_groq):
     assert "Currency exposure commentary here." in prompt_sent
 
 
-@patch("stock_news.processing.signals.ChatGoogleGenerativeAI")
+@patch("stock_news.processing.edgar.signals.ChatGoogleGenerativeAI")
 def test_uses_default_model_name_unless_overridden(mock_chat_groq):
     mock_model = MagicMock()
     mock_structured_model = MagicMock()
@@ -99,7 +99,7 @@ def test_uses_default_model_name_unless_overridden(mock_chat_groq):
     assert kwargs["model"] == DEFAULT_MODEL
 
 
-@patch("stock_news.processing.signals.ChatGoogleGenerativeAI")
+@patch("stock_news.processing.edgar.signals.ChatGoogleGenerativeAI")
 def test_respects_explicit_model_override(mock_chat_groq):
     mock_model = MagicMock()
     mock_structured_model = MagicMock()

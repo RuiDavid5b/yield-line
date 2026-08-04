@@ -17,14 +17,14 @@ from stock_news.ingestion.fetchers import (
     fetch_edgar_filing_text,
     fetch_edgar_filings,
 )
-from stock_news.processing.extraction import (
+from stock_news.processing.edgar.extraction import (
     GAAP_METRIC_UNITS,
     GAAP_TAG_CANDIDATES,
     extract_quarterly_metric,
 )
-from stock_news.processing.html_cleaning import clean_filing_html
-from stock_news.processing.routing.classifier import classify_filing
-from stock_news.processing.signals import extract_filing_signal
+from stock_news.processing.edgar.html_cleaning import clean_filing_html
+from stock_news.processing.edgar.routing.classifier import classify_filing
+from stock_news.processing.edgar.signals import extract_filing_signal
 from stock_news.storage.loaders import (
     upsert_filing_signal,
     upsert_financial_metrics,
@@ -80,6 +80,7 @@ def _process_one_filing(
         filed_date=dt.date.fromisoformat(filing["filing_date"]),
         extracted=extracted,
     )
+    session.commit()
 
 
 def _run_financial_metrics(session: Session, cik: str, user_agent: str) -> int:
@@ -95,6 +96,7 @@ def _run_financial_metrics(session: Session, cik: str, user_agent: str) -> int:
             unit=GAAP_METRIC_UNITS.get(metric_name, "USD"),
         )
         upsert_financial_metrics(session, rows)
+        session.commit()
         total_rows += len(rows)
 
     return total_rows
@@ -128,7 +130,8 @@ def run_company_pipeline(
         try:
             _process_one_filing(session, cik, filing, user_agent, groq_model_name)
             result.filings_processed += 1
-        except Exception as exc:  # noqa: BLE001 - deliberately broad, see docstring
+        except Exception as exc:
+            session.rollback()
             logger.exception(
                 "Failed processing filing %s for CIK %s",
                 filing.get("accession_number"),
@@ -139,7 +142,8 @@ def run_company_pipeline(
 
     try:
         result.metrics_upserted = _run_financial_metrics(session, cik, user_agent)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
+        session.rollback()
         logger.exception("Failed processing financial metrics for CIK %s", cik)
         result.errors.append(f"financial_metrics: {exc}")
 
