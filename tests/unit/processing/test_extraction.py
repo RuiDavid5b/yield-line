@@ -1,6 +1,6 @@
 import datetime as dt
 
-from stock_news.processing.extraction import (
+from stock_news.processing.edgar.extraction import (
     GAAP_METRIC_UNITS,
     GAAP_TAG_CANDIDATES,
     extract_quarterly_metric,

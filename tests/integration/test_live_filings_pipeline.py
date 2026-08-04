@@ -46,15 +46,10 @@ def session():
 @pytest.fixture
 def ensure_company_exists(session):
     """
-    Insert the test company if it isn't already present (e.g. from your
-    seed graph load), and remember whether this test created it - only
-    clean up the company row if this test was the one that added it, so
-    a pre-existing company from your real graph is never deleted.
+    Insert the test company if it isn't already present.
     """
     existing = session.get(Company, company_CIK)
-    created_here = existing is None
-
-    if created_here:
+    if existing is None:
         session.add(
             Company(
                 cik=company_CIK,
@@ -63,19 +58,8 @@ def ensure_company_exists(session):
                 subarea="eda",
             )
         )
-        session.commit()
-
+        session.flush()
     yield
-
-    session.execute(
-        FinancialMetric.__table__.delete().where(FinancialMetric.cik == company_CIK)
-    )
-    session.execute(
-        FilingSignal.__table__.delete().where(FilingSignal.cik == company_CIK)
-    )
-    if created_here:
-        session.execute(Company.__table__.delete().where(Company.cik == company_CIK))
-    session.commit()
 
 
 def test_run_company_pipeline_end_to_end(session, ensure_company_exists):

@@ -11,8 +11,7 @@ import os
 import pytest
 from sqlalchemy import select
 
-from stock_news.processing.signals import ExtractedFilingSignal
-from stock_news.storage.db import get_session_factory
+from stock_news.processing.edgar.signals import ExtractedFilingSignal
 from stock_news.storage.loaders import (
     get_news_articles,
     get_stock_price_history,
@@ -38,39 +37,10 @@ TEST_CIK = "9999999999"
 
 
 @pytest.fixture
-def session():
-    session_factory = get_session_factory()
-    with session_factory() as session:
-        session.execute(
-            FinancialMetric.__table__.delete().where(FinancialMetric.cik == TEST_CIK)
-        )
-        session.execute(
-            FilingSignal.__table__.delete().where(FilingSignal.cik == TEST_CIK)
-        )
-        session.execute(StockPrice.__table__.delete().where(StockPrice.cik == TEST_CIK))
-        session.execute(
-            NewsArticle.__table__.delete().where(NewsArticle.cik == TEST_CIK)
-        )
-        session.execute(Company.__table__.delete().where(Company.cik == TEST_CIK))
-        session.add(
-            Company(cik=TEST_CIK, ticker="TEST", name="Test Co", subarea="test")
-        )
-        session.commit()
-
-        yield session
-
-        session.execute(
-            FinancialMetric.__table__.delete().where(FinancialMetric.cik == TEST_CIK)
-        )
-        session.execute(
-            FilingSignal.__table__.delete().where(FilingSignal.cik == TEST_CIK)
-        )
-        session.execute(StockPrice.__table__.delete().where(StockPrice.cik == TEST_CIK))
-        session.execute(
-            NewsArticle.__table__.delete().where(NewsArticle.cik == TEST_CIK)
-        )
-        session.execute(Company.__table__.delete().where(Company.cik == TEST_CIK))
-        session.commit()
+def session(db_session):
+    db_session.add(Company(cik=TEST_CIK, ticker="TEST", name="Test Co", subarea="test"))
+    db_session.flush()
+    yield db_session
 
 
 def _metric_row(**overrides):

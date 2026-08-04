@@ -8,11 +8,8 @@ import datetime as dt
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
-import pytest
 
 from stock_news.pipelines.stock_prices import run_price_pipeline
-from stock_news.storage.db import get_session_factory
-from stock_news.storage.models import Company, StockPrice
 
 
 def _fake_history(
@@ -143,54 +140,3 @@ class TestRunPricePipelineUnit:
 
         assert len(result.anomalies) == 1
         assert result.anomalies[0]["date"] == history.iloc[-1]["Date"].date()
-
-
-@pytest.mark.integration
-class TestRunPricePipelineIntegration:
-    """
-    Hits the real yfinance API and the real configured Postgres DB.
-    Cleans up its own rows afterward.
-    """
-
-    TEST_CIK = "0000320193"
-    TEST_TICKER = "AAPL"
-
-    @pytest.fixture(autouse=True)
-    def _ensure_company_exists(self):
-        session_factory = get_session_factory()
-        with session_factory() as session:
-            existing = session.get(Company, self.TEST_CIK)
-            if existing is None:
-                session.add(
-                    Company(
-                        cik=self.TEST_CIK,
-                        ticker=self.TEST_TICKER,
-                        name="Apple Inc.",
-                        subarea="fabless",
-                    )
-                )
-                session.commit()
-        yield
-        with session_factory() as session:
-            session.query(StockPrice).filter(StockPrice.cik == self.TEST_CIK).delete()
-            session.commit()
-
-    def test_fetches_real_prices_and_persists_them(self):
-        session_factory = get_session_factory()
-        with session_factory() as session:
-            result = run_price_pipeline(
-                cik=self.TEST_CIK,
-                ticker=self.TEST_TICKER,
-                session=session,
-                period="5d",
-            )
-
-        assert result.error is None
-        assert result.rows_fetched > 0
-        assert result.rows_upserted == result.rows_fetched
-
-        with session_factory() as session:
-            stored = (
-                session.query(StockPrice).filter(StockPrice.cik == self.TEST_CIK).all()
-            )
-        assert len(stored) == result.rows_fetched

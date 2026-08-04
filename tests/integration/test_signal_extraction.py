@@ -6,8 +6,8 @@ import os
 
 import pytest
 
-from stock_news.processing.routing.classifier import classify_filing
-from stock_news.processing.signals import extract_filing_signal
+from stock_news.processing.edgar.routing.classifier import classify_filing
+from stock_news.processing.edgar.signals import extract_filing_signal
 
 pytestmark = pytest.mark.skipif(
     not os.environ.get("GROQ_API_KEY"),

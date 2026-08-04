@@ -50,7 +50,7 @@ def run_price_pipeline(
 
     try:
         history = fetch_prices(ticker, period=period, interval=interval)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.exception("Failed fetching prices for %s (%s)", ticker, cik)
         result.error = f"fetch: {exc}"
         return result
@@ -63,8 +63,10 @@ def run_price_pipeline(
 
     try:
         upsert_stock_prices(session, rows)
+        session.commit()
         result.rows_upserted = len(rows)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
+        session.rollback()
         logger.exception("Failed upserting prices for %s (%s)", ticker, cik)
         result.error = f"upsert: {exc}"
         return result

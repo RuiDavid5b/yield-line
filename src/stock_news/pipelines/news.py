@@ -60,8 +60,10 @@ def run_news_pipeline(
 
     try:
         upsert_news_articles(session, rows)
+        session.commit()
         result.articles_upserted = len(rows)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
+        session.rollback()
         logger.exception("Failed upserting news for CIK %s", cik)
         result.error = f"upsert: {exc}"
         return result

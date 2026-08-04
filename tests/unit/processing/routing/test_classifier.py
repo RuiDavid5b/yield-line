@@ -1,5 +1,5 @@
-from stock_news.processing.routing._periodic import extract_section
-from stock_news.processing.routing.classifier import classify_filing
+from stock_news.processing.edgar.routing._periodic import extract_section
+from stock_news.processing.edgar.routing.classifier import classify_filing
 
 # Mirrors real 10-Q structure: a Table of Contents lists section headers
 # with page numbers, THEN the actual sections appear later in the document
