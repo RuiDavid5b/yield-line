@@ -4,9 +4,8 @@ database.
 
 Run explicitly with all three required:
     export EDGAR_USER_AGENT="Your Name your@email.com"
-    export GROQ_API_KEY="your-key"
+    export GOOGLE_API_KEY="your-key"
     export DATABASE_URL="postgresql+psycopg://..."
-    pytest tests/test_live_pipeline.py -m live -v
 """
 
 import os
@@ -18,17 +17,9 @@ from stock_news.pipelines.filings import run_company_pipeline
 from stock_news.storage.db import get_session_factory
 from stock_news.storage.models import Company, FilingSignal, FinancialMetric
 
-pytestmark = pytest.mark.skipif(
-    not (
-        os.environ.get("EDGAR_USER_AGENT")
-        and os.environ.get("GROQ_API_KEY")
-        and os.environ.get("DATABASE_URL")
-    ),
-    reason=(
-        "Requires EDGAR_USER_AGENT, GROQ_API_KEY, and DATABASE_URL all set - "
-        "skipping full pipeline smoke test"
-    ),
-)
+pytestmark = pytest.mark.requires_env("EDGAR_USER_AGENT")
+pytestmark = pytest.mark.requires_env("GOOGLE_API_KEY")
+
 
 # A real company, used deliberately (not a synthetic CIK) - this test's
 # entire point is confirming the chain works against real data.
@@ -55,7 +46,7 @@ def ensure_company_exists(session):
                 cik=company_CIK,
                 ticker="SNPS",
                 name="SYNOPSYS Inc",
-                subarea="eda",
+                industry_segment="eda",
             )
         )
         session.flush()

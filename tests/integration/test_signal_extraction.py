@@ -2,17 +2,12 @@
 Live integration test for processing.signals.
 """
 
-import os
-
 import pytest
 
 from stock_news.processing.edgar.routing.classifier import classify_filing
 from stock_news.processing.edgar.signals import extract_filing_signal
 
-pytestmark = pytest.mark.skipif(
-    not os.environ.get("GROQ_API_KEY"),
-    reason="GROQ_API_KEY not set - skipping live LLM extraction test",
-)
+pytestmark = pytest.mark.requires_env("GOOGLE_API_KEY")
 
 # Mirrors the real structure/content style pulled from an actual NVIDIA
 # earnings-related filing

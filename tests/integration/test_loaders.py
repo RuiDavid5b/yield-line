@@ -38,7 +38,9 @@ TEST_CIK = "9999999999"
 
 @pytest.fixture
 def session(db_session):
-    db_session.add(Company(cik=TEST_CIK, ticker="TEST", name="Test Co", subarea="test"))
+    db_session.add(
+        Company(cik=TEST_CIK, ticker="TEST", name="Test Co", industry_segment="test")
+    )
     db_session.flush()
     yield db_session
 
@@ -239,7 +241,9 @@ def test_get_stock_price_history_returns_rows_as_dicts(session):
 
 def test_get_stock_price_history_only_returns_matching_cik(session):
     other_cik = "8888888888"
-    session.add(Company(cik=other_cik, ticker="OTHR", name="Other Co", subarea="test"))
+    session.add(
+        Company(cik=other_cik, ticker="OTHR", name="Other Co", industry_segment="test")
+    )
     session.commit()
     upsert_stock_prices(session, [_price_row(cik=other_cik)])
     upsert_stock_prices(session, [_price_row(cik=TEST_CIK)])

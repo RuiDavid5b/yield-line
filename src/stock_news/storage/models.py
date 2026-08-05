@@ -29,7 +29,7 @@ class Company(Base):
     cik: Mapped[str] = mapped_column(String(10), primary_key=True)
     ticker: Mapped[str] = mapped_column(String(10), unique=True, index=True)
     name: Mapped[str] = mapped_column(String(255))
-    subarea: Mapped[str] = mapped_column(String(50), index=True)
+    industry_segment: Mapped[str] = mapped_column(String(50), index=True)
     financial_metrics: Mapped[list["FinancialMetric"]] = relationship(
         back_populates="company"
     )
