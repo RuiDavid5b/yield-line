@@ -26,9 +26,12 @@ def test_removes_script_and_style_content_entirely():
 def test_reproduces_and_fixes_the_real_snps_bug():
     raw_html = (
         "<div><span>Item</span><span>2.</span>"
-        "<span>Management&#8217;s Discussion and Analysis</span>"
-        "<p>Revenue grew due to strong demand.</p>"
-        "<span>Item</span><span>3.</span>"
+        "<span>Management&#8217;s Discussion and Analysis</span></div>"
+        "<div><p>For the second quarter of fiscal 2026, our results reflect "
+        "continued, strong execution and the resiliency of our business, "
+        "including 42% revenue growth when compared to the second quarter of "
+        "fiscal 2025.</p></div>"
+        "<div><span>Item</span><span>3.</span>"
         "<span>Quantitative and Qualitative Disclosures</span></div>"
     )
 
@@ -41,7 +44,12 @@ def test_reproduces_and_fixes_the_real_snps_bug():
     )
 
     assert section is not None
-    assert "Revenue grew due to strong demand." in section
+    assert (
+        "For the second quarter of fiscal 2026, our results reflect "
+        "continued, strong execution and the resiliency of our business, "
+        "including 42% revenue growth when compared to the second quarter of "
+        "fiscal 2025."
+    ) in section
 
 
 def test_does_not_collapse_adjacent_inline_elements_into_one_word():

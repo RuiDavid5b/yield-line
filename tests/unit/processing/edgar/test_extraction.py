@@ -1,8 +1,9 @@
 import datetime as dt
 
 from stock_news.processing.edgar.extraction import (
-    GAAP_METRIC_UNITS,
     GAAP_TAG_CANDIDATES,
+    UNIT_SUFFIXES,
+    build_unit_priority,
     extract_quarterly_metric,
 )
 
@@ -331,7 +332,7 @@ def test_reads_from_specified_unit_key_not_just_usd():
         cik="1234",
         metric_name="eps_diluted",
         candidate_tags=["EarningsPerShareDiluted"],
-        unit="USD/shares",
+        units=["USD/shares"],
     )
     rows_with_default_unit = extract_quarterly_metric(
         facts,
@@ -345,6 +346,19 @@ def test_reads_from_specified_unit_key_not_just_usd():
     assert rows_with_default_unit == []
 
 
-def test_gaap_metric_units_has_eps_diluted_override():
-    assert GAAP_METRIC_UNITS["eps_diluted"] == "USD/shares"
-    assert "revenue" not in GAAP_METRIC_UNITS
+def test_unit_suffixes_has_eps_diluted_override():
+    assert UNIT_SUFFIXES["eps_diluted"] == "/shares"
+    assert "revenue" not in UNIT_SUFFIXES
+
+
+def test_build_unit_priority_applies_suffix_only_for_configured_metrics():
+    assert build_unit_priority("eps_diluted", ["USD"]) == ["USD/shares"]
+    assert build_unit_priority("revenue", ["USD"]) == ["USD"]
+
+
+def test_build_unit_priority_preserves_currency_order():
+    assert build_unit_priority("revenue", ["USD", "TWD"]) == ["USD", "TWD"]
+    assert build_unit_priority("eps_diluted", ["USD", "TWD"]) == [
+        "USD/shares",
+        "TWD/shares",
+    ]

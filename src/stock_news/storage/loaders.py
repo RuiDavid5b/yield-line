@@ -34,6 +34,8 @@ def upsert_financial_metrics(session: Session, rows: list[dict[str, Any]]) -> No
         index_elements=["cik", "tag", "period_start", "period_end", "form"],
         set_={
             "value": stmt.excluded.value,
+            "unit": stmt.excluded.unit,
+            "taxonomy": stmt.excluded.taxonomy,
             "accession_number": stmt.excluded.accession_number,
             "filed_date": stmt.excluded.filed_date,
         },
@@ -142,6 +144,7 @@ def upsert_companies(session: Session, rows: list[dict[str, Any]]) -> None:
             "ticker": stmt.excluded.ticker,
             "name": stmt.excluded.name,
             "industry_segment": stmt.excluded.industry_segment,
+            "reporting_currency": stmt.excluded.reporting_currency,
         },
     )
     session.execute(stmt)

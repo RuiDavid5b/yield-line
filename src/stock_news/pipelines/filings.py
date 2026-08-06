@@ -8,6 +8,7 @@ from __future__ import annotations
 import datetime as dt
 import logging
 from dataclasses import dataclass, field
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -18,8 +19,8 @@ from stock_news.ingestion.fetchers import (
     fetch_edgar_filings,
 )
 from stock_news.processing.edgar.extraction import (
-    GAAP_METRIC_UNITS,
-    GAAP_TAG_CANDIDATES,
+    TAG_CANDIDATES_BY_TAXONOMY,
+    build_unit_priority,
     extract_quarterly_metric,
 )
 from stock_news.processing.edgar.html_cleaning import clean_filing_html
@@ -29,11 +30,11 @@ from stock_news.storage.loaders import (
     upsert_filing_signal,
     upsert_financial_metrics,
 )
-from stock_news.storage.models import FilingSignal
+from stock_news.storage.models import Company, FilingSignal
 
 logger = logging.getLogger(__name__)
 
-FILING_FORM_TYPES = ("8-K", "10-Q", "10-K")
+FILING_FORM_TYPES = ("8-K", "10-Q", "10-K", "20-F", "6-K")
 
 
 @dataclass
@@ -58,18 +59,23 @@ def _get_already_processed_accessions(session: Session, cik: str) -> set[str]:
 def _process_one_filing(
     session: Session,
     cik: str,
+    company_name: str,
     filing: dict,
     user_agent: str,
     llm_model_name: str | None,
 ) -> None:
     text = fetch_edgar_filing_text(filing["primary_doc_url"], user_agent)
-    cleaned_text = clean_filing_html(text)
+    cleaned_text = clean_filing_html(
+        text, detect_font_headings=(filing["form"].upper() == "20-F")
+    )
     classification = classify_filing(cleaned_text, form=filing["form"])
 
     extracted = None
     if classification.should_extract:
         kwargs = {"model_name": llm_model_name} if llm_model_name else {}
-        extracted = extract_filing_signal(classification, **kwargs)
+        extracted = extract_filing_signal(
+            classification, company_name=company_name, **kwargs
+        )
 
     upsert_filing_signal(
         session,
@@ -83,17 +89,33 @@ def _process_one_filing(
     session.commit()
 
 
+def _detect_taxonomy(facts: dict[str, Any]) -> str:
+    available = facts.get("facts", {})
+    if "us-gaap" in available:
+        return "us-gaap"
+    if "ifrs-full" in available:
+        return "ifrs-full"
+    raise ValueError("Company facts contain neither us-gaap nor ifrs-full data")
+
+
 def _run_financial_metrics(session: Session, cik: str, user_agent: str) -> int:
     facts = fetch_company_facts(cik, user_agent)
+    taxonomy = _detect_taxonomy(facts)
+    candidates_by_metric = TAG_CANDIDATES_BY_TAXONOMY[taxonomy]
+
+    company = session.get(Company, cik)
+    reporting_currency = company.reporting_currency if company else "USD"
+    currencies = ["USD"] if reporting_currency == "USD" else ["USD", reporting_currency]
 
     total_rows = 0
-    for metric_name, candidate_tags in GAAP_TAG_CANDIDATES.items():
+    for metric_name, candidate_tags in candidates_by_metric.items():
         rows = extract_quarterly_metric(
             facts,
             cik=cik,
             metric_name=metric_name,
             candidate_tags=candidate_tags,
-            unit=GAAP_METRIC_UNITS.get(metric_name, "USD"),
+            units=build_unit_priority(metric_name, currencies),
+            taxonomy=taxonomy,
         )
         upsert_financial_metrics(session, rows)
         session.commit()
@@ -115,6 +137,9 @@ def run_company_pipeline(
     """
     result = PipelineResult(cik=cik)
 
+    company = session.get(Company, cik)
+    company_name = company.name if company else cik
+
     already_processed = _get_already_processed_accessions(session, cik)
 
     filings = fetch_edgar_filings(
@@ -128,7 +153,9 @@ def run_company_pipeline(
             continue
 
         try:
-            _process_one_filing(session, cik, filing, user_agent, llm_model_name)
+            _process_one_filing(
+                session, cik, company_name, filing, user_agent, llm_model_name
+            )
             result.filings_processed += 1
         except Exception as exc:
             session.rollback()

@@ -5,7 +5,7 @@ Processes raw financial company fact into clean rows.
 from __future__ import annotations
 
 import datetime as dt
-from typing import Any, Literal
+from typing import Any, Literal, Sequence
 
 PeriodType = Literal["quarterly", "annual"]
 
@@ -25,7 +25,8 @@ def extract_quarterly_metric(
     metric_name: str,
     candidate_tags: list[str],
     period_type: PeriodType = "quarterly",
-    unit: str = "USD",
+    units: Sequence[str] = ("USD",),
+    taxonomy: str = "us-gaap",
 ) -> list[dict[str, Any]]:
     """
     Extract a clean time series for one metric from raw XBRL data.
@@ -38,40 +39,54 @@ def extract_quarterly_metric(
         period of the company's history.
     period_type: which duration bucket to keep ("quarterly" ~ 3 months,
         "annual" ~ 12 months).
-    unit: which XBRL unit key to read values from.
+    units: unit keys to try, in priority order (e.g. ("USD", "TWD")).
+    taxonomy: which XBRL taxonomy namespace to read from ("us-gaap" or
+        "ifrs-full").
     """
-    us_gaap = facts.get("facts", {}).get("us-gaap", {})
+    taxonomy_facts = facts.get("facts", {}).get(taxonomy, {})
     min_days, max_days = _DURATION_BOUNDS[period_type]
 
+    chosen_unit: str | None = None
     candidates: list[dict[str, Any]] = []
-    for xbrl_tag in candidate_tags:
-        tag_data = us_gaap.get(xbrl_tag)
-        if not tag_data:
-            continue
 
-        for entry in tag_data.get("units", {}).get(unit, []):
-            start = entry.get("start")
-            end = entry.get("end")
-            if not start or not end:
+    for unit in units:
+        unit_candidates: list[dict[str, Any]] = []
+        for xbrl_tag in candidate_tags:
+            tag_data = taxonomy_facts.get(xbrl_tag)
+            if not tag_data:
                 continue
 
-            start_date = dt.date.fromisoformat(start)
-            end_date = dt.date.fromisoformat(end)
-            duration_days = (end_date - start_date).days
+            for entry in tag_data.get("units", {}).get(unit, []):
+                start = entry.get("start")
+                end = entry.get("end")
+                if not start or not end:
+                    continue
 
-            if not (min_days <= duration_days <= max_days):
-                continue
+                start_date = dt.date.fromisoformat(start)
+                end_date = dt.date.fromisoformat(end)
+                duration_days = (end_date - start_date).days
 
-            candidates.append(
-                {
-                    "period_start": start_date,
-                    "period_end": end_date,
-                    "value": entry["val"],
-                    "form": entry["form"],
-                    "accession_number": entry["accn"],
-                    "filed_date": dt.date.fromisoformat(entry["filed"]),
-                }
-            )
+                if not (min_days <= duration_days <= max_days):
+                    continue
+
+                unit_candidates.append(
+                    {
+                        "period_start": start_date,
+                        "period_end": end_date,
+                        "value": entry["val"],
+                        "form": entry["form"],
+                        "accession_number": entry["accn"],
+                        "filed_date": dt.date.fromisoformat(entry["filed"]),
+                    }
+                )
+
+        if unit_candidates:
+            chosen_unit = unit
+            candidates = unit_candidates
+            break
+
+    if chosen_unit is None:
+        return []
 
     best_entries = _deduplicate_periods(candidates)
 
@@ -83,6 +98,8 @@ def extract_quarterly_metric(
             "period_end": entry["period_end"],
             "period_type": period_type,
             "value": entry["value"],
+            "unit": chosen_unit,
+            "taxonomy": taxonomy,
             "form": entry["form"],
             "accession_number": entry["accession_number"],
             "filed_date": entry["filed_date"],
@@ -121,6 +138,11 @@ def _deduplicate_periods(
     return list(best_by_period.values())
 
 
+def build_unit_priority(metric_name: str, currencies: list[str]) -> list[str]:
+    suffix = UNIT_SUFFIXES.get(metric_name, "")
+    return [f"{currency}{suffix}" for currency in currencies]
+
+
 # Known candidate tags per canonical metric.
 GAAP_TAG_CANDIDATES: dict[str, list[str]] = {
     "revenue": [
@@ -135,6 +157,21 @@ GAAP_TAG_CANDIDATES: dict[str, list[str]] = {
 }
 
 # Metrics reported under a unit other than "USD".
-GAAP_METRIC_UNITS: dict[str, str] = {
-    "eps_diluted": "USD/shares",
+UNIT_SUFFIXES: dict[str, str] = {
+    "eps_diluted": "/shares",
+}
+
+# For foreign companies
+IFRS_TAG_CANDIDATES: dict[str, list[str]] = {
+    "revenue": ["Revenue"],
+    "gross_profit": ["GrossProfit"],
+    "operating_income": ["ProfitLossFromOperatingActivities"],
+    "net_income": ["ProfitLoss"],
+    "eps_diluted": ["DilutedEarningsLossPerShare"],
+    "capex": ["PurchaseOfPropertyPlantAndEquipment"],
+}
+
+TAG_CANDIDATES_BY_TAXONOMY: dict[str, dict[str, list[str]]] = {
+    "us-gaap": GAAP_TAG_CANDIDATES,
+    "ifrs-full": IFRS_TAG_CANDIDATES,
 }

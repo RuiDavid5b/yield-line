@@ -13,6 +13,7 @@ companies:
     name: NVIDIA Corporation
     category: fabless
     aliases: ["Nvidia"]
+    reporting_currency: USD
     notes: "GPU/AI accelerator design; fabless, relies on TSMC for leading-edge nodes."
 
   - cik: "0000937966"
@@ -20,6 +21,7 @@ companies:
     name: ASML Holding NV
     category: equipment
     aliases: []
+    reporting_currency: EUR
     notes: "Sole supplier of EUV lithography systems; foreign private issuer, files 20-F not 10-K."
 
   - cik: "0001046179"
@@ -27,6 +29,7 @@ companies:
     name: Taiwan Semiconductor Manufacturing Company
     category: foundry
     aliases: ["TSMC"]
+    reporting_currency: TWD
     notes: "Leading-edge foundry; files 20-F, not 10-K/10-Q - EDGAR ingestion may need a form-type adjustment for this one."
 
   - cik: "0000813672"
@@ -34,6 +37,7 @@ companies:
     name: Cadence Design Systems
     category: ip_eda
     aliases: []
+    reporting_currency: USD
     notes: "EDA tooling; also licenses IP (Tensilica cores)."
 
   - cik: "0000883241"
@@ -41,6 +45,7 @@ companies:
     name: Synopsys
     category: ip_eda
     aliases: []
+    reporting_currency: USD
     notes: "EDA tooling; also licenses IP (DesignWare)."
 
   - cik: "0001973239"
@@ -48,6 +53,7 @@ companies:
     name: Arm Holdings
     category: ip_eda
     aliases: ["Arm Ltd"]
+    reporting_currency: USD
     notes: "IP licensing only, no EDA tooling - primary category still ip_eda per the merged taxonomy."
 
   - cik: "0001047127"
@@ -55,6 +61,7 @@ companies:
     name: Amkor Technology
     category: osat
     aliases: []
+    reporting_currency: USD
     notes: "Outsourced assembly and test."
 
 edges:
