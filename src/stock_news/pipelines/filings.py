@@ -60,7 +60,7 @@ def _process_one_filing(
     cik: str,
     filing: dict,
     user_agent: str,
-    groq_model_name: str | None,
+    llm_model_name: str | None,
 ) -> None:
     text = fetch_edgar_filing_text(filing["primary_doc_url"], user_agent)
     cleaned_text = clean_filing_html(text)
@@ -68,7 +68,7 @@ def _process_one_filing(
 
     extracted = None
     if classification.should_extract:
-        kwargs = {"model_name": groq_model_name} if groq_model_name else {}
+        kwargs = {"model_name": llm_model_name} if llm_model_name else {}
         extracted = extract_filing_signal(classification, **kwargs)
 
     upsert_filing_signal(
@@ -107,7 +107,7 @@ def run_company_pipeline(
     user_agent: str,
     session: Session,
     filing_limit: int = 10,
-    groq_model_name: str | None = None,
+    llm_model_name: str | None = None,
 ) -> PipelineResult:
     """
     Run the full fetch -> classify -> extract -> upsert pipeline for one
@@ -128,7 +128,7 @@ def run_company_pipeline(
             continue
 
         try:
-            _process_one_filing(session, cik, filing, user_agent, groq_model_name)
+            _process_one_filing(session, cik, filing, user_agent, llm_model_name)
             result.filings_processed += 1
         except Exception as exc:
             session.rollback()

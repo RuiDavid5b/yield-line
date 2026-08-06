@@ -14,7 +14,6 @@ class Settings(BaseSettings):
 
     database_url: PostgresDsn
     edgar_user_agent: str
-    groq_api_key: str = ""
     google_api_key: str = ""
     currents_api_key: str = ""
 

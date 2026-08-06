@@ -25,16 +25,16 @@ def test_returns_none_without_calling_model_when_should_extract_is_false():
 
     with patch(
         "stock_news.processing.edgar.signals.ChatGoogleGenerativeAI"
-    ) as mock_chat_groq:
+    ) as mock_chat_llm:
         result = extract_filing_signal(classification)
 
     assert result is None
-    mock_chat_groq.assert_not_called()
+    mock_chat_llm.assert_not_called()
 
 
 @patch("stock_news.processing.edgar.signals.ChatGoogleGenerativeAI")
 def test_calls_model_with_structured_output_schema_when_should_extract_is_true(
-    mock_chat_groq,
+    mock_chat_llm,
 ):
     mock_model = MagicMock()
     mock_structured_model = MagicMock()
@@ -44,7 +44,7 @@ def test_calls_model_with_structured_output_schema_when_should_extract_is_true(
     )
     mock_structured_model.invoke.return_value = expected_result
     mock_model.with_structured_output.return_value = mock_structured_model
-    mock_chat_groq.return_value = mock_model
+    mock_chat_llm.return_value = mock_model
 
     classification = _classification(
         should_extract=True,
@@ -59,12 +59,12 @@ def test_calls_model_with_structured_output_schema_when_should_extract_is_true(
 
 
 @patch("stock_news.processing.edgar.signals.ChatGoogleGenerativeAI")
-def test_combined_text_includes_all_sections_with_labels(mock_chat_groq):
+def test_combined_text_includes_all_sections_with_labels(mock_chat_llm):
     mock_model = MagicMock()
     mock_structured_model = MagicMock()
     mock_structured_model.invoke.return_value = ExtractedFilingSignal()
     mock_model.with_structured_output.return_value = mock_structured_model
-    mock_chat_groq.return_value = mock_model
+    mock_chat_llm.return_value = mock_model
 
     classification = _classification(
         should_extract=True,
@@ -84,34 +84,34 @@ def test_combined_text_includes_all_sections_with_labels(mock_chat_groq):
 
 
 @patch("stock_news.processing.edgar.signals.ChatGoogleGenerativeAI")
-def test_uses_default_model_name_unless_overridden(mock_chat_groq):
+def test_uses_default_model_name_unless_overridden(mock_chat_llm):
     mock_model = MagicMock()
     mock_structured_model = MagicMock()
     mock_structured_model.invoke.return_value = ExtractedFilingSignal()
     mock_model.with_structured_output.return_value = mock_structured_model
-    mock_chat_groq.return_value = mock_model
+    mock_chat_llm.return_value = mock_model
 
     classification = _classification(should_extract=True, sections={"mdna": "text"})
 
     extract_filing_signal(classification)
 
-    _, kwargs = mock_chat_groq.call_args
+    _, kwargs = mock_chat_llm.call_args
     assert kwargs["model"] == DEFAULT_MODEL
 
 
 @patch("stock_news.processing.edgar.signals.ChatGoogleGenerativeAI")
-def test_respects_explicit_model_override(mock_chat_groq):
+def test_respects_explicit_model_override(mock_chat_llm):
     mock_model = MagicMock()
     mock_structured_model = MagicMock()
     mock_structured_model.invoke.return_value = ExtractedFilingSignal()
     mock_model.with_structured_output.return_value = mock_structured_model
-    mock_chat_groq.return_value = mock_model
+    mock_chat_llm.return_value = mock_model
 
     classification = _classification(should_extract=True, sections={"mdna": "text"})
 
     extract_filing_signal(classification, model_name="llama-3.1-8b-instant")
 
-    _, kwargs = mock_chat_groq.call_args
+    _, kwargs = mock_chat_llm.call_args
     assert kwargs["model"] == "llama-3.1-8b-instant"
 
 
