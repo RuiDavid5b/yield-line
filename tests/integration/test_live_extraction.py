@@ -23,12 +23,14 @@ TEST_COMPANIES = {
     "Micron": "0000723125",
 }
 
-USER_AGENT = os.environ.get("EDGAR_USER_AGENT", "Personal Project test@example.com")
+pytestmark = pytest.mark.requires_env("EDGAR_USER_AGENT")
 
 
 @pytest.mark.parametrize("company_name,cik", TEST_COMPANIES.items())
 def test_fetch_edgar_filings_returns_results_for_real_companies(company_name, cik):
-    filings = fetch_edgar_filings(cik=cik, user_agent=USER_AGENT, limit=5)
+    filings = fetch_edgar_filings(
+        cik=cik, user_agent=os.environ["EDGAR_USER_AGENT"], limit=5
+    )
 
     assert filings, f"{company_name} (CIK {cik}) returned no filings"
     assert all(f["form"] in ("8-K", "10-Q") for f in filings)
@@ -37,7 +39,7 @@ def test_fetch_edgar_filings_returns_results_for_real_companies(company_name, ci
 @pytest.mark.parametrize("company_name,cik", TEST_COMPANIES.items())
 @pytest.mark.parametrize("metric_name", GAAP_TAG_CANDIDATES.keys())
 def test_every_metric_extracts_for_every_real_company(company_name, cik, metric_name):
-    facts = fetch_company_facts(cik=cik, user_agent=USER_AGENT)
+    facts = fetch_company_facts(cik=cik, user_agent=os.environ["EDGAR_USER_AGENT"])
 
     rows = extract_quarterly_metric(
         facts,
@@ -56,7 +58,7 @@ def test_every_metric_extracts_for_every_real_company(company_name, cik, metric_
 
 @pytest.mark.parametrize("company_name,cik", TEST_COMPANIES.items())
 def test_revenue_series_has_multiple_recent_quarters(company_name, cik):
-    facts = fetch_company_facts(cik=cik, user_agent=USER_AGENT)
+    facts = fetch_company_facts(cik=cik, user_agent=os.environ["EDGAR_USER_AGENT"])
 
     rows = extract_quarterly_metric(
         facts,

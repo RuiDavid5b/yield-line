@@ -1,0 +1,84 @@
+# Seed graph: curated companies and typed relationships.
+# This file is the source of truth for the company universe and the
+# knowledge graph the LangGraph agent uses for context.
+#
+# Edges are directional unless edge_type is inherently symmetric
+# (competes_with). Both source and target must reference companies
+# defined in this file - relationships to untracked companies belong
+# in the pending_edges DB table instead, pending promotion here.
+
+companies:
+  - cik: "0001045810"
+    ticker: NVDA
+    name: NVIDIA Corporation
+    category: fabless
+    aliases: ["Nvidia"]
+    notes: "GPU/AI accelerator design; fabless, relies on TSMC for leading-edge nodes."
+
+  - cik: "0000937966"
+    ticker: ASML
+    name: ASML Holding NV
+    category: equipment
+    aliases: []
+    notes: "Sole supplier of EUV lithography systems; foreign private issuer, files 20-F not 10-K."
+
+  - cik: "0001046179"
+    ticker: TSM
+    name: Taiwan Semiconductor Manufacturing Company
+    category: foundry
+    aliases: ["TSMC"]
+    notes: "Leading-edge foundry; files 20-F, not 10-K/10-Q - EDGAR ingestion may need a form-type adjustment for this one."
+
+  - cik: "0000813672"
+    ticker: CDNS
+    name: Cadence Design Systems
+    category: ip_eda
+    aliases: []
+    notes: "EDA tooling; also licenses IP (Tensilica cores)."
+
+  - cik: "0000883241"
+    ticker: SNPS
+    name: Synopsys
+    category: ip_eda
+    aliases: []
+    notes: "EDA tooling; also licenses IP (DesignWare)."
+
+  - cik: "0001973239"
+    ticker: ARM
+    name: Arm Holdings
+    category: ip_eda
+    aliases: ["Arm Ltd"]
+    notes: "IP licensing only, no EDA tooling - primary category still ip_eda per the merged taxonomy."
+
+  - cik: "0001047127"
+    ticker: AMKR
+    name: Amkor Technology
+    category: osat
+    aliases: []
+    notes: "Outsourced assembly and test."
+
+edges:
+  - source: NVDA
+    target: TSM
+    edge_type: customer_of
+    context: "TSM fabricates NVDA's leading-edge GPU dies"
+
+  - source: ASML
+    target: TSM
+    edge_type: supplies_to
+    context: "ASML supplies EUV lithography systems used in TSM's advanced nodes"
+
+  - source: CDNS
+    target: SNPS
+    edge_type: competes_with
+    context: "Both offer EDA tooling for chip design and verification"
+
+  - source: CDNS
+    target: ARM
+    edge_type: competes_with
+    context: "Both license semiconductor IP, though Cadence's core business is EDA tooling and Arm's is IP licensing"
+
+  - source: TSM
+    target: AMKR
+    edge_type: customer_of
+    context: "AMKR provides outsourced packaging and test for some of TSM's manufactured chips"

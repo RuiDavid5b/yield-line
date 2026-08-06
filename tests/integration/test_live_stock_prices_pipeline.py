@@ -5,18 +5,11 @@ Hits the yfinance API and postgres database.
 Skipped if DATABASE_URL isn't set.
 """
 
-import os
-
 import pytest
 from sqlalchemy import select
 
 from stock_news.pipelines.stock_prices import run_price_pipeline
 from stock_news.storage.models import Company, StockPrice
-
-pytestmark = pytest.mark.skipif(
-    not os.environ.get("DATABASE_URL"),
-    reason="DATABASE_URL not set - skipping pipeline integration tests",
-)
 
 TEST_CIK = "0000320193"
 TEST_TICKER = "AAPL"
@@ -25,7 +18,9 @@ TEST_TICKER = "AAPL"
 @pytest.fixture
 def session(db_session):
     db_session.add(
-        Company(cik=TEST_CIK, ticker=TEST_TICKER, name="Apple Inc.", subarea="test")
+        Company(
+            cik=TEST_CIK, ticker=TEST_TICKER, name="Apple Inc.", industry_segment="test"
+        )
     )
     db_session.flush()
     yield db_session

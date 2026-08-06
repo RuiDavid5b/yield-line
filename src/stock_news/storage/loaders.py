@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from stock_news.processing.edgar.signals import ExtractedFilingSignal
 from stock_news.storage.models import (
+    Company,
     FilingSignal,
     FinancialMetric,
     NewsArticle,
@@ -124,6 +125,26 @@ def get_stock_price_history(session: Session, cik: str) -> list[dict[str, Any]]:
     ).all()
 
     return [dict(row._mapping) for row in rows]
+
+
+def upsert_companies(session: Session, rows: list[dict[str, Any]]) -> None:
+    """
+    Insert or update company rows, typically from graph.loader parsing
+    the seed graph YAML.
+    """
+    if not rows:
+        return
+
+    stmt = pg_insert(Company).values(rows)
+    stmt = stmt.on_conflict_do_update(
+        index_elements=["cik"],
+        set_={
+            "ticker": stmt.excluded.ticker,
+            "name": stmt.excluded.name,
+            "industry_segment": stmt.excluded.industry_segment,
+        },
+    )
+    session.execute(stmt)
 
 
 def upsert_news_articles(session: Session, rows: list[dict[str, Any]]) -> None:
