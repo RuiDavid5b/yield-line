@@ -49,7 +49,7 @@ def test_extracts_meaningful_signal_from_realistic_10q_text():
     assert classification.should_extract
     assert "mdna" in classification.sections
 
-    signal = extract_filing_signal(classification)
+    signal = extract_filing_signal(classification, "Test Company")
 
     assert signal is not None
 
@@ -90,5 +90,5 @@ def test_low_signal_8k_never_calls_model():
     classification = classify_filing(low_signal_text, form="8-K")
     assert not classification.should_extract
 
-    signal = extract_filing_signal(classification)
+    signal = extract_filing_signal(classification, "Test Company")
     assert signal is None

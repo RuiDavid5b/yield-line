@@ -26,7 +26,7 @@ def test_returns_none_without_calling_model_when_should_extract_is_false():
     with patch(
         "stock_news.processing.edgar.signals.ChatGoogleGenerativeAI"
     ) as mock_chat_llm:
-        result = extract_filing_signal(classification)
+        result = extract_filing_signal(classification, "Test Company")
 
     assert result is None
     mock_chat_llm.assert_not_called()
@@ -51,7 +51,7 @@ def test_calls_model_with_structured_output_schema_when_should_extract_is_true(
         sections={"mdna": "Revenue grew due to strong customer demand."},
     )
 
-    result = extract_filing_signal(classification)
+    result = extract_filing_signal(classification, "Test Company")
 
     assert result is expected_result
     mock_model.with_structured_output.assert_called_once_with(ExtractedFilingSignal)
@@ -74,7 +74,7 @@ def test_combined_text_includes_all_sections_with_labels(mock_chat_llm):
         },
     )
 
-    extract_filing_signal(classification)
+    extract_filing_signal(classification, "Test Company")
 
     prompt_sent = mock_structured_model.invoke.call_args[0][0]
     assert "[mdna]" in prompt_sent
@@ -93,7 +93,7 @@ def test_uses_default_model_name_unless_overridden(mock_chat_llm):
 
     classification = _classification(should_extract=True, sections={"mdna": "text"})
 
-    extract_filing_signal(classification)
+    extract_filing_signal(classification, "Test Company")
 
     _, kwargs = mock_chat_llm.call_args
     assert kwargs["model"] == DEFAULT_MODEL
@@ -109,10 +109,10 @@ def test_respects_explicit_model_override(mock_chat_llm):
 
     classification = _classification(should_extract=True, sections={"mdna": "text"})
 
-    extract_filing_signal(classification, model_name="llama-3.1-8b-instant")
+    extract_filing_signal(classification, "Test Company")
 
     _, kwargs = mock_chat_llm.call_args
-    assert kwargs["model"] == "llama-3.1-8b-instant"
+    assert kwargs["model"] == "gemini-3.5-flash-lite"
 
 
 def test_extracted_filing_signal_defaults_are_empty_not_none():
