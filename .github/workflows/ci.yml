@@ -27,6 +27,7 @@ jobs:
 
     env:
       DATABASE_URL: postgresql+psycopg://test_user:test_password@localhost:5432/test_db
+      EDGAR_USER_AGENT: ${{ secrets.EDGAR_USER_AGENT }}
 
     steps:
       - uses: actions/checkout@v4
