@@ -30,6 +30,7 @@ class Company(Base):
     ticker: Mapped[str] = mapped_column(String(10), unique=True, index=True)
     name: Mapped[str] = mapped_column(String(255))
     industry_segment: Mapped[str] = mapped_column(String(50), index=True)
+    reporting_currency: Mapped[str] = mapped_column(String(3), default="USD")
     financial_metrics: Mapped[list["FinancialMetric"]] = relationship(
         back_populates="company"
     )
@@ -60,6 +61,8 @@ class FinancialMetric(Base):
     period_end: Mapped[dt.date] = mapped_column(Date, index=True)
     period_type: Mapped[str] = mapped_column(String(10))
     value: Mapped[float] = mapped_column(Numeric(20, 2))
+    unit: Mapped[str] = mapped_column(String(20))
+    taxonomy: Mapped[str] = mapped_column(String(20))
     form: Mapped[str] = mapped_column(String(10))
     accession_number: Mapped[str] = mapped_column(String(25))
     filed_date: Mapped[dt.date] = mapped_column(Date)

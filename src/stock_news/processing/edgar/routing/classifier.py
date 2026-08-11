@@ -14,6 +14,7 @@ from ._8k import (
     extract_item_codes,
     is_high_signal,
 )
+from ._20f import extract_20f_sections
 from ._periodic import extract_filing_sections
 
 
@@ -52,6 +53,17 @@ def classify_filing(
 
     if form in {"10-Q", "10-K"}:
         sections = extract_filing_sections(filing_text, form)
+
+        return FilingClassification(
+            form=form,
+            should_extract=bool(sections),
+            sections=sections,
+            item_codes=[],
+            item_descriptions=[],
+        )
+
+    if form == "20-F":
+        sections = extract_20f_sections(filing_text)
 
         return FilingClassification(
             form=form,

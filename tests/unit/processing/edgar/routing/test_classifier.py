@@ -29,7 +29,10 @@ though supply constraints on advanced packaging capacity remain a risk.
 
 Item 3. Quantitative and Qualitative Disclosures About Market Risk
 Our primary market risk exposure relates to foreign currency fluctuations
-and interest rate changes on our variable-rate debt.
+and interest rate changes on our variable-rate debt. During the period,
+movements in exchange rates had a modest impact on our reported operating
+results, while changes in benchmark interest rates increased the cost of
+certain financing arrangements.
 
 Item 4. Controls and Procedures
 Our disclosure controls and procedures were effective as of the end of
@@ -40,6 +43,9 @@ PART II - OTHER INFORMATION
 Item 1A. Risk Factors
 We have added a new risk factor regarding increased tariff exposure on
 components sourced from certain regions, which may increase our costs.
+Changes in trade policies, import restrictions, or additional duties could
+increase the cost of materials and components used in our manufacturing
+operations and may disrupt established supply arrangements.
 
 Item 2. Unregistered Sales of Equity Securities
 None.
@@ -48,11 +54,17 @@ None.
 TENK_TEXT = """
 Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations
 Fiscal year revenue increased 35%, led by continued strength in AI
-datacenter demand across our largest hyperscaler customers.
+datacenter demand across our largest hyperscaler customers. Growth was
+supported by higher demand for advanced computing products, increased
+adoption of our latest-generation technologies, and continued investment
+in cloud infrastructure.
 
 Item 7A. Quantitative and Qualitative Disclosures About Market Risk
 We are exposed to market risk from changes in interest rates and foreign
-currency exchange rates.
+currency exchange rates. Our international operations generate a
+significant portion of revenue and incur operating expenses in currencies
+other than the reporting currency, which can result in fluctuations in
+reported results when exchange rates change.
 
 Item 8. Financial Statements and Supplementary Data
 [financial statements here]
@@ -87,14 +99,24 @@ def test_extract_section_returns_none_when_pattern_not_found():
 
 
 def test_extract_section_returns_to_end_of_text_when_no_end_marker():
-    text = "Item 2. Management's Discussion and Analysis\nSome commentary here."
+    text = (
+        "Item 2. Management’s Discussion and Analysis \nFor the second "
+        "quarter of fiscal 2026, our results reflect continued, strong execution "
+        "and the resiliency of our business, including 42% revenue growth when "
+        "compared to the second quarter of fiscal 2025."
+    )
     section = extract_section(
         text,
         start_pattern=r"Item\s*2\.?\s*Management.s\s+Discussion\s+and\s+Analysis",
         end_pattern=r"Item\s*99\.?\s*Nonexistent",
     )
 
-    assert section == "Some commentary here."
+    assert section == (
+        "For the second quarter of fiscal 2026, our results reflect "
+        "continued, strong execution and the resiliency of our business, "
+        "including 42% revenue growth when compared to the second quarter of "
+        "fiscal 2025."
+    )
 
 
 def test_extract_filing_sections_10q_returns_mdna_market_risk_and_risk_updates():
@@ -141,7 +163,12 @@ def test_extract_filing_sections_unknown_form_returns_empty_dict():
 
 def test_extract_filing_sections_omits_section_not_found():
     classification = classify_filing(
-        "Item 7. Management's Discussion and Analysis\nSome commentary.",
+        "Item 7. Management's Discussion and Analysis \n"
+        "Fiscal year revenue increased 35%, led by continued strength in AI"
+        "datacenter demand across our largest hyperscaler customers. Growth was"
+        "supported by higher demand for advanced computing products, increased"
+        "adoption of our latest-generation technologies, and continued investment"
+        "in cloud infrastructure.",
         form="10-K",
     )
 

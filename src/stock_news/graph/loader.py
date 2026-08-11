@@ -31,6 +31,7 @@ class CompanyNode:
     category: str
     aliases: list[str]
     notes: str
+    reporting_currency: str = "USD"
 
 
 @dataclass(slots=True)
@@ -64,6 +65,7 @@ def parse_companies_graph(path: Path = DEFAULT_GRAPH_PATH) -> CompaniesGraph:
             category=c["category"],
             aliases=c.get("aliases", []),
             notes=c.get("notes", ""),
+            reporting_currency=c.get("reporting_currency", "USD"),
         )
         for c in raw.get("companies", [])
     ]
@@ -123,6 +125,7 @@ def build_networkx_graph(companies_graph: CompaniesGraph) -> nx.MultiDiGraph:
             category=company.category,
             aliases=company.aliases,
             notes=company.notes,
+            reporting_currency=company.reporting_currency,
         )
 
     for edge in companies_graph.edges:
@@ -159,6 +162,7 @@ def upsert_companies_from_graph(
                 "ticker": company.ticker,
                 "name": company.name,
                 "industry_segment": company.category,
+                "reporting_currency": company.reporting_currency,
             }
         )
 

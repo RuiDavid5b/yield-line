@@ -4,7 +4,7 @@ Deterministic section extraction for 10-Q/10-K filings.
 
 from __future__ import annotations
 
-import re
+from ._section_extraction import extract_section
 
 FORM_SECTION_PATTERNS: dict[str, dict[str, tuple[str, str]]] = {
     "10-Q": {
@@ -32,24 +32,6 @@ FORM_SECTION_PATTERNS: dict[str, dict[str, tuple[str, str]]] = {
         ),
     },
 }
-
-
-def extract_section(text: str, start_pattern: str, end_pattern: str) -> str | None:
-    """
-    Extract the text between the LAST occurrence of start_pattern and the
-    first occurrence of end_pattern that follows it.
-    """
-    start_matches = list(re.finditer(start_pattern, text, re.IGNORECASE))
-    if not start_matches:
-        return None
-
-    start_pos = start_matches[-1].end()
-
-    end_match = re.search(end_pattern, text[start_pos:], re.IGNORECASE)
-    if end_match:
-        return text[start_pos : start_pos + end_match.start()].strip()
-
-    return text[start_pos:].strip()
 
 
 def extract_filing_sections(text: str, form: str) -> dict[str, str]:

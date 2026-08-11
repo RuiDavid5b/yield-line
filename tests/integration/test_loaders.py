@@ -53,6 +53,8 @@ def _metric_row(**overrides):
         "period_end": dt.date(2026, 4, 30),
         "period_type": "quarterly",
         "value": 100.0,
+        "unit": "USD",
+        "taxonomy": "us-gaap",
         "form": "10-Q",
         "accession_number": "0001-01",
         "filed_date": dt.date(2026, 5, 15),
