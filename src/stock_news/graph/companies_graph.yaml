@@ -11,7 +11,7 @@ companies:
   - cik: "0001045810"
     ticker: NVDA
     name: NVIDIA Corporation
-    category: fabless
+    industry_segment: fabless
     aliases: ["Nvidia"]
     reporting_currency: USD
     notes: "GPU/AI accelerator design; fabless, relies on TSMC for leading-edge nodes."
@@ -19,7 +19,7 @@ companies:
   - cik: "0000937966"
     ticker: ASML
     name: ASML Holding NV
-    category: equipment
+    industry_segment: equipment
     aliases: []
     reporting_currency: EUR
     notes: "Sole supplier of EUV lithography systems; foreign private issuer, files 20-F not 10-K."
@@ -27,7 +27,7 @@ companies:
   - cik: "0001046179"
     ticker: TSM
     name: Taiwan Semiconductor Manufacturing Company
-    category: foundry
+    industry_segment: foundry
     aliases: ["TSMC"]
     reporting_currency: TWD
     notes: "Leading-edge foundry; files 20-F, not 10-K/10-Q - EDGAR ingestion may need a form-type adjustment for this one."
@@ -35,7 +35,7 @@ companies:
   - cik: "0000813672"
     ticker: CDNS
     name: Cadence Design Systems
-    category: ip_eda
+    industry_segment: ip_eda
     aliases: []
     reporting_currency: USD
     notes: "EDA tooling; also licenses IP (Tensilica cores)."
@@ -43,7 +43,7 @@ companies:
   - cik: "0000883241"
     ticker: SNPS
     name: Synopsys
-    category: ip_eda
+    industry_segment: ip_eda
     aliases: []
     reporting_currency: USD
     notes: "EDA tooling; also licenses IP (DesignWare)."
@@ -51,15 +51,15 @@ companies:
   - cik: "0001973239"
     ticker: ARM
     name: Arm Holdings
-    category: ip_eda
+    industry_segment: ip_eda
     aliases: ["Arm Ltd"]
     reporting_currency: USD
-    notes: "IP licensing only, no EDA tooling - primary category still ip_eda per the merged taxonomy."
+    notes: "IP licensing only, no EDA tooling - primary industry_segment still ip_eda per the merged taxonomy."
 
   - cik: "0001047127"
     ticker: AMKR
     name: Amkor Technology
-    category: osat
+    industry_segment: osat
     aliases: []
     reporting_currency: USD
     notes: "Outsourced assembly and test."

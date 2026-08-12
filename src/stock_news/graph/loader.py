@@ -28,7 +28,7 @@ class CompanyNode:
     cik: str
     ticker: str
     name: str
-    category: str
+    industry_segment: str
     aliases: list[str]
     notes: str
     reporting_currency: str = "USD"
@@ -62,7 +62,7 @@ def parse_companies_graph(path: Path = DEFAULT_GRAPH_PATH) -> CompaniesGraph:
             cik=c["cik"],
             ticker=c["ticker"],
             name=c["name"],
-            category=c["category"],
+            industry_segment=c["industry_segment"],
             aliases=c.get("aliases", []),
             notes=c.get("notes", ""),
             reporting_currency=c.get("reporting_currency", "USD"),
@@ -122,7 +122,7 @@ def build_networkx_graph(companies_graph: CompaniesGraph) -> nx.MultiDiGraph:
             company.ticker,
             cik=company.cik,
             name=company.name,
-            category=company.category,
+            industry_segment=company.industry_segment,
             aliases=company.aliases,
             notes=company.notes,
             reporting_currency=company.reporting_currency,
@@ -161,7 +161,7 @@ def upsert_companies_from_graph(
                 "cik": company.cik,
                 "ticker": company.ticker,
                 "name": company.name,
-                "industry_segment": company.category,
+                "industry_segment": company.industry_segment,
                 "reporting_currency": company.reporting_currency,
             }
         )
