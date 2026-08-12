@@ -13,6 +13,7 @@ from sqlalchemy import select
 
 from stock_news.processing.edgar.signals import ExtractedFilingSignal
 from stock_news.storage.loaders import (
+    get_all_companies,
     get_news_articles,
     get_stock_price_history,
     upsert_filing_signal,
@@ -349,3 +350,42 @@ def test_get_news_articles_returns_rows_as_dicts(session):
 def test_get_news_articles_empty_for_unknown_cik(session):
     articles = get_news_articles(session, TEST_CIK)
     assert articles == []
+
+
+def test_get_all_companies_returns_rows_as_dicts(session):
+    companies = get_all_companies(session)
+
+    assert len(companies) > 0
+    assert all(isinstance(c, dict) for c in companies)
+
+
+def test_get_all_companies_returns_expected_fields(session):
+    companies = get_all_companies(session)
+
+    row = next(c for c in companies if c["cik"] == TEST_CIK)
+    assert row["ticker"] == "TEST"
+    assert row["name"] == "Test Co"
+    assert row["industry_segment"] == "test"
+    assert row["reporting_currency"] == "USD"
+
+
+def test_get_all_companies_includes_seeded_company(session):
+    ciks = {c["cik"] for c in get_all_companies(session)}
+    assert TEST_CIK in ciks
+
+
+def test_get_all_companies_reflects_new_insert(session):
+    before = {c["cik"] for c in get_all_companies(session)}
+
+    other_cik = "8888888888"
+    session.add(
+        Company(cik=other_cik, ticker="OTHR", name="Other Co", industry_segment="test")
+    )
+    session.commit()
+
+    after = {c["cik"] for c in get_all_companies(session)}
+
+    assert after - before == {other_cik}
+
+    session.execute(Company.__table__.delete().where(Company.cik == other_cik))
+    session.commit()

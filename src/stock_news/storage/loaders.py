@@ -129,27 +129,6 @@ def get_stock_price_history(session: Session, cik: str) -> list[dict[str, Any]]:
     return [dict(row._mapping) for row in rows]
 
 
-def upsert_companies(session: Session, rows: list[dict[str, Any]]) -> None:
-    """
-    Insert or update company rows, typically from graph.loader parsing
-    the seed graph YAML.
-    """
-    if not rows:
-        return
-
-    stmt = pg_insert(Company).values(rows)
-    stmt = stmt.on_conflict_do_update(
-        index_elements=["cik"],
-        set_={
-            "ticker": stmt.excluded.ticker,
-            "name": stmt.excluded.name,
-            "industry_segment": stmt.excluded.industry_segment,
-            "reporting_currency": stmt.excluded.reporting_currency,
-        },
-    )
-    session.execute(stmt)
-
-
 def upsert_news_articles(session: Session, rows: list[dict[str, Any]]) -> None:
     """
     Insert rows produced by processing.news.transform_news_articles,
@@ -187,3 +166,43 @@ def get_news_articles(session: Session, cik: str) -> list[dict[str, Any]]:
     ).all()
 
     return [dict(row._mapping) for row in rows]
+
+
+def upsert_companies(session: Session, rows: list[dict[str, Any]]) -> None:
+    """
+    Insert or update company rows, typically from graph.loader parsing
+    the seed graph YAML.
+    """
+    if not rows:
+        return
+
+    stmt = pg_insert(Company).values(rows)
+    stmt = stmt.on_conflict_do_update(
+        index_elements=["cik"],
+        set_={
+            "ticker": stmt.excluded.ticker,
+            "name": stmt.excluded.name,
+            "industry_segment": stmt.excluded.industry_segment,
+            "reporting_currency": stmt.excluded.reporting_currency,
+        },
+    )
+    session.execute(stmt)
+
+
+def get_all_companies(session: Session) -> list[dict[str, str]]:
+    """
+    Return all tracked companies as plain dicts, for Airflow dynamic task
+    mapping (.expand()) over ingestion tasks. Plain dicts, not ORM
+    instances, since these cross into Airflow's XCom/serialization layer.
+    """
+    companies = session.scalars(select(Company)).all()
+    return [
+        {
+            "cik": c.cik,
+            "ticker": c.ticker,
+            "name": c.name,
+            "industry_segment": c.industry_segment,
+            "reporting_currency": c.reporting_currency,
+        }
+        for c in companies
+    ]
