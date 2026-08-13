@@ -13,7 +13,9 @@ from sqlalchemy.orm import Session
 
 from stock_news.processing.edgar.signals import ExtractedFilingSignal
 from stock_news.storage.models import (
+    BenchmarkReturn,
     Company,
+    DigestResult,
     FilingSignal,
     FinancialMetric,
     NewsArticle,
@@ -206,3 +208,101 @@ def get_all_companies(session: Session) -> list[dict[str, str]]:
         }
         for c in companies
     ]
+
+
+def upsert_digest_results(session: Session, rows: list[dict[str, Any]]) -> None:
+    """
+    Insert rows produced by processing.digest.compute_company_digest
+    (reshaped per-company), updating in place on conflict rather than
+    raising or duplicating. One row per company per date.
+    """
+    if not rows:
+        return
+
+    stmt = pg_insert(DigestResult).values(rows)
+    stmt = stmt.on_conflict_do_update(
+        index_elements=["cik", "date"],
+        set_={
+            "return_pct": stmt.excluded.return_pct,
+            "peer_avg_return_pct": stmt.excluded.peer_avg_return_pct,
+            "vs_peer_avg": stmt.excluded.vs_peer_avg,
+            "vs_soxx": stmt.excluded.vs_soxx,
+            "vs_smh": stmt.excluded.vs_smh,
+            "vs_spy": stmt.excluded.vs_spy,
+        },
+    )
+    session.execute(stmt)
+
+
+def upsert_benchmark_returns(session: Session, rows: list[dict[str, Any]]) -> None:
+    """
+    Insert rows produced by processing.digest.fetch_benchmark_returns
+    (reshaped per-ticker), updating in place on conflict rather than
+    raising or duplicating. One row per benchmark ticker per date.
+    """
+    if not rows:
+        return
+
+    stmt = pg_insert(BenchmarkReturn).values(rows)
+    stmt = stmt.on_conflict_do_update(
+        index_elements=["ticker", "date"],
+        set_={"return_pct": stmt.excluded.return_pct},
+    )
+    session.execute(stmt)
+
+
+def get_digest_results(session: Session, date: dt.date) -> list[dict[str, Any]]:
+    """
+    Fetch all companies' digest rows for one date, as plain dicts.
+    Mirrors the shape of Redis's digest:{date} blob's "companies" list,
+    for reconstructing that blob on a cache miss. Numeric columns are
+    cast to float, since every consumer (compute_company_digest,
+    fetch_benchmark_returns, the Redis JSON blob) works in plain floats.
+    """
+    rows = session.execute(
+        select(
+            DigestResult.cik,
+            DigestResult.return_pct,
+            DigestResult.peer_avg_return_pct,
+            DigestResult.vs_peer_avg,
+            DigestResult.vs_soxx,
+            DigestResult.vs_smh,
+            DigestResult.vs_spy,
+        ).where(DigestResult.date == date)
+    ).all()
+
+    numeric_fields = (
+        "return_pct",
+        "peer_avg_return_pct",
+        "vs_peer_avg",
+        "vs_soxx",
+        "vs_smh",
+        "vs_spy",
+    )
+    results = []
+    for row in rows:
+        row_dict = dict(row._mapping)
+        for field in numeric_fields:
+            if row_dict[field] is not None:
+                row_dict[field] = float(row_dict[field])
+        results.append(row_dict)
+    return results
+
+
+def get_benchmark_returns(session: Session, date: dt.date) -> dict[str, float | None]:
+    """
+    Fetch benchmark returns for one date as a ticker -> return_pct dict.
+    Mirrors fetch_benchmark_returns()'s return shape, for reconstructing
+    Redis's digest:{date} blob's "benchmarks" section on a cache miss.
+    Cast to float for the same reason as get_digest_results.
+    """
+    rows = session.execute(
+        select(BenchmarkReturn.ticker, BenchmarkReturn.return_pct).where(
+            BenchmarkReturn.date == date
+        )
+    ).all()
+
+    return {
+        ticker: (float(return_pct) if return_pct is not None else None)
+        for ticker, return_pct in rows
+    }
