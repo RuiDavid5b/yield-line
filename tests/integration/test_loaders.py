@@ -14,15 +14,21 @@ from sqlalchemy import select
 from stock_news.processing.edgar.signals import ExtractedFilingSignal
 from stock_news.storage.loaders import (
     get_all_companies,
+    get_benchmark_returns,
+    get_digest_results,
     get_news_articles,
     get_stock_price_history,
+    upsert_benchmark_returns,
+    upsert_digest_results,
     upsert_filing_signal,
     upsert_financial_metrics,
     upsert_news_articles,
     upsert_stock_prices,
 )
 from stock_news.storage.models import (
+    BenchmarkReturn,
     Company,
+    DigestResult,
     FilingSignal,
     FinancialMetric,
     NewsArticle,
@@ -389,3 +395,258 @@ def test_get_all_companies_reflects_new_insert(session):
 
     session.execute(Company.__table__.delete().where(Company.cik == other_cik))
     session.commit()
+
+
+# --- DigestResult ---
+def _digest_row(**overrides):
+    row = {
+        "cik": TEST_CIK,
+        "date": dt.date(2026, 5, 1),
+        "return_pct": 0.02,
+        "peer_avg_return_pct": 0.015,
+        "vs_peer_avg": 0.005,
+        "vs_soxx": 0.01,
+        "vs_smh": 0.008,
+        "vs_spy": None,
+    }
+    row.update(overrides)
+    return row
+
+
+def test_upsert_digest_results_inserts_new_rows(session):
+    upsert_digest_results(session, [_digest_row()])
+
+    rows = session.scalars(
+        select(DigestResult).where(DigestResult.cik == TEST_CIK)
+    ).all()
+
+    assert len(rows) == 1
+    assert float(rows[0].return_pct) == pytest.approx(0.02)
+
+
+def test_upsert_digest_results_updates_on_conflict_not_duplicate(session):
+    upsert_digest_results(session, [_digest_row(return_pct=0.02)])
+    upsert_digest_results(session, [_digest_row(return_pct=0.05)])
+
+    rows = session.scalars(
+        select(DigestResult).where(DigestResult.cik == TEST_CIK)
+    ).all()
+
+    assert len(rows) == 1
+    assert float(rows[0].return_pct) == pytest.approx(0.05)
+
+
+def test_upsert_digest_results_multiple_dates_all_inserted(session):
+    rows = [
+        _digest_row(date=dt.date(2026, 5, 1)),
+        _digest_row(date=dt.date(2026, 5, 2)),
+        _digest_row(date=dt.date(2026, 5, 3)),
+    ]
+    upsert_digest_results(session, rows)
+
+    stored = session.scalars(
+        select(DigestResult).where(DigestResult.cik == TEST_CIK)
+    ).all()
+
+    assert len(stored) == 3
+
+
+def test_upsert_digest_results_empty_list_is_noop(session):
+    upsert_digest_results(session, [])  # should not raise
+
+    rows = session.scalars(
+        select(DigestResult).where(DigestResult.cik == TEST_CIK)
+    ).all()
+    assert rows == []
+
+
+def test_upsert_digest_results_stores_none_fields(session):
+    upsert_digest_results(
+        session,
+        [
+            _digest_row(
+                return_pct=None,
+                peer_avg_return_pct=None,
+                vs_peer_avg=None,
+                vs_soxx=None,
+                vs_smh=None,
+                vs_spy=None,
+            )
+        ],
+    )
+
+    row = session.scalars(
+        select(DigestResult).where(DigestResult.cik == TEST_CIK)
+    ).one()
+
+    assert row.return_pct is None
+    assert row.peer_avg_return_pct is None
+    assert row.vs_peer_avg is None
+
+
+def test_get_digest_results_returns_rows_as_dicts(session):
+    upsert_digest_results(session, [_digest_row(date=dt.date(2026, 5, 1))])
+
+    results = get_digest_results(session, dt.date(2026, 5, 1))
+
+    assert len(results) == 1
+    assert isinstance(results[0], dict)
+    assert results[0]["cik"] == TEST_CIK
+    assert isinstance(results[0]["return_pct"], float)
+
+
+def test_get_digest_results_only_returns_matching_date(session):
+    upsert_digest_results(
+        session,
+        [
+            _digest_row(date=dt.date(2026, 5, 1), return_pct=0.01),
+            _digest_row(date=dt.date(2026, 5, 2), return_pct=0.02),
+        ],
+    )
+
+    results = get_digest_results(session, dt.date(2026, 5, 1))
+
+    assert len(results) == 1
+    assert results[0]["return_pct"] == pytest.approx(0.01)
+
+
+def test_get_digest_results_empty_for_unknown_date(session):
+    results = get_digest_results(session, dt.date(2099, 1, 1))
+    assert results == []
+
+
+# --- BenchmarkReturn ---
+def _benchmark_row(**overrides):
+    row = {
+        "ticker": "SOXX",
+        "date": dt.date(2026, 5, 1),
+        "return_pct": 0.01,
+    }
+    row.update(overrides)
+    return row
+
+
+def test_upsert_benchmark_returns_inserts_new_rows(session):
+    upsert_benchmark_returns(session, [_benchmark_row()])
+
+    rows = session.scalars(
+        select(BenchmarkReturn).where(BenchmarkReturn.ticker == "SOXX")
+    ).all()
+
+    assert len(rows) == 1
+    assert float(rows[0].return_pct) == pytest.approx(0.01)
+
+    session.execute(
+        BenchmarkReturn.__table__.delete().where(BenchmarkReturn.ticker == "SOXX")
+    )
+    session.commit()
+
+
+def test_upsert_benchmark_returns_updates_on_conflict_not_duplicate(session):
+    upsert_benchmark_returns(session, [_benchmark_row(return_pct=0.01)])
+    upsert_benchmark_returns(session, [_benchmark_row(return_pct=0.03)])
+
+    rows = session.scalars(
+        select(BenchmarkReturn).where(BenchmarkReturn.ticker == "SOXX")
+    ).all()
+
+    assert len(rows) == 1
+    assert float(rows[0].return_pct) == pytest.approx(0.03)
+
+    session.execute(
+        BenchmarkReturn.__table__.delete().where(BenchmarkReturn.ticker == "SOXX")
+    )
+    session.commit()
+
+
+def test_upsert_benchmark_returns_multiple_tickers_all_inserted(session):
+    rows = [
+        _benchmark_row(ticker="SOXX", return_pct=0.01),
+        _benchmark_row(ticker="SMH", return_pct=0.012),
+        _benchmark_row(ticker="SPY", return_pct=0.005),
+    ]
+    upsert_benchmark_returns(session, rows)
+
+    stored = session.scalars(
+        select(BenchmarkReturn).where(BenchmarkReturn.date == dt.date(2026, 5, 1))
+    ).all()
+
+    assert len(stored) == 3
+
+    session.execute(
+        BenchmarkReturn.__table__.delete().where(
+            BenchmarkReturn.date == dt.date(2026, 5, 1)
+        )
+    )
+    session.commit()
+
+
+def test_upsert_benchmark_returns_empty_list_is_noop(session):
+    upsert_benchmark_returns(session, [])  # should not raise
+
+    rows = session.scalars(
+        select(BenchmarkReturn).where(BenchmarkReturn.ticker == "SOXX")
+    ).all()
+    assert rows == []
+
+
+def test_upsert_benchmark_returns_stores_none(session):
+    upsert_benchmark_returns(session, [_benchmark_row(return_pct=None)])
+
+    row = session.scalars(
+        select(BenchmarkReturn).where(BenchmarkReturn.ticker == "SOXX")
+    ).one()
+
+    assert row.return_pct is None
+
+    session.execute(
+        BenchmarkReturn.__table__.delete().where(BenchmarkReturn.ticker == "SOXX")
+    )
+    session.commit()
+
+
+def test_get_benchmark_returns_returns_ticker_dict(session):
+    upsert_benchmark_returns(
+        session,
+        [
+            _benchmark_row(ticker="SOXX", return_pct=0.01),
+            _benchmark_row(ticker="SMH", return_pct=0.012),
+        ],
+    )
+
+    results = get_benchmark_returns(session, dt.date(2026, 5, 1))
+
+    assert results["SOXX"] == pytest.approx(0.01)
+    assert results["SMH"] == pytest.approx(0.012)
+    assert isinstance(results["SOXX"], float)
+
+    session.execute(
+        BenchmarkReturn.__table__.delete().where(
+            BenchmarkReturn.date == dt.date(2026, 5, 1)
+        )
+    )
+    session.commit()
+
+
+def test_get_benchmark_returns_only_returns_matching_date(session):
+    upsert_benchmark_returns(
+        session,
+        [
+            _benchmark_row(ticker="SOXX", date=dt.date(2026, 5, 1)),
+            _benchmark_row(ticker="SOXX", date=dt.date(2026, 5, 2)),
+        ],
+    )
+
+    results = get_benchmark_returns(session, dt.date(2026, 5, 2))
+
+    assert set(results) == {"SOXX"}
+
+    session.execute(
+        BenchmarkReturn.__table__.delete().where(BenchmarkReturn.ticker == "SOXX")
+    )
+    session.commit()
+
+
+def test_get_benchmark_returns_empty_for_unknown_date(session):
+    results = get_benchmark_returns(session, dt.date(2099, 1, 1))
+    assert results == {}

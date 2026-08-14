@@ -155,3 +155,34 @@ class NewsArticle(Base):
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, server_default=func.now())
 
     company: Mapped["Company"] = relationship(back_populates="news_articles")
+
+
+class DigestResult(Base):
+    __tablename__ = "digest_results"
+    __table_args__ = (UniqueConstraint("cik", "date", name="uq_digest_result_date"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    cik: Mapped[str] = mapped_column(ForeignKey("companies.cik"), index=True)
+    date: Mapped[dt.date] = mapped_column(Date, index=True)
+    return_pct: Mapped[float | None] = mapped_column(Numeric(10, 6), nullable=True)
+    peer_avg_return_pct: Mapped[float | None] = mapped_column(
+        Numeric(10, 6), nullable=True
+    )
+    vs_peer_avg: Mapped[float | None] = mapped_column(Numeric(10, 6), nullable=True)
+    vs_soxx: Mapped[float | None] = mapped_column(Numeric(10, 6), nullable=True)
+    vs_smh: Mapped[float | None] = mapped_column(Numeric(10, 6), nullable=True)
+    vs_spy: Mapped[float | None] = mapped_column(Numeric(10, 6), nullable=True)
+
+    company: Mapped["Company"] = relationship()
+
+
+class BenchmarkReturn(Base):
+    __tablename__ = "benchmark_returns"
+    __table_args__ = (
+        UniqueConstraint("ticker", "date", name="uq_benchmark_return_date"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    ticker: Mapped[str] = mapped_column(String(10), index=True)  # SOXX/SMH/SPY
+    date: Mapped[dt.date] = mapped_column(Date, index=True)
+    return_pct: Mapped[float | None] = mapped_column(Numeric(10, 6), nullable=True)
