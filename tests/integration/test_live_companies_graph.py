@@ -11,19 +11,19 @@ companies:
   - cik: "9999999901"
     ticker: TESTA
     name: Test Company A
-    category: fabless
+    industry_segment: fabless
     aliases: ["Test Co A"]
     notes: "Synthetic company for graph loader tests."
   - cik: "9999999902"
     ticker: TESTB
     name: Test Company B
-    category: equipment
+    industry_segment: equipment
     aliases: []
     notes: "Synthetic company for graph loader tests."
   - cik: "TODO_VERIFY"
     ticker: TESTC
     name: Test Company C
-    category: fabless
+    industry_segment: fabless
     aliases: []
     notes: ""
 

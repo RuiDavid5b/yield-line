@@ -128,7 +128,15 @@ def get_stock_price_history(session: Session, cik: str) -> list[dict[str, Any]]:
         ).where(StockPrice.cik == cik)
     ).all()
 
-    return [dict(row._mapping) for row in rows]
+    numeric_fields = ("open", "high", "low", "close")
+    results = []
+    for row in rows:
+        row_dict = dict(row._mapping)
+        for field in numeric_fields:
+            if row_dict[field] is not None:
+                row_dict[field] = float(row_dict[field])
+        results.append(row_dict)
+    return results
 
 
 def upsert_news_articles(session: Session, rows: list[dict[str, Any]]) -> None:

@@ -16,19 +16,19 @@ companies:
   - cik: "0001045810"
     ticker: NVDA
     name: NVIDIA Corporation
-    category: fabless
+    industry_segment: fabless
     aliases: ["Nvidia"]
     notes: "GPU/AI accelerator design."
   - cik: "0001046179"
     ticker: TSM
     name: Taiwan Semiconductor Manufacturing Company
-    category: equipment
+    industry_segment: equipment
     aliases: [TSMC]
     notes: "Leading-edge foundry."
   - cik: "TODO_VERIFY"
     ticker: AMD
     name: Advanced Micro Devices INC
-    category: fabless
+    industry_segment: fabless
     aliases: []
     notes: ""
 
@@ -63,7 +63,7 @@ class TestParseSeedGraph:
 
         assert nvda.cik == "0001045810"
         assert nvda.name == "NVIDIA Corporation"
-        assert nvda.category == "fabless"
+        assert nvda.industry_segment == "fabless"
         assert nvda.aliases == ["Nvidia"]
 
     def test_missing_optional_fields_default_empty(self, tmp_path):
@@ -99,7 +99,7 @@ class TestParseSeedGraph:
             '  - cik: "0000883241"\n'
             "    ticker: SNPS\n"
             "    name: Synopsys\n"
-            "    category: ip_eda\n"
+            "    industry_segment: ip_eda\n"
             "    aliases: []\n"
             '    notes: "EDA tooling; also licenses IP (DesignWare)."\n'
         )
@@ -137,7 +137,7 @@ class TestBuildNetworkxGraph:
         graph = self._graph(tmp_path)
 
         assert set(graph.nodes) == {"NVDA", "TSM", "AMD"}
-        assert graph.nodes["NVDA"]["category"] == "fabless"
+        assert graph.nodes["NVDA"]["industry_segment"] == "fabless"
         assert graph.nodes["NVDA"]["cik"] == "0001045810"
 
     def test_edges_present_with_attributes(self, tmp_path):
