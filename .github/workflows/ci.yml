@@ -45,6 +45,18 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
+      redis:
+        image: redis:8.10.0-alpine
+        ports:
+          - "6379:6379"
+        volumes:
+          - redis_data:/data
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     env:
       DATABASE_URL: postgresql+psycopg://test_user:test_password@localhost:5432/test_db
       EDGAR_USER_AGENT: ${{ secrets.EDGAR_USER_AGENT }}
