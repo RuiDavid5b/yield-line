@@ -1,6 +1,7 @@
 services:
   postgres:
     image: postgres:18.4-alpine3.24
+    networks: [stock_news_net]
     container_name: stock-news
     restart: unless-stopped
     environment:
@@ -14,6 +15,7 @@ services:
 
   redis:
     image: redis:8.10.0-alpine
+    networks: [stock_news_net]
     container_name: redis
     restart: unless-stopped
     ports:
@@ -24,3 +26,7 @@ services:
 volumes:
   postgres_data:
   redis_data:
+
+networks:
+  stock_news_net:
+    name: stock_news_net

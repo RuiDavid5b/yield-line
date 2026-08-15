@@ -218,3 +218,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Airflow
+airflow/logs/
+airflow/plugins/
