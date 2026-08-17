@@ -5,13 +5,17 @@ upsert.
 
 from __future__ import annotations
 
+import argparse
 import logging
+import sys
 from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 
+from stock_news.config import get_settings
 from stock_news.ingestion.fetchers import fetch_news
 from stock_news.processing.news import transform_news_articles
+from stock_news.storage.db import get_session_factory
 from stock_news.storage.loaders import upsert_news_articles
 
 logger = logging.getLogger(__name__)
@@ -69,3 +73,34 @@ def run_news_pipeline(
         return result
 
     return result
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Run the news pipeline for one company."
+    )
+    parser.add_argument("--cik", required=True)
+    parser.add_argument(
+        "--terms",
+        required=True,
+        nargs="+",
+        help="e.g. --terms 'NVIDIA Corporation' NVDA",
+    )
+    parser.add_argument("--limit", type=int, default=20)
+    args = parser.parse_args()
+
+    logging.basicConfig(level=logging.INFO)
+    settings = get_settings()
+    session_factory = get_session_factory()
+    with session_factory() as session:
+        result = run_news_pipeline(
+            cik=args.cik,
+            terms=args.terms,
+            api_key=settings.currents_api_key,
+            session=session,
+            limit=args.limit,
+        )
+
+    logger.info("News pipeline result: %s", result)
+    if result.error:
+        sys.exit(1)
