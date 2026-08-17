@@ -8,6 +8,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import BaseModel, Field
 
 from stock_news.processing.edgar.routing.classifier import FilingClassification
+from stock_news.storage.rate_limiter import acquire_gemini_call
 
 DEFAULT_MODEL = "gemini-3.5-flash-lite"
 
@@ -140,6 +141,8 @@ def extract_filing_signal(
     is False - low-signal filings (e.g. routine 8-K items, or a 10-Q/10-K
     where no target section was found).
     """
+    acquire_gemini_call()
+
     if not classification.should_extract:
         return None
 
