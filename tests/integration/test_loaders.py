@@ -6,7 +6,6 @@ Skipped if DATABASE_URL isn't set.
 """
 
 import datetime as dt
-import os
 
 import pytest
 from sqlalchemy import select
@@ -33,11 +32,6 @@ from stock_news.storage.models import (
     FinancialMetric,
     NewsArticle,
     StockPrice,
-)
-
-pytestmark = pytest.mark.skipif(
-    not os.environ.get("DATABASE_URL"),
-    reason="DATABASE_URL not set - skipping writer integration tests",
 )
 
 TEST_CIK = "9999999999"
@@ -253,7 +247,8 @@ def test_get_stock_price_history_only_returns_matching_cik(session):
     session.add(
         Company(cik=other_cik, ticker="OTHR", name="Other Co", industry_segment="test")
     )
-    session.commit()
+    session.flush()
+
     upsert_stock_prices(session, [_price_row(cik=other_cik)])
     upsert_stock_prices(session, [_price_row(cik=TEST_CIK)])
 
@@ -261,10 +256,6 @@ def test_get_stock_price_history_only_returns_matching_cik(session):
 
     assert len(history) == 1
     assert history[0]["cik"] == TEST_CIK
-
-    session.execute(StockPrice.__table__.delete().where(StockPrice.cik == other_cik))
-    session.execute(Company.__table__.delete().where(Company.cik == other_cik))
-    session.commit()
 
 
 def test_get_stock_price_history_empty_for_unknown_cik(session):
@@ -387,14 +378,11 @@ def test_get_all_companies_reflects_new_insert(session):
     session.add(
         Company(cik=other_cik, ticker="OTHR", name="Other Co", industry_segment="test")
     )
-    session.commit()
+    session.flush()
 
     after = {c["cik"] for c in get_all_companies(session)}
 
     assert after - before == {other_cik}
-
-    session.execute(Company.__table__.delete().where(Company.cik == other_cik))
-    session.commit()
 
 
 # --- DigestResult ---
@@ -536,11 +524,6 @@ def test_upsert_benchmark_returns_inserts_new_rows(session):
     assert len(rows) == 1
     assert float(rows[0].return_pct) == pytest.approx(0.01)
 
-    session.execute(
-        BenchmarkReturn.__table__.delete().where(BenchmarkReturn.ticker == "SOXX")
-    )
-    session.commit()
-
 
 def test_upsert_benchmark_returns_updates_on_conflict_not_duplicate(session):
     upsert_benchmark_returns(session, [_benchmark_row(return_pct=0.01)])
@@ -552,11 +535,6 @@ def test_upsert_benchmark_returns_updates_on_conflict_not_duplicate(session):
 
     assert len(rows) == 1
     assert float(rows[0].return_pct) == pytest.approx(0.03)
-
-    session.execute(
-        BenchmarkReturn.__table__.delete().where(BenchmarkReturn.ticker == "SOXX")
-    )
-    session.commit()
 
 
 def test_upsert_benchmark_returns_multiple_tickers_all_inserted(session):
@@ -572,13 +550,6 @@ def test_upsert_benchmark_returns_multiple_tickers_all_inserted(session):
     ).all()
 
     assert len(stored) == 3
-
-    session.execute(
-        BenchmarkReturn.__table__.delete().where(
-            BenchmarkReturn.date == dt.date(2026, 5, 1)
-        )
-    )
-    session.commit()
 
 
 def test_upsert_benchmark_returns_empty_list_is_noop(session):
@@ -599,11 +570,6 @@ def test_upsert_benchmark_returns_stores_none(session):
 
     assert row.return_pct is None
 
-    session.execute(
-        BenchmarkReturn.__table__.delete().where(BenchmarkReturn.ticker == "SOXX")
-    )
-    session.commit()
-
 
 def test_get_benchmark_returns_returns_ticker_dict(session):
     upsert_benchmark_returns(
@@ -620,13 +586,6 @@ def test_get_benchmark_returns_returns_ticker_dict(session):
     assert results["SMH"] == pytest.approx(0.012)
     assert isinstance(results["SOXX"], float)
 
-    session.execute(
-        BenchmarkReturn.__table__.delete().where(
-            BenchmarkReturn.date == dt.date(2026, 5, 1)
-        )
-    )
-    session.commit()
-
 
 def test_get_benchmark_returns_only_returns_matching_date(session):
     upsert_benchmark_returns(
@@ -640,11 +599,6 @@ def test_get_benchmark_returns_only_returns_matching_date(session):
     results = get_benchmark_returns(session, dt.date(2026, 5, 2))
 
     assert set(results) == {"SOXX"}
-
-    session.execute(
-        BenchmarkReturn.__table__.delete().where(BenchmarkReturn.ticker == "SOXX")
-    )
-    session.commit()
 
 
 def test_get_benchmark_returns_empty_for_unknown_date(session):

@@ -195,7 +195,7 @@ def test_fetch_news(mock_get):
 
     # Verify the fetcher built the expected query
     _, kwargs = mock_get.call_args
-    assert kwargs["params"]["query"] == '"Synopsys" OR "SNPS"'
+    assert kwargs["params"]["query"] == '("Synopsys" OR "SNPS")'
 
 
 @patch("stock_news.ingestion.fetchers.requests.get")
@@ -212,4 +212,4 @@ def test_fetch_news_empty(mock_get):
     assert articles == []
 
     _, kwargs = mock_get.call_args
-    assert kwargs["params"]["query"] == '"Synopsys" OR "SNPS"'
+    assert kwargs["params"]["query"] == '("Synopsys" OR "SNPS")'
