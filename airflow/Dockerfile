@@ -1,5 +1,5 @@
 ARG AIRFLOW_IMAGE_NAME=apache/airflow:slim-3.3.1-python3.14
-FROM ${AIRFLOW_IMAGE_NAME}
+FROM ${AIRFLOW_IMAGE_NAME} AS base
 ARG AIRFLOW_VERSION=3.3.1
 ARG PYTHON_VERSION=3.14
 
@@ -13,3 +13,9 @@ RUN pip install --no-cache-dir \
     "apache-airflow-providers-docker==4.5.9" \
     --constraint /opt/airflow/constraints.txt
     #--constraint "https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
+
+FROM base AS runtime
+
+
+FROM base AS test
+RUN pip install --no-cache-dir pytest

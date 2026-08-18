@@ -2,6 +2,7 @@
 x-airflow-common:
   &airflow-common
   build: .
+  target: runtime
   group_add:
     - "963"
   environment:
@@ -85,6 +86,7 @@ services:
       - ./dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
       - ./plugins:/opt/airflow/plugins
+      - ./tests:/opt/airflow/tests
       - /var/run/docker.sock:/var/run/docker.sock
 
   airflow-dag-processor:
