@@ -27,6 +27,7 @@ class NewsPipelineResult:
     articles_fetched: int = 0
     articles_upserted: int = 0
     articles_skipped_no_url: int = 0
+    articles_skipped_duplicate: int = 0
     error: str | None = None
 
 
@@ -37,6 +38,7 @@ def run_news_pipeline(
     session: Session,
     language: str = "en",
     limit: int = 20,
+    require_any: list[str] | None = None,
 ) -> NewsPipelineResult:
     """
     Fetch recent news for one company (matched by search terms, typically
@@ -51,16 +53,24 @@ def run_news_pipeline(
     result = NewsPipelineResult(cik=cik)
 
     try:
-        articles = fetch_news(terms, api_key=api_key, language=language, limit=limit)
+        articles = fetch_news(
+            terms,
+            api_key=api_key,
+            language=language,
+            limit=limit,
+            require_any=require_any,
+        )
     except Exception as exc:
         logger.exception("Failed fetching news for CIK %s (%s)", cik, terms)
         result.error = f"fetch: {exc}"
         return result
 
     result.articles_fetched = len(articles)
-
     rows = transform_news_articles(articles, cik)
-    result.articles_skipped_no_url = len(articles) - len(rows)
+    result.articles_skipped_no_url = sum(1 for a in articles if not a.get("url"))
+    result.articles_skipped_duplicate = (
+        len(articles) - result.articles_skipped_no_url - len(rows)
+    )
 
     try:
         upsert_news_articles(session, rows)

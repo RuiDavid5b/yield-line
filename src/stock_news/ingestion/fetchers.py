@@ -116,12 +116,20 @@ def fetch_news(
     api_key: str,
     language: str = "en",
     limit: int = 20,
+    require_any: list[str] | None = None,
 ) -> list[dict[str, Any]]:
     """
-    Fetch recent news articles mentioning a query (e.g. a company name)
-    via the Currents API.
+    Fetch recent news articles mentioning any of `terms`. If `require_any`
+    is given, results must also match at least one of those terms -
+    for disambiguating a company term that collides with common words
+    (e.g. "Arm").
     """
-    query = " OR ".join(f'"{term}"' for term in terms)
+    base = " OR ".join(f'"{term}"' for term in terms)
+    query = f"({base})"
+    if require_any:
+        context = " OR ".join(f'"{term}"' for term in require_any)
+        query = f"{query} AND ({context})"
+
     params = {
         "query": query,
         "language": language,

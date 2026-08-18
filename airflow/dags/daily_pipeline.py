@@ -1,10 +1,10 @@
-# airflow/dags/daily_pipeline.py
 from __future__ import annotations
 
 import datetime as dt
 import json
 import os
 
+from airflow.operators.python import get_current_context
 from airflow.providers.docker.operators.docker import DockerOperator
 from airflow.sdk import dag, task
 
@@ -88,7 +88,9 @@ def daily_pipeline():
 
     @task.short_circuit
     def is_weekly_run() -> bool:
-        return dt.date.today().weekday() == FILINGS_NEWS_WEEKDAY
+        context = get_current_context()
+        logical_date = context["logical_date"]
+        return logical_date.weekday() == FILINGS_NEWS_WEEKDAY
 
     @task
     def filings_commands(companies: list[dict]) -> list[str]:
@@ -96,10 +98,22 @@ def daily_pipeline():
 
     @task
     def news_commands(companies: list[dict]) -> list[str]:
-        return [
-            f"stock_news.pipelines.news --cik {c['cik']} --terms {c['name']!r} {c['ticker']}"
-            for c in companies
-        ]
+        commands = []
+        for c in companies:
+            terms = [c["name"], *c.get("aliases", [])]
+            if len(c["ticker"]) > 2 or c["ticker"].isupper():
+                terms.append(c["ticker"])
+            term_args = " ".join(f"{t!r}" for t in terms)
+
+            command = f"stock_news.pipelines.news --cik {c['cik']} --terms {term_args}"
+
+            disambiguation = c.get("news_disambiguation")
+            if disambiguation:
+                require_args = " ".join(f"{t!r}" for t in disambiguation)
+                command += f" --require-any {require_args}"
+
+            commands.append(command)
+        return commands
 
     weekly_gate = is_weekly_run()
 

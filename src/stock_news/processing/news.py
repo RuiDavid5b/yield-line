@@ -27,13 +27,18 @@ def transform_news_articles(
     """
     Convert raw ingestion.fetchers.fetch_news() output into rows matching
     the NewsArticle schema, associated with a single company (cik).
+
+    Duplicate URLs within the same batch are skipped after the first
+    occurrence - handles the case where a multi-term OR query can return
+    the same article more than once (it matches on more than one term).
     """
+    seen_urls: set[str] = set()
     rows: list[dict[str, Any]] = []
     for article in articles:
         url = article.get("url")
-        if not url:
+        if not url or url in seen_urls:
             continue
-
+        seen_urls.add(url)
         rows.append(
             {
                 "cik": cik,
@@ -44,5 +49,4 @@ def transform_news_articles(
                 "published_at": _parse_published_at(article.get("published")),
             }
         )
-
     return rows
