@@ -31,6 +31,10 @@ class Company(Base):
     name: Mapped[str] = mapped_column(String(255))
     industry_segment: Mapped[str] = mapped_column(String(50), index=True)
     reporting_currency: Mapped[str] = mapped_column(String(3), default="USD")
+    aliases: Mapped[list[str]] = mapped_column(ARRAY(String(255)), default=list)
+    news_disambiguation: Mapped[list[str]] = mapped_column(
+        ARRAY(String(255)), default=list
+    )
     financial_metrics: Mapped[list["FinancialMetric"]] = relationship(
         back_populates="company"
     )
