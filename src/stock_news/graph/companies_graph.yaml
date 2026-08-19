@@ -55,6 +55,7 @@ companies:
     aliases: ["Arm Ltd"]
     reporting_currency: USD
     notes: "IP licensing only, no EDA tooling - primary industry_segment still ip_eda per the merged taxonomy."
+    news_disambiguation: ["chip", "semiconductor", "SoftBank", "processor"]
 
   - cik: "0001047127"
     ticker: AMKR

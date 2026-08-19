@@ -6,7 +6,7 @@ and an in-memory networkx graph for agent traversal.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -32,6 +32,7 @@ class CompanyNode:
     aliases: list[str]
     notes: str
     reporting_currency: str = "USD"
+    news_disambiguation: list[str] = field(default_factory=list)
 
 
 @dataclass(slots=True)
@@ -66,6 +67,7 @@ def parse_companies_graph(path: Path = DEFAULT_GRAPH_PATH) -> CompaniesGraph:
             aliases=c.get("aliases", []),
             notes=c.get("notes", ""),
             reporting_currency=c.get("reporting_currency", "USD"),
+            news_disambiguation=c.get("news_disambiguation", []),
         )
         for c in raw.get("companies", [])
     ]
@@ -126,6 +128,7 @@ def build_networkx_graph(companies_graph: CompaniesGraph) -> nx.MultiDiGraph:
             aliases=company.aliases,
             notes=company.notes,
             reporting_currency=company.reporting_currency,
+            news_disambiguation=company.news_disambiguation,
         )
 
     for edge in companies_graph.edges:
@@ -163,6 +166,8 @@ def upsert_companies_from_graph(
                 "name": company.name,
                 "industry_segment": company.industry_segment,
                 "reporting_currency": company.reporting_currency,
+                "aliases": company.aliases,
+                "news_disambiguation": company.news_disambiguation,
             }
         )
 

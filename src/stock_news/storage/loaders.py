@@ -194,12 +194,14 @@ def upsert_companies(session: Session, rows: list[dict[str, Any]]) -> None:
             "name": stmt.excluded.name,
             "industry_segment": stmt.excluded.industry_segment,
             "reporting_currency": stmt.excluded.reporting_currency,
+            "aliases": stmt.excluded.aliases,
+            "news_disambiguation": stmt.excluded.news_disambiguation,
         },
     )
     session.execute(stmt)
 
 
-def get_all_companies(session: Session) -> list[dict[str, str]]:
+def get_all_companies(session: Session) -> list[dict[str, Any]]:
     """
     Return all tracked companies as plain dicts, for Airflow dynamic task
     mapping (.expand()) over ingestion tasks. Plain dicts, not ORM
@@ -213,6 +215,8 @@ def get_all_companies(session: Session) -> list[dict[str, str]]:
             "name": c.name,
             "industry_segment": c.industry_segment,
             "reporting_currency": c.reporting_currency,
+            "aliases": c.aliases,
+            "news_disambiguation": c.news_disambiguation,
         }
         for c in companies
     ]

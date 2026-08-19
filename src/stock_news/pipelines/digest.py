@@ -5,8 +5,10 @@ End-to-end daily digest pipeline: pull stored prices -> compute returns
 
 from __future__ import annotations
 
+import argparse
 import datetime as dt
 import logging
+import sys
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -14,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from stock_news.processing.digest import compute_company_digest, fetch_benchmark_returns
 from stock_news.processing.stock_prices import compute_daily_returns
+from stock_news.storage.db import get_session_factory
 from stock_news.storage.loaders import (
     get_all_companies,
     get_stock_price_history,
@@ -122,3 +125,21 @@ def run_digest_pipeline(
         result.warnings.append(f"redis_write: {exc}")
 
     return result
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Run the daily digest pipeline.")
+    parser.add_argument(
+        "--date", default=None, help="ISO date (YYYY-MM-DD); defaults to today"
+    )
+    args = parser.parse_args()
+
+    logging.basicConfig(level=logging.INFO)
+    target_date = dt.date.fromisoformat(args.date) if args.date else None
+    session_factory = get_session_factory()
+    with session_factory() as session:
+        result = run_digest_pipeline(session, date=target_date)
+
+    logger.info("Digest pipeline result: %s", result)
+    if result.error:
+        sys.exit(1)

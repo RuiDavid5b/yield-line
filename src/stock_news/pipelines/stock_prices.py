@@ -5,7 +5,9 @@ End-to-end pipeline for a single company's stock prices: fetch -> transform
 
 from __future__ import annotations
 
+import argparse
 import logging
+import sys
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -17,6 +19,7 @@ from stock_news.processing.stock_prices import (
     detect_price_anomalies,
     transform_price_history,
 )
+from stock_news.storage.db import get_session_factory
 from stock_news.storage.loaders import get_stock_price_history, upsert_stock_prices
 
 logger = logging.getLogger(__name__)
@@ -82,3 +85,24 @@ def run_price_pipeline(
     result.anomalies = [row for row in with_anomalies if row["is_anomaly"]]
 
     return result
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Run the price pipeline for one company."
+    )
+    parser.add_argument("--cik", required=True)
+    parser.add_argument("--ticker", required=True)
+    parser.add_argument("--period", default="5d")
+    args = parser.parse_args()
+
+    logging.basicConfig(level=logging.INFO)
+    session_factory = get_session_factory()
+    with session_factory() as session:
+        result = run_price_pipeline(
+            cik=args.cik, ticker=args.ticker, session=session, period=args.period
+        )
+
+    logger.info("Price pipeline result: %s", result)
+    if result.error:
+        sys.exit(1)

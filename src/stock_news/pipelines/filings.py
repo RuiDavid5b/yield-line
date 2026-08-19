@@ -5,14 +5,17 @@ upsert, for both filing signals and financial metrics.
 
 from __future__ import annotations
 
+import argparse
 import datetime as dt
 import logging
+import sys
 from dataclasses import dataclass, field
 from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from stock_news.config import get_settings
 from stock_news.ingestion.fetchers import (
     fetch_company_facts,
     fetch_edgar_filing_text,
@@ -26,6 +29,7 @@ from stock_news.processing.edgar.extraction import (
 from stock_news.processing.edgar.html_cleaning import clean_filing_html
 from stock_news.processing.edgar.routing.classifier import classify_filing
 from stock_news.processing.edgar.signals import extract_filing_signal
+from stock_news.storage.db import get_session_factory
 from stock_news.storage.loaders import (
     upsert_filing_signal,
     upsert_financial_metrics,
@@ -175,3 +179,27 @@ def run_company_pipeline(
         result.errors.append(f"financial_metrics: {exc}")
 
     return result
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Run the filings pipeline for one company."
+    )
+    parser.add_argument("--cik", required=True)
+    parser.add_argument("--filing-limit", type=int, default=10)
+    args = parser.parse_args()
+
+    logging.basicConfig(level=logging.INFO)
+    settings = get_settings()
+    session_factory = get_session_factory()
+    with session_factory() as session:
+        result = run_company_pipeline(
+            cik=args.cik,
+            user_agent=settings.edgar_user_agent,
+            session=session,
+            filing_limit=args.filing_limit,
+        )
+
+    logger.info("Filings pipeline result: %s", result)
+    if result.errors:
+        sys.exit(1)
