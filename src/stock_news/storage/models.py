@@ -142,6 +142,23 @@ class StockPrice(Base):
     company: Mapped["Company"] = relationship(back_populates="stock_prices")
 
 
+class PriceAnomaly(Base):
+    __tablename__ = "price_anomalies"
+    __table_args__ = (UniqueConstraint("cik", "date", name="uq_anomaly_date"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    cik: Mapped[str] = mapped_column(ForeignKey("companies.cik"), index=True)
+    date: Mapped[dt.date] = mapped_column(Date, index=True)
+    return_pct: Mapped[float] = mapped_column(Numeric(10, 6))
+    z_score: Mapped[float] = mapped_column(Numeric(10, 4))
+
+    detected_at: Mapped[dt.datetime] = mapped_column(
+        DateTime, server_default=func.now()
+    )
+
+    company: Mapped["Company"] = relationship()
+
+
 class NewsArticle(Base):
     __tablename__ = "news_articles"
     __table_args__ = (UniqueConstraint("cik", "url", name="uq_news_article_url"),)
