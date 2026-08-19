@@ -27,10 +27,6 @@ APP_ENV = {
     if k in os.environ
 }
 
-# Shared by every DockerOperator below - each spawned container is a
-# sibling of the Airflow scheduler (via the mounted docker.sock), not a
-# child, so network/image/env-file all need to be repeated per task
-# rather than inherited.
 _COMMON_DOCKER_KWARGS = dict(
     image=APP_IMAGE,
     network_mode=NETWORK,
@@ -121,6 +117,7 @@ def daily_pipeline():
         task_id="run_filings_pipeline",
         map_index_template="{{ task.command }}",
         **_COMMON_DOCKER_KWARGS,
+        pool="gemini_api",
     ).expand(command=filings_commands(companies))
 
     run_news_tasks = DockerOperator.partial(
