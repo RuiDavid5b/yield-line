@@ -20,7 +20,11 @@ from stock_news.processing.stock_prices import (
     transform_price_history,
 )
 from stock_news.storage.db import get_session_factory
-from stock_news.storage.loaders import get_stock_price_history, upsert_stock_prices
+from stock_news.storage.loaders import (
+    get_stock_price_history,
+    upsert_price_anomalies,
+    upsert_stock_prices,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +87,24 @@ def run_price_pipeline(
         z_threshold=z_threshold,
     )
     result.anomalies = [row for row in with_anomalies if row["is_anomaly"]]
+
+    if result.anomalies:
+        anomaly_rows = [
+            {
+                "cik": cik,
+                "date": row["date"],
+                "return_pct": row["return_pct"],
+                "z_score": row["z_score"],
+            }
+            for row in result.anomalies
+        ]
+        try:
+            upsert_price_anomalies(session, anomaly_rows)
+            session.commit()
+        except Exception as exc:
+            session.rollback()
+            logger.exception("Failed upserting anomalies for %s (%s)", ticker, cik)
+            result.error = f"anomaly_upsert: {exc}"
 
     return result
 

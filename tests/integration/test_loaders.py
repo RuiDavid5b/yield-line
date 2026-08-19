@@ -22,6 +22,7 @@ from stock_news.storage.loaders import (
     upsert_filing_signal,
     upsert_financial_metrics,
     upsert_news_articles,
+    upsert_price_anomalies,
     upsert_stock_prices,
 )
 from stock_news.storage.models import (
@@ -31,6 +32,7 @@ from stock_news.storage.models import (
     FilingSignal,
     FinancialMetric,
     NewsArticle,
+    PriceAnomaly,
     StockPrice,
 )
 
@@ -553,7 +555,7 @@ def test_upsert_benchmark_returns_multiple_tickers_all_inserted(session):
 
 
 def test_upsert_benchmark_returns_empty_list_is_noop(session):
-    upsert_benchmark_returns(session, [])  # should not raise
+    upsert_benchmark_returns(session, [])
 
     rows = session.scalars(
         select(BenchmarkReturn).where(BenchmarkReturn.ticker == "SOXX")
@@ -604,3 +606,66 @@ def test_get_benchmark_returns_only_returns_matching_date(session):
 def test_get_benchmark_returns_empty_for_unknown_date(session):
     results = get_benchmark_returns(session, dt.date(2099, 1, 1))
     assert results == {}
+
+
+def test_upsert_anomalies_inserts_new_row(session):
+    upsert_price_anomalies(
+        session,
+        [
+            {
+                "cik": TEST_CIK,
+                "date": dt.date(2026, 5, 1),
+                "return_pct": 0.08,
+                "z_score": 3.1,
+            }
+        ],
+    )
+
+    stored = session.scalars(
+        select(PriceAnomaly).where(PriceAnomaly.cik == TEST_CIK)
+    ).all()
+    assert len(stored) == 1
+    assert float(stored[0].z_score) == pytest.approx(3.1)
+
+
+def test_upsert_anomalies_updates_on_conflict(session):
+    upsert_price_anomalies(
+        session,
+        [
+            {
+                "cik": TEST_CIK,
+                "date": dt.date(2026, 5, 1),
+                "return_pct": 0.08,
+                "z_score": 3.1,
+            }
+        ],
+    )
+
+    session.flush()
+
+    upsert_price_anomalies(
+        session,
+        [
+            {
+                "cik": TEST_CIK,
+                "date": dt.date(2026, 5, 1),
+                "return_pct": 0.12,
+                "z_score": 4.5,
+            }
+        ],
+    )
+
+    stored = session.scalars(
+        select(PriceAnomaly).where(PriceAnomaly.cik == TEST_CIK)
+    ).all()
+    assert len(stored) == 1
+    assert float(stored[0].z_score) == pytest.approx(4.5)
+
+
+def test_upsert_anomalies_empty_rows_is_noop(session):
+    upsert_price_anomalies(session, [])
+
+    stored = session.scalars(
+        select(PriceAnomaly).where(PriceAnomaly.cik == TEST_CIK)
+    ).all()
+    assert stored == []

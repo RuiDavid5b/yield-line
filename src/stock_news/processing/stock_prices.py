@@ -8,7 +8,8 @@ from typing import Any
 
 import pandas as pd
 
-_STD_EPSILON = 1e-9
+_STD_EPSILON = 1e-4
+_Z_SCORE_CAP = 100.0
 
 
 def compute_daily_returns(prices: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -71,6 +72,8 @@ def detect_price_anomalies(
     result: list[dict[str, Any]] = []
     for row, z in zip(sorted_rows, z_scores):
         z_value = None if pd.isna(z) else float(z)
+        if z_value is not None:
+            z_value = max(-_Z_SCORE_CAP, min(_Z_SCORE_CAP, z_value))
         is_anomaly = z_value is not None and abs(z_value) >= z_threshold
         result.append({**row, "z_score": z_value, "is_anomaly": is_anomaly})
 

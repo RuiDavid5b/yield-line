@@ -19,6 +19,7 @@ from stock_news.storage.models import (
     FilingSignal,
     FinancialMetric,
     NewsArticle,
+    PriceAnomaly,
     StockPrice,
 )
 
@@ -106,6 +107,27 @@ def upsert_stock_prices(session: Session, rows: list[dict[str, Any]]) -> None:
             "low": stmt.excluded.low,
             "close": stmt.excluded.close,
             "volume": stmt.excluded.volume,
+        },
+    )
+    session.execute(stmt)
+
+
+def upsert_price_anomalies(session: Session, rows: list[dict[str, Any]]) -> None:
+    """
+    Insert rows produced by processing.stock_prices.detect_price_anomalies,
+    already filtered down to is_anomaly=True rows, updating in place on
+    conflict rather than raising or duplicating. One row per company per
+    anomalous date.
+    """
+    if not rows:
+        return
+
+    stmt = pg_insert(PriceAnomaly).values(rows)
+    stmt = stmt.on_conflict_do_update(
+        index_elements=["cik", "date"],
+        set_={
+            "return_pct": stmt.excluded.return_pct,
+            "z_score": stmt.excluded.z_score,
         },
     )
     session.execute(stmt)
