@@ -169,6 +169,37 @@ def upsert_price_anomalies(session: Session, rows: list[dict[str, Any]]) -> None
     session.execute(stmt)
 
 
+def get_anomalies(
+    session: Session,
+    cik: str,
+    start_date: dt.date | None = None,
+    end_date: dt.date | None = None,
+    limit: int | None = None,
+) -> list[dict[str, Any]]:
+    """
+    Fetch detected anomalies for a company, optionally bounded by date
+    range, most recent first.
+    """
+    stmt = select(
+        PriceAnomaly.cik,
+        PriceAnomaly.date,
+        PriceAnomaly.return_pct,
+        PriceAnomaly.z_score,
+    ).where(PriceAnomaly.cik == cik)
+
+    if start_date is not None:
+        stmt = stmt.where(PriceAnomaly.date >= start_date)
+    if end_date is not None:
+        stmt = stmt.where(PriceAnomaly.date <= end_date)
+
+    stmt = stmt.order_by(PriceAnomaly.date.desc())
+    if limit is not None:
+        stmt = stmt.limit(limit)
+
+    rows = session.execute(stmt).all()
+    return [dict(row._mapping) for row in rows]
+
+
 def get_stock_price_history(session: Session, cik: str) -> list[dict[str, Any]]:
     """
     Fetch all stored price rows for a company, as plain dicts, for use
