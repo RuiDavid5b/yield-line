@@ -17,6 +17,7 @@ from stock_news.storage.loaders import (
     get_digest_results,
     get_filing_signals,
     get_news_articles,
+    get_price_anomalies,
     get_stock_price_history,
     upsert_benchmark_returns,
     upsert_digest_results,
@@ -38,6 +39,7 @@ from stock_news.storage.models import (
 )
 
 TEST_CIK = "9999999999"
+SECONDARY_CIK = "8888888888"
 
 
 @pytest.fixture
@@ -47,6 +49,17 @@ def session(db_session):
     )
     db_session.flush()
     yield db_session
+
+
+@pytest.fixture
+def session_with_second_company(session):
+    session.add(
+        Company(
+            cik=SECONDARY_CIK, ticker="OTHR", name="Other Co", industry_segment="test"
+        )
+    )
+    session.flush()
+    yield session
 
 
 def _metric_row(**overrides):
@@ -342,16 +355,11 @@ class TestGetFilingSignals:
         assert row["mentioned_customers"] == ["Acme Corp"]
         assert row["mentioned_competitors"] == ["Rival Inc"]
 
-    def test_only_returns_matching_cik(self, session):
-        other_cik = "8888888888"
-        session.add(
-            Company(
-                cik=other_cik, ticker="OTHR", name="Other Co", industry_segment="test"
-            )
-        )
+    def test_only_returns_matching_cik(self, session_with_second_company):
+        session = session_with_second_company
         session.add(
             FilingSignal(
-                **_filing_signal_row(cik=other_cik, accession_number="0011-01")
+                **_filing_signal_row(cik=SECONDARY_CIK, accession_number="0011-01")
             )
         )
         session.add(
@@ -443,16 +451,14 @@ class TestGetStockPriceHistory:
             dt.date(2026, 5, 2),
         }
 
-    def test_get_stock_price_history_only_returns_matching_cik(self, session):
-        other_cik = "8888888888"
-        session.add(
-            Company(
-                cik=other_cik, ticker="OTHR", name="Other Co", industry_segment="test"
-            )
-        )
-        session.flush()
+    def test_get_stock_price_history_only_returns_matching_cik(
+        self, session_with_second_company
+    ):
+        session = session_with_second_company
+        upsert_stock_prices(session, [_price_row(cik=SECONDARY_CIK)])
+        upsert_stock_prices(session, [_price_row(cik=TEST_CIK)])
 
-        upsert_stock_prices(session, [_price_row(cik=other_cik)])
+        upsert_stock_prices(session, [_price_row(cik=SECONDARY_CIK)])
         upsert_stock_prices(session, [_price_row(cik=TEST_CIK)])
 
         history = get_stock_price_history(session, TEST_CIK)
@@ -671,20 +677,9 @@ class TestGetAllCompanies:
         ciks = {c["cik"] for c in get_all_companies(session)}
         assert TEST_CIK in ciks
 
-    def test_get_all_companies_reflects_new_insert(self, session):
-        before = {c["cik"] for c in get_all_companies(session)}
-
-        other_cik = "8888888888"
-        session.add(
-            Company(
-                cik=other_cik, ticker="OTHR", name="Other Co", industry_segment="test"
-            )
-        )
-        session.flush()
-
-        after = {c["cik"] for c in get_all_companies(session)}
-
-        assert after - before == {other_cik}
+    def test_get_all_companies_reflects_new_insert(self, session_with_second_company):
+        companies = {c["cik"] for c in get_all_companies(session_with_second_company)}
+        assert companies == {TEST_CIK, SECONDARY_CIK}
 
 
 def _digest_row(**overrides):
@@ -896,6 +891,134 @@ class TestGetBenchmarkReturns:
     def test_get_benchmark_returns_empty_for_unknown_date(self, session):
         results = get_benchmark_returns(session, dt.date(2099, 1, 1))
         assert results == {}
+
+
+def _anomaly_row(**overrides):
+    row = {
+        "cik": TEST_CIK,
+        "date": dt.date(2026, 5, 1),
+        "return_pct": 0.15,
+        "z_score": 3.2,
+    }
+    row.update(overrides)
+    return row
+
+
+class TestGetAnomalies:
+    def test_returns_rows_as_dicts(self, session):
+        session.add(PriceAnomaly(**_anomaly_row()))
+        session.flush()
+
+        rows = get_price_anomalies(session, TEST_CIK)
+
+        assert len(rows) == 1
+        assert all(isinstance(r, dict) for r in rows)
+        assert float(rows[0]["return_pct"]) == pytest.approx(0.15)
+
+    def test_empty_for_unknown_cik(self, session):
+        assert get_price_anomalies(session, TEST_CIK) == []
+
+    def test_ordered_most_recent_first(self, session):
+        session.add_all(
+            [
+                PriceAnomaly(**_anomaly_row(date=dt.date(2026, 1, 15))),
+                PriceAnomaly(**_anomaly_row(date=dt.date(2026, 5, 1))),
+                PriceAnomaly(**_anomaly_row(date=dt.date(2026, 3, 1))),
+            ]
+        )
+        session.flush()
+
+        rows = get_price_anomalies(session, TEST_CIK)
+
+        assert [r["date"] for r in rows] == sorted(
+            (r["date"] for r in rows), reverse=True
+        )
+        assert rows[0]["date"] == dt.date(2026, 5, 1)
+
+    def test_start_date_excludes_earlier_anomalies(self, session):
+        session.add_all(
+            [
+                PriceAnomaly(**_anomaly_row(date=dt.date(2026, 1, 1))),
+                PriceAnomaly(**_anomaly_row(date=dt.date(2026, 6, 1))),
+            ]
+        )
+        session.flush()
+
+        rows = get_price_anomalies(session, TEST_CIK, start_date=dt.date(2026, 3, 1))
+
+        assert len(rows) == 1
+        assert rows[0]["date"] == dt.date(2026, 6, 1)
+
+    def test_end_date_excludes_later_anomalies(self, session):
+        session.add_all(
+            [
+                PriceAnomaly(**_anomaly_row(date=dt.date(2026, 1, 1))),
+                PriceAnomaly(**_anomaly_row(date=dt.date(2026, 6, 1))),
+            ]
+        )
+        session.flush()
+
+        rows = get_price_anomalies(session, TEST_CIK, end_date=dt.date(2026, 3, 1))
+
+        assert len(rows) == 1
+        assert rows[0]["date"] == dt.date(2026, 1, 1)
+
+    def test_start_and_end_date_bound_a_range(self, session):
+        session.add_all(
+            [
+                PriceAnomaly(**_anomaly_row(date=dt.date(2026, 1, 1))),
+                PriceAnomaly(**_anomaly_row(date=dt.date(2026, 3, 15))),
+                PriceAnomaly(**_anomaly_row(date=dt.date(2026, 6, 1))),
+            ]
+        )
+        session.flush()
+
+        rows = get_price_anomalies(
+            session,
+            TEST_CIK,
+            start_date=dt.date(2026, 2, 1),
+            end_date=dt.date(2026, 4, 1),
+        )
+
+        assert len(rows) == 1
+        assert rows[0]["date"] == dt.date(2026, 3, 15)
+
+    def test_limit_caps_result_count(self, session):
+        session.add_all(
+            [
+                PriceAnomaly(**_anomaly_row(date=dt.date(2026, i, 1)))
+                for i in range(1, 4)
+            ]
+        )
+        session.flush()
+
+        rows = get_price_anomalies(session, TEST_CIK, limit=2)
+
+        assert len(rows) == 2
+
+    def test_returns_z_score(self, session):
+        session.add(PriceAnomaly(**_anomaly_row(z_score=4.1)))
+        session.flush()
+
+        rows = get_price_anomalies(session, TEST_CIK)
+
+        assert float(rows[0]["z_score"]) == pytest.approx(4.1)
+
+    def test_scoped_to_requested_cik_only(self, session_with_second_company):
+        session = session_with_second_company
+        session.add_all(
+            [
+                PriceAnomaly(**_anomaly_row(cik=TEST_CIK)),
+                PriceAnomaly(
+                    **_anomaly_row(cik=SECONDARY_CIK, date=dt.date(2026, 5, 1))
+                ),
+            ]
+        )
+        session.flush()
+
+        rows = get_price_anomalies(session, TEST_CIK)
+
+        assert all(r["cik"] == TEST_CIK for r in rows)
 
 
 class TestUpsertPriceAnomalies:

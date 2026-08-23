@@ -169,7 +169,7 @@ def upsert_price_anomalies(session: Session, rows: list[dict[str, Any]]) -> None
     session.execute(stmt)
 
 
-def get_anomalies(
+def get_price_anomalies(
     session: Session,
     cik: str,
     start_date: dt.date | None = None,

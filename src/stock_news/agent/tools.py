@@ -14,9 +14,9 @@ from stock_news.graph.queries import get_neighbors, load_graph
 from stock_news.storage.company_lookup import resolve_company
 from stock_news.storage.db import get_session_factory
 from stock_news.storage.loaders import (
-    get_anomalies,
     get_filing_signals,
     get_news_articles,
+    get_price_anomalies,
 )
 from stock_news.storage.queries import get_digest
 
@@ -103,7 +103,7 @@ def get_anomalies_tool(
     explain it.
     """
     with _session_factory() as session:
-        return get_anomalies(session, cik, start_date, end_date, limit)
+        return get_price_anomalies(session, cik, start_date, end_date, limit)
 
 
 class DigestArgs(BaseModel):
