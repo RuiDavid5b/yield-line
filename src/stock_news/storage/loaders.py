@@ -90,6 +90,42 @@ def upsert_filing_signal(
     session.execute(stmt)
 
 
+def get_filing_signals(
+    session: Session,
+    cik: str,
+    start_date: dt.date | None = None,
+    end_date: dt.date | None = None,
+    limit: int | None = None,
+) -> list[dict[str, Any]]:
+    """
+    Fetch filing signals for a company, optionally bounded by date range,
+    most recent first. For agent tool use - e.g. "guidance shifts over
+    the last 6 quarters".
+    """
+    stmt = select(
+        FilingSignal.accession_number,
+        FilingSignal.form,
+        FilingSignal.filed_date,
+        FilingSignal.guidance_commentary,
+        FilingSignal.segment_commentary,
+        FilingSignal.executive_quote_summary,
+        FilingSignal.mentioned_customers,
+        FilingSignal.mentioned_competitors,
+    ).where(FilingSignal.cik == cik)
+
+    if start_date is not None:
+        stmt = stmt.where(FilingSignal.filed_date >= start_date)
+    if end_date is not None:
+        stmt = stmt.where(FilingSignal.filed_date <= end_date)
+
+    stmt = stmt.order_by(FilingSignal.filed_date.desc())
+    if limit is not None:
+        stmt = stmt.limit(limit)
+
+    rows = session.execute(stmt).all()
+    return [dict(row._mapping) for row in rows]
+
+
 def upsert_stock_prices(session: Session, rows: list[dict[str, Any]]) -> None:
     """
     Insert rows produced by processing.prices.transform_price_history,
@@ -131,6 +167,37 @@ def upsert_price_anomalies(session: Session, rows: list[dict[str, Any]]) -> None
         },
     )
     session.execute(stmt)
+
+
+def get_anomalies(
+    session: Session,
+    cik: str,
+    start_date: dt.date | None = None,
+    end_date: dt.date | None = None,
+    limit: int | None = None,
+) -> list[dict[str, Any]]:
+    """
+    Fetch detected anomalies for a company, optionally bounded by date
+    range, most recent first.
+    """
+    stmt = select(
+        PriceAnomaly.cik,
+        PriceAnomaly.date,
+        PriceAnomaly.return_pct,
+        PriceAnomaly.z_score,
+    ).where(PriceAnomaly.cik == cik)
+
+    if start_date is not None:
+        stmt = stmt.where(PriceAnomaly.date >= start_date)
+    if end_date is not None:
+        stmt = stmt.where(PriceAnomaly.date <= end_date)
+
+    stmt = stmt.order_by(PriceAnomaly.date.desc())
+    if limit is not None:
+        stmt = stmt.limit(limit)
+
+    rows = session.execute(stmt).all()
+    return [dict(row._mapping) for row in rows]
 
 
 def get_stock_price_history(session: Session, cik: str) -> list[dict[str, Any]]:
@@ -182,21 +249,36 @@ def upsert_news_articles(session: Session, rows: list[dict[str, Any]]) -> None:
     session.execute(stmt)
 
 
-def get_news_articles(session: Session, cik: str) -> list[dict[str, Any]]:
+def get_news_articles(
+    session: Session,
+    cik: str,
+    start_date: dt.datetime | None = None,
+    end_date: dt.datetime | None = None,
+    limit: int | None = None,
+) -> list[dict[str, Any]]:
     """
-    Fetch all stored news articles for a company.
+    Fetch stored news articles for a company, optionally bounded by
+    published_at range, most recent first.
     """
-    rows = session.execute(
-        select(
-            NewsArticle.cik,
-            NewsArticle.url,
-            NewsArticle.title,
-            NewsArticle.description,
-            NewsArticle.author,
-            NewsArticle.published_at,
-        ).where(NewsArticle.cik == cik)
-    ).all()
+    stmt = select(
+        NewsArticle.cik,
+        NewsArticle.url,
+        NewsArticle.title,
+        NewsArticle.description,
+        NewsArticle.author,
+        NewsArticle.published_at,
+    ).where(NewsArticle.cik == cik)
 
+    if start_date is not None:
+        stmt = stmt.where(NewsArticle.published_at >= start_date)
+    if end_date is not None:
+        stmt = stmt.where(NewsArticle.published_at <= end_date)
+
+    stmt = stmt.order_by(NewsArticle.published_at.desc())
+    if limit is not None:
+        stmt = stmt.limit(limit)
+
+    rows = session.execute(stmt).all()
     return [dict(row._mapping) for row in rows]
 
 

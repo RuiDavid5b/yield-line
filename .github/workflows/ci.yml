@@ -40,7 +40,7 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U test_user -d test_db"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -49,8 +49,6 @@ jobs:
         image: redis:8.10.0-alpine
         ports:
           - "6379:6379"
-        volumes:
-          - redis_data:/data
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
