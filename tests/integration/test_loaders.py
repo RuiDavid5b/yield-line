@@ -19,6 +19,8 @@ from stock_news.storage.loaders import (
     get_news_articles,
     get_price_anomalies,
     get_stock_price_history,
+    get_unexplained_price_anomalies,
+    set_price_anomaly_explanation,
     upsert_benchmark_returns,
     upsert_digest_results,
     upsert_filing_signal,
@@ -904,7 +906,7 @@ def _anomaly_row(**overrides):
     return row
 
 
-class TestGetAnomalies:
+class TestGetPriceAnomalies:
     def test_returns_rows_as_dicts(self, session):
         session.add(PriceAnomaly(**_anomaly_row()))
         session.flush()
@@ -1081,3 +1083,125 @@ class TestUpsertPriceAnomalies:
             select(PriceAnomaly).where(PriceAnomaly.cik == TEST_CIK)
         ).all()
         assert stored == []
+
+
+class TestGetUnexplainedPriceAnomalies:
+    def test_returns_anomaly_with_no_explanation(self, session):
+        session.add(PriceAnomaly(**_anomaly_row(date=dt.date.today())))
+        session.flush()
+
+        rows = get_unexplained_price_anomalies(session)
+
+        assert len(rows) == 1
+        assert rows[0]["cik"] == TEST_CIK
+
+    def test_excludes_already_explained_anomaly(self, session):
+        session.add(
+            PriceAnomaly(
+                **_anomaly_row(date=dt.date.today()),
+                explanation="Already explained.",
+                explained_at=dt.datetime.now(),
+            )
+        )
+        session.flush()
+
+        assert get_unexplained_price_anomalies(session) == []
+
+    def test_excludes_anomaly_older_than_max_age_days(self, session):
+        old_date = dt.date.today() - dt.timedelta(days=10)
+        session.add(PriceAnomaly(**_anomaly_row(date=old_date)))
+        session.flush()
+
+        rows = get_unexplained_price_anomalies(session, max_age_days=7)
+
+        assert rows == []
+
+    def test_includes_anomaly_within_max_age_days(self, session):
+        recent_date = dt.date.today() - dt.timedelta(days=5)
+        session.add(PriceAnomaly(**_anomaly_row(date=recent_date)))
+        session.flush()
+
+        rows = get_unexplained_price_anomalies(session, max_age_days=7)
+
+        assert len(rows) == 1
+
+    def test_boundary_date_exactly_at_cutoff_is_included(self, session):
+        boundary_date = dt.date.today() - dt.timedelta(days=7)
+        session.add(PriceAnomaly(**_anomaly_row(date=boundary_date)))
+        session.flush()
+
+        rows = get_unexplained_price_anomalies(session, max_age_days=7)
+
+        assert len(rows) == 1
+
+    def test_ordered_most_recent_first(self, session):
+        session.add_all(
+            [
+                PriceAnomaly(
+                    **_anomaly_row(
+                        date=dt.date.today() - dt.timedelta(days=1),
+                        return_pct=0.10,
+                        z_score=2.6,
+                    )
+                ),
+                PriceAnomaly(
+                    **_anomaly_row(date=dt.date.today(), return_pct=0.20, z_score=3.5)
+                ),
+            ]
+        )
+        session.flush()
+
+        rows = get_unexplained_price_anomalies(session)
+
+        assert rows[0]["date"] == dt.date.today()
+
+    def test_empty_when_no_anomalies_exist(self, session):
+        assert get_unexplained_price_anomalies(session) == []
+
+    def test_default_max_age_is_seven_days(self, session_with_second_company):
+        session = session_with_second_company
+        just_inside = dt.date.today() - dt.timedelta(days=7)
+        just_outside = dt.date.today() - dt.timedelta(days=8)
+        session.add_all(
+            [
+                PriceAnomaly(**_anomaly_row(cik=TEST_CIK, date=just_inside)),
+                PriceAnomaly(**_anomaly_row(cik=SECONDARY_CIK, date=just_outside)),
+            ]
+        )
+        session.flush()
+
+        rows = get_unexplained_price_anomalies(session)
+
+        assert len(rows) == 1
+        assert rows[0]["cik"] == TEST_CIK
+
+
+class TestSetPriceAnomalyExplanation:
+    def test_sets_explanation_and_explained_at(self, session):
+        anomaly = PriceAnomaly(**_anomaly_row(date=dt.date.today()))
+        session.add(anomaly)
+        session.flush()
+
+        set_price_anomaly_explanation(
+            session, anomaly.id, "This coincided with a guidance raise."
+        )
+        session.flush()
+        session.refresh(anomaly)
+
+        assert anomaly.explanation == "This coincided with a guidance raise."
+        assert anomaly.explained_at is not None
+
+    def test_explained_anomaly_no_longer_returned_by_get_unexplained(self, session):
+        anomaly = PriceAnomaly(**_anomaly_row(date=dt.date.today()))
+        session.add(anomaly)
+        session.flush()
+
+        set_price_anomaly_explanation(session, anomaly.id, "Explained.")
+        session.flush()
+
+        assert get_unexplained_price_anomalies(session) == []
+
+    def test_unknown_anomaly_id_is_a_silent_noop(self, session):
+        set_price_anomaly_explanation(
+            session, anomaly_id=999999, explanation="Nothing to update."
+        )

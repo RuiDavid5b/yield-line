@@ -7,7 +7,7 @@ from __future__ import annotations
 import datetime as dt
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
@@ -198,6 +198,42 @@ def get_price_anomalies(
 
     rows = session.execute(stmt).all()
     return [dict(row._mapping) for row in rows]
+
+
+def get_unexplained_price_anomalies(
+    session: Session, max_age_days: int = 7
+) -> list[dict[str, Any]]:
+    """
+    Fetch all anomalies with no explanation yet, across all companies -
+    what run_digest_pipeline's agent-wiring step should process each run.
+    """
+    cutoff = dt.date.today() - dt.timedelta(days=max_age_days)
+    rows = session.execute(
+        select(
+            PriceAnomaly.id,
+            PriceAnomaly.cik,
+            PriceAnomaly.date,
+            PriceAnomaly.return_pct,
+            PriceAnomaly.z_score,
+        )
+        .where(PriceAnomaly.explanation.is_(None), PriceAnomaly.date >= cutoff)
+        .order_by(PriceAnomaly.date.desc())
+    ).all()
+    return [dict(row._mapping) for row in rows]
+
+
+def set_price_anomaly_explanation(
+    session: Session, anomaly_id: int, explanation: str
+) -> None:
+    """
+    Record an agent-generated explanation for one anomaly. Direct update
+    by id, not an upsert.
+    """
+    session.execute(
+        update(PriceAnomaly)
+        .where(PriceAnomaly.id == anomaly_id)
+        .values(explanation=explanation, explained_at=func.now())
+    )
 
 
 def get_stock_price_history(session: Session, cik: str) -> list[dict[str, Any]]:
