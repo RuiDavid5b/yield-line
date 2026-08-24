@@ -1,7 +1,17 @@
 APP_IMAGE := stock-news-app:latest
+AIRFLOW_TEST_IMAGE := stock-news-airflow-test
 
-build:
+app-image:
 	docker build -t $(APP_IMAGE) .
+
+airflow-test-image:
+	docker build --target test -t $(AIRFLOW_TEST_IMAGE) -f airflow/Dockerfile airflow/
+
+airflow-test: airflow-test-image
+	docker run --rm --entrypoint pytest \
+	  -v $(PWD)/airflow/dags:/opt/airflow/dags \
+	  -v $(PWD)/airflow/tests:/opt/airflow/tests \
+	  $(AIRFLOW_TEST_IMAGE) /opt/airflow/tests/
 
 test-env-up:
 	docker compose -f docker-compose.test.yml up -d --wait
