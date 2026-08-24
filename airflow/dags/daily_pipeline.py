@@ -128,5 +128,13 @@ def daily_pipeline():
 
     weekly_gate >> [run_filings_tasks, run_news_tasks]
 
+    run_anomaly_explanations = app_task(
+        task_id="run_anomaly_explanations",
+        command="stock_news.pipelines.anomaly_explanations",
+        pool="gemini_api",
+        trigger_rule="all_done",
+    )
+    [run_price_tasks, run_filings_tasks, run_news_tasks] >> run_anomaly_explanations
+
 
 daily_pipeline()
