@@ -81,3 +81,12 @@ def build_agent_graph():
     )  # tool results always route back to the agent to decide the next step
 
     return graph.compile()
+
+
+def run_agent_query(prompt: str) -> str:
+    """
+    Run one query through the agent, returning only the final answer
+    text.
+    """
+    result = build_agent_graph().invoke({"messages": [("user", prompt)]})
+    return result["messages"][-1].content
