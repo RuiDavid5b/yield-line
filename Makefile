@@ -1,3 +1,8 @@
+APP_IMAGE := stock-news-app:latest
+
+build:
+	docker build -t $(APP_IMAGE) .
+
 test-env-up:
 	docker compose -f docker-compose.test.yml up -d --wait
 	DATABASE_URL="postgresql+psycopg://test:test@localhost:5433/stock_news_test" \
