@@ -6,6 +6,7 @@ End-to-end pipeline for a single company's stock prices: fetch -> transform
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import logging
 import sys
 from dataclasses import dataclass, field
@@ -48,6 +49,8 @@ def run_price_pipeline(
     anomaly_window: int = 20,
     anomaly_min_periods: int = 10,
     z_threshold: float = 2.5,
+    start_date: dt.date | None = None,
+    end_date: dt.date | None = None,
 ) -> PricePipelineResult:
     """
     Fetch recent price history for one company, upsert it, then run
@@ -56,7 +59,13 @@ def run_price_pipeline(
     result = PricePipelineResult(cik=cik, ticker=ticker)
 
     try:
-        history = fetch_prices(ticker, period=period, interval=interval)
+        history = fetch_prices(
+            ticker,
+            period=period,
+            interval=interval,
+            start_date=start_date,
+            end_date=end_date,
+        )
     except Exception as exc:
         logger.exception("Failed fetching prices for %s (%s)", ticker, cik)
         result.error = f"fetch: {exc}"
@@ -116,13 +125,29 @@ if __name__ == "__main__":
     parser.add_argument("--cik", required=True)
     parser.add_argument("--ticker", required=True)
     parser.add_argument("--period", default="5d")
+    parser.add_argument(
+        "--start-date",
+        type=dt.date.fromisoformat,
+        default=None,
+    )
+
+    parser.add_argument(
+        "--end-date",
+        type=dt.date.fromisoformat,
+        default=None,
+    )
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO)
     session_factory = get_session_factory()
     with session_factory() as session:
         result = run_price_pipeline(
-            cik=args.cik, ticker=args.ticker, session=session, period=args.period
+            cik=args.cik,
+            ticker=args.ticker,
+            session=session,
+            period=args.period,
+            start_date=args.start_date,
+            end_date=args.end_date,
         )
 
     logger.info("Price pipeline result: %s", result)

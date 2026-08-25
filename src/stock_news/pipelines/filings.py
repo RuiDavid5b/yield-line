@@ -132,8 +132,11 @@ def run_company_pipeline(
     cik: str,
     user_agent: str,
     session: Session,
-    filing_limit: int = 10,
+    form_types: tuple[str, ...] = FILING_FORM_TYPES,
+    filing_limit: int | None = 10,
     llm_model_name: str | None = None,
+    start_date: dt.date | None = None,
+    end_date: dt.date | None = None,
 ) -> PipelineResult:
     """
     Run the full fetch -> classify -> extract -> upsert pipeline for one
@@ -147,7 +150,12 @@ def run_company_pipeline(
     already_processed = _get_already_processed_accessions(session, cik)
 
     filings = fetch_edgar_filings(
-        cik, user_agent, form_types=FILING_FORM_TYPES, limit=filing_limit
+        cik,
+        user_agent,
+        form_types=form_types,
+        limit=filing_limit,
+        start_date=start_date,
+        end_date=end_date,
     )
     result.filings_seen = len(filings)
 
@@ -186,18 +194,46 @@ if __name__ == "__main__":
         description="Run the filings pipeline for one company."
     )
     parser.add_argument("--cik", required=True)
-    parser.add_argument("--filing-limit", type=int, default=10)
+    parser.add_argument(
+        "--exclude-8k",
+        action="store_true",
+        help="Skip 8-K filings (useful for backfill).",
+    )
+    parser.add_argument(
+        "--filing-limit",
+        type=int,
+        default=None,
+        help="Maximum number of filings to process. Omit for no limit.",
+    )
+    parser.add_argument(
+        "--start-date",
+        type=dt.date.fromisoformat,
+        default=None,
+        help="Only process filings filed on/after this date (YYYY-MM-DD).",
+    )
+    parser.add_argument(
+        "--end-date",
+        type=dt.date.fromisoformat,
+        default=None,
+        help="Only process filings filed on/before this date (YYYY-MM-DD).",
+    )
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO)
     settings = get_settings()
     session_factory = get_session_factory()
+    form_types = tuple(
+        f for f in FILING_FORM_TYPES if not (args.exclude_8k and f == "8-K")
+    )
     with session_factory() as session:
         result = run_company_pipeline(
             cik=args.cik,
             user_agent=settings.edgar_user_agent,
             session=session,
+            form_types=form_types,
             filing_limit=args.filing_limit,
+            start_date=args.start_date,
+            end_date=args.end_date,
         )
 
     logger.info("Filings pipeline result: %s", result)
