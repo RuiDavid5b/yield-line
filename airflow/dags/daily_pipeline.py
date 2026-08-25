@@ -4,7 +4,6 @@ import datetime as dt
 import json
 import os
 
-from airflow.operators.python import get_current_context
 from airflow.providers.docker.operators.docker import DockerOperator
 from airflow.sdk import dag, task
 

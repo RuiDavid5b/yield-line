@@ -10,8 +10,8 @@ from __future__ import annotations
 import datetime as dt
 import os
 
-from airflow.decorators import dag
 from airflow.providers.docker.operators.docker import DockerOperator
+from airflow.sdk import dag
 
 APP_IMAGE = "stock-news-app:latest"
 NETWORK = "stock_news_net"
