@@ -15,6 +15,7 @@ from stock_news.storage.company_lookup import resolve_company
 from stock_news.storage.db import get_session_factory
 from stock_news.storage.loaders import (
     get_filing_signals,
+    get_financial_metrics,
     get_news_articles,
     get_price_anomalies,
 )
@@ -106,6 +107,43 @@ def get_anomalies_tool(
         return get_price_anomalies(session, cik, start_date, end_date, limit)
 
 
+class FinancialMetricsArgs(BaseModel):
+    cik: str = Field(description="Company CIK, from resolve_company_tool")
+    tag: str | None = Field(
+        default=None,
+        description=(
+            "XBRL tag name (e.g. 'CapitalExpenditures', 'Revenues', 'NetIncomeLoss'). "
+            "Omit to see all reported metrics for the company first - useful to "
+            "discover what tags are actually available before narrowing."
+        ),
+    )
+    start_date: dt.date | None = Field(
+        default=None, description="Earliest period_end to include (inclusive)"
+    )
+    end_date: dt.date | None = Field(
+        default=None, description="Latest period_end to include (inclusive)"
+    )
+    limit: int | None = Field(
+        default=12, description="Max number of results, most recent period first"
+    )
+
+
+@tool(args_schema=FinancialMetricsArgs)
+def get_financial_metrics_tool(
+    cik: str,
+    tag: str | None,
+    start_date: dt.date | None,
+    end_date: dt.date | None,
+    limit: int | None,
+) -> list[dict]:
+    """
+    Get reported financial metrics (structured XBRL data) for a company,
+    most recent period first.
+    """
+    with _session_factory() as session:
+        return get_financial_metrics(session, cik, tag, start_date, end_date, limit)
+
+
 class DigestArgs(BaseModel):
     date: dt.date = Field(description="The date to get the digest for")
 
@@ -171,6 +209,7 @@ ALL_TOOLS = [
     get_filing_signals_tool,
     get_news_tool,
     get_anomalies_tool,
+    get_financial_metrics_tool,
     get_digest_tool,
     get_graph_neighbors_tool,
 ]
