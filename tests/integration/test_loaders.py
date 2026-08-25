@@ -16,6 +16,7 @@ from stock_news.storage.loaders import (
     get_benchmark_returns,
     get_digest_results,
     get_filing_signals,
+    get_financial_metrics,
     get_news_articles,
     get_price_anomalies,
     get_stock_price_history,
@@ -80,6 +81,143 @@ def _metric_row(**overrides):
     }
     row.update(overrides)
     return row
+
+
+class TestGetFinancialMetrics:
+    def test_returns_rows_as_dicts(self, session):
+        session.add(FinancialMetric(**_metric_row()))
+        session.flush()
+
+        rows = get_financial_metrics(session, TEST_CIK)
+
+        assert len(rows) == 1
+        assert all(isinstance(r, dict) for r in rows)
+        assert rows[0]["tag"] == "revenue"
+
+    def test_empty_for_unknown_cik(self, session):
+        assert get_financial_metrics(session, TEST_CIK) == []
+
+    def test_no_tag_returns_all_metrics(self, session):
+        session.add_all(
+            [
+                FinancialMetric(
+                    **_metric_row(
+                        tag="revenue",
+                        period_end=dt.date(2026, 3, 31),
+                        accession_number="0000320193-26-000001",
+                    )
+                ),
+                FinancialMetric(
+                    **_metric_row(
+                        tag="Revenues",
+                        period_end=dt.date(2026, 3, 31),
+                        accession_number="0000320193-26-000002",
+                    )
+                ),
+            ]
+        )
+        session.flush()
+
+        rows = get_financial_metrics(session, TEST_CIK)
+
+        assert {r["tag"] for r in rows} == {"revenue", "Revenues"}
+
+    def test_tag_filter_narrows_to_one_metric(self, session):
+        session.add_all(
+            [
+                FinancialMetric(
+                    **_metric_row(
+                        tag="revenue",
+                        period_end=dt.date(2026, 3, 31),
+                        accession_number="0000320193-26-000001",
+                    )
+                ),
+                FinancialMetric(
+                    **_metric_row(
+                        tag="Revenues",
+                        period_end=dt.date(2026, 3, 31),
+                        accession_number="0000320193-26-000002",
+                    )
+                ),
+            ]
+        )
+        session.flush()
+
+        rows = get_financial_metrics(session, TEST_CIK, tag="Revenues")
+
+        assert len(rows) == 1
+        assert rows[0]["tag"] == "Revenues"
+
+    def test_date_range_filters_on_period_end(self, session):
+        session.add_all(
+            [
+                FinancialMetric(
+                    **_metric_row(
+                        period_end=dt.date(2025, 6, 30),
+                        accession_number="0000320193-26-000001",
+                    )
+                ),
+                FinancialMetric(
+                    **_metric_row(
+                        period_end=dt.date(2026, 3, 31),
+                        accession_number="0000320193-26-000002",
+                    )
+                ),
+            ]
+        )
+        session.flush()
+
+        rows = get_financial_metrics(session, TEST_CIK, start_date=dt.date(2026, 1, 1))
+
+        assert len(rows) == 1
+        assert rows[0]["period_end"] == dt.date(2026, 3, 31)
+
+    def test_ordered_most_recent_period_first(self, session):
+        session.add_all(
+            [
+                FinancialMetric(
+                    **_metric_row(
+                        period_end=dt.date(2025, 9, 30),
+                        accession_number="0000320193-26-000001",
+                    )
+                ),
+                FinancialMetric(
+                    **_metric_row(
+                        period_end=dt.date(2026, 3, 31),
+                        accession_number="0000320193-26-000002",
+                    )
+                ),
+                FinancialMetric(
+                    **_metric_row(
+                        period_end=dt.date(2025, 12, 31),
+                        accession_number="0000320193-26-000003",
+                    )
+                ),
+            ]
+        )
+        session.flush()
+
+        rows = get_financial_metrics(session, TEST_CIK)
+
+        assert rows[0]["period_end"] == dt.date(2026, 3, 31)
+
+    def test_limit_caps_result_count(self, session):
+        session.add_all(
+            [
+                FinancialMetric(
+                    **_metric_row(
+                        period_end=dt.date(2026, i, 1),
+                        accession_number=f"0000320193-26-00000{i}",
+                    )
+                )
+                for i in range(1, 4)
+            ]
+        )
+        session.flush()
+
+        rows = get_financial_metrics(session, TEST_CIK, limit=2)
+
+        assert len(rows) == 2
 
 
 class TestUpsertFinancialMetrics:
