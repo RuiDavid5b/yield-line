@@ -2,6 +2,7 @@
 Fetch functions for external data sources.
 """
 
+import datetime as dt
 import time
 from typing import Any
 
@@ -17,7 +18,9 @@ def fetch_edgar_filings(
     cik: str,
     user_agent: str,
     form_types: tuple[str, ...] = ("8-K", "10-Q"),
-    limit: int = 10,
+    limit: int | None = 10,
+    start_date: dt.date | None = None,
+    end_date: dt.date | None = None,
 ) -> list[dict[str, Any]]:
     """
     Fetch recent filing metadata for a company from SEC EDGAR.
@@ -36,10 +39,18 @@ def fetch_edgar_filings(
     primary_docs = recent.get("primaryDocument", [])
 
     results: list[dict[str, Any]] = []
-    for form, filing_date, accession, primary_doc in zip(
+    for form, filing_date_str, accession, primary_doc in zip(
         forms, dates, accessions, primary_docs
     ):
         if form not in form_types:
+            continue
+
+        filing_date = dt.date.fromisoformat(filing_date_str)
+
+        if start_date is not None and filing_date < start_date:
+            continue
+
+        if end_date is not None and filing_date > end_date:
             continue
 
         accession_nodash = accession.replace("-", "")
@@ -59,7 +70,7 @@ def fetch_edgar_filings(
             }
         )
 
-        if len(results) >= limit:
+        if limit is not None and len(results) >= limit:
             break
 
     time.sleep(EDGAR_RATE_LIMIT_SECONDS)
@@ -95,16 +106,37 @@ def fetch_company_facts(cik: str, user_agent: str) -> dict[str, Any]:
     return data
 
 
-def fetch_prices(ticker: str, period: str = "5d", interval: str = "1d") -> pd.DataFrame:
+def fetch_prices(
+    ticker: str,
+    period: str | None = "5d",
+    interval: str = "1d",
+    start_date: dt.date | None = None,
+    end_date: dt.date | None = None,
+) -> pd.DataFrame:
     """
     Fetch recent OHLCV price data for a ticker via yfinance.
+
+    If start_date is supplied, an explicit historical range is used.
+    Otherwise ``period`` is used.
 
     Returns a DataFrame with columns including Open, High, Low, Close,
     Volume, and a Date column (index reset). Empty DataFrame if no data
     is returned.
     """
     ticker_obj = yf.Ticker(ticker)
-    history = ticker_obj.history(period=period, interval=interval)
+
+    if start_date is not None:
+        history = ticker_obj.history(
+            start=start_date,
+            end=end_date,
+            interval=interval,
+        )
+    else:
+        history = ticker_obj.history(
+            period=period or "5d",
+            interval=interval,
+        )
+
     return history.reset_index()
 
 
