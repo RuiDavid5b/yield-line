@@ -82,12 +82,6 @@ def daily_pipeline():
     )
     run_price_tasks >> run_digest
 
-    @task.short_circuit
-    def is_weekly_run() -> bool:
-        context = get_current_context()
-        logical_date = context["logical_date"]
-        return logical_date.weekday() == FILINGS_NEWS_WEEKDAY
-
     @task
     def filings_commands(companies: list[dict]) -> list[str]:
         return [f"stock_news.pipelines.filings --cik {c['cik']}" for c in companies]
@@ -111,8 +105,6 @@ def daily_pipeline():
             commands.append(command)
         return commands
 
-    weekly_gate = is_weekly_run()
-
     run_filings_tasks = DockerOperator.partial(
         task_id="run_filings_pipeline",
         map_index_template="{{ task.command }}",
@@ -126,7 +118,13 @@ def daily_pipeline():
         **_COMMON_DOCKER_KWARGS,
     ).expand(command=news_commands(companies))
 
-    weekly_gate >> [run_filings_tasks, run_news_tasks]
+    run_anomaly_explanations = app_task(
+        task_id="run_anomaly_explanations",
+        command="stock_news.pipelines.anomaly_explanations",
+        pool="gemini_api",
+        trigger_rule="all_done",
+    )
+    [run_price_tasks, run_filings_tasks, run_news_tasks] >> run_anomaly_explanations
 
 
 daily_pipeline()

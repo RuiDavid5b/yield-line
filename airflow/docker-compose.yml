@@ -1,8 +1,9 @@
 ---
 x-airflow-common:
   &airflow-common
-  build: .
-  target: runtime
+  build:
+    context: .
+    target: runtime
   group_add:
     - "963"
   environment:

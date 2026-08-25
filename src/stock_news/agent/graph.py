@@ -17,6 +17,7 @@ from langgraph.prebuilt import ToolNode
 
 from stock_news.agent.tools import ALL_TOOLS
 from stock_news.config import get_settings
+from stock_news.storage.rate_limiter import acquire_gemini_call
 
 SYSTEM_PROMPT = """\
 You are a research assistant over a curated graph of semiconductor and \
@@ -54,6 +55,7 @@ def _build_llm():
 
 
 def _agent_node(state: MessagesState) -> dict:
+    acquire_gemini_call()
     llm = _build_llm()
     messages = [SystemMessage(content=SYSTEM_PROMPT), *state["messages"]]
     response = llm.invoke(messages)
@@ -79,3 +81,12 @@ def build_agent_graph():
     )  # tool results always route back to the agent to decide the next step
 
     return graph.compile()
+
+
+def run_agent_query(prompt: str) -> str:
+    """
+    Run one query through the agent, returning only the final answer
+    text.
+    """
+    result = build_agent_graph().invoke({"messages": [("user", prompt)]})
+    return result["messages"][-1].content

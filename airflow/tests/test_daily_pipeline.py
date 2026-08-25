@@ -31,7 +31,6 @@ class TestDailyPipelineStructure:
             "price_commands",
             "run_price_pipeline",
             "run_digest_pipeline",
-            "is_weekly_run",
             "filings_commands",
             "news_commands",
             "run_filings_pipeline",
@@ -52,11 +51,23 @@ class TestDailyPipelineStructure:
         filings_task = dag.get_task("run_filings_pipeline")
         assert filings_task.pool == "gemini_api"
 
-    def test_weekly_gate_precedes_filings_and_news(self, dag):
-        gate = dag.get_task("is_weekly_run")
-        assert "filings_commands" in gate.downstream_task_ids or any(
-            "filings" in t for t in gate.downstream_task_ids
-        )
+    def test_anomaly_explanations_uses_rate_limit_pool(self, dag):
+        anomaly_task = dag.get_task("run_anomaly_explanations")
+        assert anomaly_task.pool == "gemini_api"
+
+    def test_anomaly_explanations_runs_downstream_of_price_filings_and_news(self, dag):
+        anomaly_task = dag.get_task("run_anomaly_explanations")
+        for upstream_id in (
+            "run_price_pipeline",
+            "run_filings_pipeline",
+            "run_news_pipeline",
+        ):
+            upstream_task = dag.get_task(upstream_id)
+            assert anomaly_task.task_id in upstream_task.downstream_task_ids
+
+    def test_anomaly_explanations_has_all_done_trigger_rule(self, dag):
+        anomaly_task = dag.get_task("run_anomaly_explanations")
+        assert anomaly_task.trigger_rule == "all_done"
 
     def test_dag_has_no_cycles(self, dag):
         dag.check_cycle()
