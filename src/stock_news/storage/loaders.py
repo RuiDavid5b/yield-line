@@ -24,6 +24,45 @@ from stock_news.storage.models import (
 )
 
 
+def get_financial_metrics(
+    session: Session,
+    cik: str,
+    tag: str | None = None,
+    start_date: dt.date | None = None,
+    end_date: dt.date | None = None,
+    limit: int | None = None,
+) -> list[dict[str, Any]]:
+    """
+    Fetch reported financial metrics for a company, optionally filtered
+    to one XBRL tag (e.g. "CapitalExpenditures", "Revenues") and/or a
+    date range on period_end, most recent first.
+    """
+    stmt = select(
+        FinancialMetric.tag,
+        FinancialMetric.period_start,
+        FinancialMetric.period_end,
+        FinancialMetric.period_type,
+        FinancialMetric.value,
+        FinancialMetric.unit,
+        FinancialMetric.form,
+        FinancialMetric.filed_date,
+    ).where(FinancialMetric.cik == cik)
+
+    if tag is not None:
+        stmt = stmt.where(FinancialMetric.tag == tag)
+    if start_date is not None:
+        stmt = stmt.where(FinancialMetric.period_end >= start_date)
+    if end_date is not None:
+        stmt = stmt.where(FinancialMetric.period_end <= end_date)
+
+    stmt = stmt.order_by(FinancialMetric.period_end.desc())
+    if limit is not None:
+        stmt = stmt.limit(limit)
+
+    rows = session.execute(stmt).all()
+    return [dict(row._mapping) for row in rows]
+
+
 def upsert_financial_metrics(session: Session, rows: list[dict[str, Any]]) -> None:
     """
     Insert rows produced by processing.extraction.extract_quarterly_metric,
