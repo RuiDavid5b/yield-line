@@ -12,6 +12,7 @@ import yfinance as yf
 
 EDGAR_SUBMISSIONS_URL = "https://data.sec.gov/submissions/CIK{cik}.json"
 EDGAR_RATE_LIMIT_SECONDS = 0.15  # under the 10 req/sec limit
+PRIORITY_FORM_TYPES = ("10-Q", "10-K", "20-F", "6-K")
 
 
 def fetch_edgar_filings(
@@ -38,6 +39,7 @@ def fetch_edgar_filings(
     accessions = recent.get("accessionNumber", [])
     primary_docs = recent.get("primaryDocument", [])
 
+    non_priority_count = 0
     results: list[dict[str, Any]] = []
     for form, filing_date_str, accession, primary_doc in zip(
         forms, dates, accessions, primary_docs
@@ -52,6 +54,12 @@ def fetch_edgar_filings(
 
         if end_date is not None and filing_date > end_date:
             continue
+
+        is_priority = form in PRIORITY_FORM_TYPES
+        if not is_priority and limit is not None and non_priority_count >= limit:
+            continue
+        if not is_priority:
+            non_priority_count += 1
 
         accession_nodash = accession.replace("-", "")
         doc_url = (
