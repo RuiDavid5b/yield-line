@@ -1,8 +1,36 @@
 APP_IMAGE := stock-news-app:latest
+API_IMAGE := stock-news-api:latest
 AIRFLOW_TEST_IMAGE := stock-news-airflow-test
 
 app-image:
 	docker build -t $(APP_IMAGE) .
+
+dev-up:
+	docker compose up -d
+
+dev-down:
+	docker compose down
+
+dev-build:
+	docker compose build
+
+dev-rebuild:
+	docker compose up -d --build
+
+api-image:
+	docker build -t $(API_IMAGE) -f api/Dockerfile .
+
+api-up: api-image
+	docker run -d \
+	  --name stock-news-api \
+	  --network stock_news_net \
+	  -p 8000:8000 \
+	  --env-file .env \
+	  $(API_IMAGE)
+
+api-down:
+	docker stop stock-news-api
+	docker rm stock-news-api
 
 airflow-test-image:
 	docker build --target test -t $(AIRFLOW_TEST_IMAGE) -f airflow/Dockerfile airflow/
