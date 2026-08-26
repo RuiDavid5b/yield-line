@@ -24,6 +24,7 @@ overwritten harmlessly, so only genuinely remaining work happens.
 from __future__ import annotations
 
 import datetime as dt
+import json
 import os
 
 from airflow.providers.docker.operators.docker import DockerOperator
@@ -46,6 +47,22 @@ APP_ENV = {
 }
 
 
+_COMMON_DOCKER_KWARGS = dict(
+    image=APP_IMAGE,
+    network_mode=NETWORK,
+    docker_url="unix://var/run/docker.sock",
+    auto_remove="success",
+    environment=APP_ENV,
+    mount_tmp_dir=False,
+)
+
+
+def app_task(task_id: str, command: str, **kwargs) -> DockerOperator:
+    return DockerOperator(
+        task_id=task_id, command=command, **_COMMON_DOCKER_KWARGS, **kwargs
+    )
+
+
 @dag(
     schedule=None,
     start_date=dt.datetime(2025, 1, 1),
@@ -54,23 +71,13 @@ APP_ENV = {
 )
 def backfill_pipeline():
 
-    list_companies = DockerOperator(
+    list_companies = app_task(
         task_id="list_companies",
-        image=APP_IMAGE,
         command="stock_news.scripts.list_companies",
-        network_mode=NETWORK,
-        docker_url="unix://var/run/docker.sock",
-        auto_remove="success",
-        environment=APP_ENV,
-        mount_tmp_dir=False,
-        retrieve_output=True,
-        retrieve_output_path="/tmp/output.txt",
     )
 
     @task
     def parse_companies(raw: str) -> list[dict]:
-        import json
-
         return json.loads(raw)
 
     companies = parse_companies(list_companies.output)
