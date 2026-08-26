@@ -4,9 +4,10 @@ already-processed filings, continuing past a single filing's failure, and
 the summary it returns.
 """
 
+import datetime as dt
 from unittest.mock import MagicMock, patch
 
-from stock_news.pipelines.filings import run_company_pipeline
+from stock_news.pipelines.filings import FILING_FORM_TYPES, run_company_pipeline
 
 CIK = "0001045810"
 USER_AGENT = "Test test@example.com"
@@ -172,3 +173,105 @@ def test_financial_metrics_failure_is_logged_not_raised(
 
     assert result.metrics_upserted == 0
     assert any("financial_metrics" in e for e in result.errors)
+
+
+@patch("stock_news.pipelines.filings.upsert_financial_metrics")
+@patch("stock_news.pipelines.filings.fetch_edgar_filings")
+@patch("stock_news.pipelines.filings.fetch_company_facts")
+@patch("stock_news.pipelines.filings._get_already_processed_accessions")
+def test_default_form_types_includes_8k(
+    mock_already_processed,
+    mock_fetch_facts,
+    mock_fetch_filings,
+    mock_upsert_metrics,
+):
+    mock_already_processed.return_value = set()
+    mock_fetch_filings.return_value = []
+    mock_fetch_facts.return_value = {"facts": {"us-gaap": {}}}
+
+    session = MagicMock()
+    run_company_pipeline(CIK, USER_AGENT, session)
+
+    _, kwargs = mock_fetch_filings.call_args
+    assert "8-K" in kwargs["form_types"]
+
+
+@patch("stock_news.pipelines.filings.upsert_financial_metrics")
+@patch("stock_news.pipelines.filings.fetch_edgar_filings")
+@patch("stock_news.pipelines.filings.fetch_company_facts")
+@patch("stock_news.pipelines.filings._get_already_processed_accessions")
+def test_custom_form_types_excludes_8k(
+    mock_already_processed,
+    mock_fetch_facts,
+    mock_fetch_filings,
+    mock_upsert_metrics,
+):
+    mock_already_processed.return_value = set()
+    mock_fetch_filings.return_value = []
+    mock_fetch_facts.return_value = {"facts": {"us-gaap": {}}}
+
+    session = MagicMock()
+    run_company_pipeline(
+        CIK,
+        USER_AGENT,
+        session,
+        form_types=("10-Q", "10-K", "20-F"),
+    )
+
+    _, kwargs = mock_fetch_filings.call_args
+    assert "8-K" not in kwargs["form_types"]
+    assert kwargs["form_types"] == ("10-Q", "10-K", "20-F")
+
+
+@patch("stock_news.pipelines.filings.upsert_financial_metrics")
+@patch("stock_news.pipelines.filings.fetch_edgar_filings")
+@patch("stock_news.pipelines.filings.fetch_company_facts")
+@patch("stock_news.pipelines.filings._get_already_processed_accessions")
+def test_start_and_end_date_passed_through_to_fetch(
+    mock_already_processed,
+    mock_fetch_facts,
+    mock_fetch_filings,
+    mock_upsert_metrics,
+):
+    mock_already_processed.return_value = set()
+    mock_fetch_filings.return_value = []
+    mock_fetch_facts.return_value = {"facts": {"us-gaap": {}}}
+
+    session = MagicMock()
+    run_company_pipeline(
+        CIK,
+        USER_AGENT,
+        session,
+        start_date=dt.date(2020, 1, 1),
+        end_date=dt.date(2025, 1, 1),
+    )
+
+    _, kwargs = mock_fetch_filings.call_args
+    assert kwargs["start_date"] == dt.date(2020, 1, 1)
+    assert kwargs["end_date"] == dt.date(2025, 1, 1)
+
+
+@patch("stock_news.pipelines.filings.upsert_financial_metrics")
+@patch("stock_news.pipelines.filings.fetch_edgar_filings")
+@patch("stock_news.pipelines.filings.fetch_company_facts")
+@patch("stock_news.pipelines.filings._get_already_processed_accessions")
+def test_no_date_range_or_form_types_matches_prior_default_behavior(
+    mock_already_processed,
+    mock_fetch_facts,
+    mock_fetch_filings,
+    mock_upsert_metrics,
+):
+    # Regression guard: existing daily-run callers pass neither
+    # start_date/end_date nor form_types - confirms defaults are None
+    # and FILING_FORM_TYPES respectively, unchanged from before.
+    mock_already_processed.return_value = set()
+    mock_fetch_filings.return_value = []
+    mock_fetch_facts.return_value = {"facts": {"us-gaap": {}}}
+
+    session = MagicMock()
+    run_company_pipeline(CIK, USER_AGENT, session)
+
+    _, kwargs = mock_fetch_filings.call_args
+    assert kwargs["start_date"] is None
+    assert kwargs["end_date"] is None
+    assert kwargs["form_types"] == FILING_FORM_TYPES
