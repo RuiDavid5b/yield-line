@@ -91,8 +91,20 @@ def build_agent_graph():
 
 def run_agent_query(prompt: str) -> str:
     """
-    Run one query through the agent, returning only the final answer
-    text.
+    Run one query through the agent, returning only the final answer text.
     """
     result = build_agent_graph().invoke({"messages": [("user", prompt)]})
-    return result["messages"][-1].content
+    content = result["messages"][-1].content
+
+    if isinstance(content, str):
+        return content
+
+    if isinstance(content, list):
+        text_parts = [
+            block.get("text", "")
+            for block in content
+            if isinstance(block, dict) and block.get("type") == "text"
+        ]
+        return "".join(text_parts)
+
+    return str(content)

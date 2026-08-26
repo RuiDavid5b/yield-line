@@ -87,6 +87,50 @@ class TestRunPricePipelineUnit:
     @patch("stock_news.pipelines.stock_prices.get_stock_price_history")
     @patch("stock_news.pipelines.stock_prices.upsert_stock_prices")
     @patch("stock_news.pipelines.stock_prices.fetch_prices")
+    def test_start_and_end_date_passed_through_to_fetch(
+        self, mock_fetch, mock_upsert, mock_get_history
+    ):
+        mock_fetch.return_value = _fake_history([100.0] * 15)
+        mock_get_history.return_value = []
+
+        run_price_pipeline(
+            cik="0000320193",
+            ticker="AAPL",
+            session=MagicMock(),
+            start_date=dt.date(2020, 1, 1),
+            end_date=dt.date(2025, 1, 1),
+        )
+
+        mock_fetch.assert_called_once_with(
+            "AAPL",
+            period="5d",
+            interval="1d",
+            start_date=dt.date(2020, 1, 1),
+            end_date=dt.date(2025, 1, 1),
+        )
+
+    @patch("stock_news.pipelines.stock_prices.get_stock_price_history")
+    @patch("stock_news.pipelines.stock_prices.upsert_stock_prices")
+    @patch("stock_news.pipelines.stock_prices.fetch_prices")
+    def test_no_date_range_omits_start_end_and_uses_period(
+        self, mock_fetch, mock_upsert, mock_get_history
+    ):
+        mock_fetch.return_value = _fake_history([100.0] * 15)
+        mock_get_history.return_value = []
+
+        run_price_pipeline(cik="0000320193", ticker="AAPL", session=MagicMock())
+
+        mock_fetch.assert_called_once_with(
+            "AAPL",
+            period="5d",
+            interval="1d",
+            start_date=None,
+            end_date=None,
+        )
+
+    @patch("stock_news.pipelines.stock_prices.get_stock_price_history")
+    @patch("stock_news.pipelines.stock_prices.upsert_stock_prices")
+    @patch("stock_news.pipelines.stock_prices.fetch_prices")
     def test_upsert_failure_captured_and_skips_anomaly_detection(
         self, mock_fetch, mock_upsert, mock_get_history
     ):
@@ -112,7 +156,7 @@ class TestRunPricePipelineUnit:
         closes = [100.0]
         for m in daily_multipliers:
             closes.append(closes[-1] * m)
-        closes.append(closes[-1] * 1.30)  # sharp spike on the last day
+        closes.append(closes[-1] * 1.30)
 
         history = _fake_history(closes)
         mock_fetch.return_value = history

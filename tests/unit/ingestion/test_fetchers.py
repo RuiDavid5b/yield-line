@@ -1,3 +1,4 @@
+import datetime as dt
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
@@ -86,6 +87,86 @@ def test_fetch_edgar_filing_text(mock_get, mock_sleep):
 
 @patch("stock_news.ingestion.fetchers.time.sleep")
 @patch("stock_news.ingestion.fetchers.requests.get")
+def test_fetch_edgar_filings_start_date_excludes_earlier(mock_get, mock_sleep):
+    mock_response = MagicMock()
+    mock_response.json.return_value = {
+        "filings": {
+            "recent": {
+                "form": ["10-Q", "10-Q"],
+                "filingDate": ["2020-01-01", "2025-01-01"],
+                "accessionNumber": ["0001-01", "0002-02"],
+                "primaryDocument": ["a.htm", "b.htm"],
+            }
+        }
+    }
+    mock_get.return_value = mock_response
+
+    filings = fetch_edgar_filings(
+        cik="1234",
+        user_agent="Test test@test.com",
+        form_types=("10-Q",),
+        start_date=dt.date(2023, 1, 1),
+    )
+
+    assert len(filings) == 1
+    assert filings[0]["accession_number"] == "0002-02"
+
+
+@patch("stock_news.ingestion.fetchers.time.sleep")
+@patch("stock_news.ingestion.fetchers.requests.get")
+def test_fetch_edgar_filings_end_date_excludes_later(mock_get, mock_sleep):
+    mock_response = MagicMock()
+    mock_response.json.return_value = {
+        "filings": {
+            "recent": {
+                "form": ["10-Q", "10-Q"],
+                "filingDate": ["2020-01-01", "2025-01-01"],
+                "accessionNumber": ["0001-01", "0002-02"],
+                "primaryDocument": ["a.htm", "b.htm"],
+            }
+        }
+    }
+    mock_get.return_value = mock_response
+
+    filings = fetch_edgar_filings(
+        cik="1234",
+        user_agent="Test test@test.com",
+        form_types=("10-Q",),
+        end_date=dt.date(2023, 1, 1),
+    )
+
+    assert len(filings) == 1
+    assert filings[0]["accession_number"] == "0001-01"
+
+
+@patch("stock_news.ingestion.fetchers.time.sleep")
+@patch("stock_news.ingestion.fetchers.requests.get")
+def test_fetch_edgar_filings_no_limit_returns_all_matching(mock_get, mock_sleep):
+    mock_response = MagicMock()
+    mock_response.json.return_value = {
+        "filings": {
+            "recent": {
+                "form": ["10-Q"] * 15,
+                "filingDate": [f"2020-01-{i:02d}" for i in range(1, 16)],
+                "accessionNumber": [f"000{i}-01" for i in range(1, 16)],
+                "primaryDocument": ["a.htm"] * 15,
+            }
+        }
+    }
+    mock_get.return_value = mock_response
+
+    filings = fetch_edgar_filings(
+        cik="1234",
+        user_agent="Test test@test.com",
+        form_types=("10-Q",),
+        limit=None,
+    )
+
+    assert len(filings) == 15
+
+
+@patch("stock_news.ingestion.fetchers.time.sleep")
+@patch("stock_news.ingestion.fetchers.requests.get")
 def test_fetch_company_facts(mock_get, mock_sleep):
     mock_response = MagicMock()
     mock_response.json.return_value = {
@@ -165,6 +246,36 @@ def test_fetch_prices(mock_ticker):
     )
 
 
+@patch("stock_news.ingestion.fetchers.yf.Ticker")
+def test_fetch_prices_with_date_range_uses_start_end_not_period(mock_ticker):
+    df = pd.DataFrame({"Open": [1], "Close": [2]})
+    ticker = MagicMock()
+    ticker.history.return_value = df
+    mock_ticker.return_value = ticker
+
+    fetch_prices("SNPS", start_date=dt.date(2020, 1, 1), end_date=dt.date(2025, 1, 1))
+
+    ticker.history.assert_called_once_with(
+        start=dt.date(2020, 1, 1),
+        end=dt.date(2025, 1, 1),
+        interval="1d",
+    )
+
+
+@patch("stock_news.ingestion.fetchers.yf.Ticker")
+def test_fetch_prices_without_start_date_still_uses_period(mock_ticker):
+    # Regression guard: adding the date-range branch should not change
+    # existing period-based callers' behavior.
+    df = pd.DataFrame({"Open": [1], "Close": [2]})
+    ticker = MagicMock()
+    ticker.history.return_value = df
+    mock_ticker.return_value = ticker
+
+    fetch_prices("SNPS", period="1mo")
+
+    ticker.history.assert_called_once_with(period="1mo", interval="1d")
+
+
 @patch("stock_news.ingestion.fetchers.requests.get")
 def test_fetch_news(mock_get):
     mock_response = MagicMock()
@@ -213,3 +324,32 @@ def test_fetch_news_empty(mock_get):
 
     _, kwargs = mock_get.call_args
     assert kwargs["params"]["query"] == '("Synopsys" OR "SNPS")'
+
+
+@patch("stock_news.ingestion.fetchers.requests.get")
+def test_fetch_news_require_any_adds_and_clause(mock_get):
+    mock_response = MagicMock()
+    mock_response.json.return_value = {"news": []}
+    mock_get.return_value = mock_response
+
+    fetch_news(
+        terms=["Arm", "Arm Ltd"], api_key="key", require_any=["chip", "semiconductor"]
+    )
+
+    _, kwargs = mock_get.call_args
+    assert (
+        kwargs["params"]["query"]
+        == '("Arm" OR "Arm Ltd") AND ("chip" OR "semiconductor")'
+    )
+
+
+@patch("stock_news.ingestion.fetchers.requests.get")
+def test_fetch_news_without_require_any_unchanged(mock_get):
+    mock_response = MagicMock()
+    mock_response.json.return_value = {"news": []}
+    mock_get.return_value = mock_response
+
+    fetch_news(terms=["Synopsys"], api_key="key")
+
+    _, kwargs = mock_get.call_args
+    assert kwargs["params"]["query"] == '("Synopsys")'

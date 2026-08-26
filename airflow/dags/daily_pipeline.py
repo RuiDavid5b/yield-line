@@ -4,7 +4,6 @@ import datetime as dt
 import json
 import os
 
-from airflow.operators.python import get_current_context
 from airflow.providers.docker.operators.docker import DockerOperator
 from airflow.sdk import dag, task
 
@@ -84,7 +83,10 @@ def daily_pipeline():
 
     @task
     def filings_commands(companies: list[dict]) -> list[str]:
-        return [f"stock_news.pipelines.filings --cik {c['cik']}" for c in companies]
+        return [
+            f"stock_news.pipelines.filings --cik {c['cik']} --filing-limit 10"
+            for c in companies
+        ]
 
     @task
     def news_commands(companies: list[dict]) -> list[str]:
