@@ -91,6 +91,13 @@ def _process_one_filing(
         extracted=extracted,
     )
     session.commit()
+    logger.info(
+        "Processed filing %s (%s, %s) for CIK %s",
+        filing["accession_number"],
+        filing["form"],
+        filing["filing_date"],
+        cik,
+    )
 
 
 def _detect_taxonomy(facts: dict[str, Any]) -> str:
@@ -159,10 +166,18 @@ def run_company_pipeline(
     )
     result.filings_seen = len(filings)
 
-    for filing in filings:
+    for i, filing in enumerate(filings, start=1):
         if filing["accession_number"] in already_processed:
             result.filings_skipped_already_processed += 1
             continue
+
+        logger.info(
+            "Processing filing %d/%d for CIK %s: %s",
+            i,
+            len(filings),
+            cik,
+            filing["accession_number"],
+        )
 
         try:
             _process_one_filing(
