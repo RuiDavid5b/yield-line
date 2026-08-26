@@ -87,7 +87,7 @@ def _process_one_filing(
         accession_number=filing["accession_number"],
         form=filing["form"],
         item_codes=classification.item_codes,
-        filed_date=dt.date.fromisoformat(filing["filing_date"]),
+        filed_date=filing["filing_date"],
         extracted=extracted,
     )
     session.commit()
