@@ -11,6 +11,7 @@ requires-python = ">=3.14"
 dependencies = [
     "alembic>=1.18.5",
     "beautifulsoup4>=4.15.0",
+    "fastapi[standard]>=0.141.1",
     "langchain-google-genai>=4.3.2",
     "langgraph>=1.2.11",
     "lxml>=6.1.1",
@@ -21,6 +22,7 @@ dependencies = [
     "pydantic-settings>=2.14.2",
     "redis[hiredis]>=8.1.0",
     "sqlalchemy>=2.0.51",
+    "uvicorn>=0.52.4",
     "yfinance>=1.5.2",
 ]
 
