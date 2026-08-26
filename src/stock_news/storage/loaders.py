@@ -224,6 +224,8 @@ def get_price_anomalies(
         PriceAnomaly.date,
         PriceAnomaly.return_pct,
         PriceAnomaly.z_score,
+        PriceAnomaly.explanation,
+        PriceAnomaly.explained_at,
     ).where(PriceAnomaly.cik == cik)
 
     if start_date is not None:
