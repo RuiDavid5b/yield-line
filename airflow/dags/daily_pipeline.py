@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-import datetime as dt
 import json
 import os
 
+import pendulum
 from airflow.providers.docker.operators.docker import DockerOperator
 from airflow.sdk import dag, task
 
 APP_IMAGE = "stock-news-app:latest"
 NETWORK = "stock_news_net"
-FILINGS_NEWS_WEEKDAY = 0  # Monday
 
 # Must be manually kept in sync with config.py's Settings fields when a
 # new setting is added. 'stock_news' is not importable in order to keep it
@@ -43,8 +42,8 @@ def app_task(task_id: str, command: str, **kwargs) -> DockerOperator:
 
 
 @dag(
-    schedule="@daily",
-    start_date=dt.datetime(2025, 1, 1),
+    schedule="15 16 * * 1-5",  # 4:15 PM, Mon-Fri
+    start_date=pendulum.datetime(2025, 1, 1, tz="America/New_York"),
     catchup=False,
     tags=["stock_news"],
 )

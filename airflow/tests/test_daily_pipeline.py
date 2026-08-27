@@ -73,4 +73,4 @@ class TestDailyPipelineStructure:
         dag.check_cycle()
 
     def test_schedule_is_daily(self, dag):
-        assert dag.schedule == "@daily"
+        assert dag.schedule == "15 16 * * 1-5"
