@@ -1,0 +1,11 @@
+info:
+  name: Company Data
+  type: folder
+  seq: 3
+
+request:
+  auth: inherit
+  variables:
+    - name: cik
+      value: "0000883241"
+      description: Synopsys

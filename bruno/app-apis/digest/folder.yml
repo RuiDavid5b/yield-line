@@ -1,0 +1,7 @@
+info:
+  name: Digest
+  type: folder
+  seq: 2
+
+request:
+  auth: inherit
