@@ -1,3 +1,4 @@
+import statistics
 from collections import defaultdict
 from typing import Any
 
@@ -31,10 +32,12 @@ def fetch_benchmark_returns(period: str = "5d") -> dict[str, float | None]:
 def compute_company_digest(
     company_returns: list[dict[str, Any]],
     benchmark_returns: dict[str, float | None],
+    cross_sectional_z_threshold: float = 2.5,
 ) -> dict[str, Any]:
     """
     Build the digest: each company's own return, its industry_segment peer
-    average, and diffs against both the peer average and each benchmark.
+    average, diffs against both the peer average and each benchmark, and a
+    same-day cross-sectional anomaly flag.
     """
     valid_by_segment: dict[str, list[tuple[str, float]]] = defaultdict(list)
     for row in company_returns:
@@ -50,9 +53,28 @@ def compute_company_digest(
     def diff(a: float | None, b: float | None) -> float | None:
         return None if a is None or b is None else a - b
 
+    all_valid_returns_with_cik = [
+        (row["cik"], row["return_pct"])
+        for row in company_returns
+        if row["return_pct"] is not None
+    ]
+
+    def cross_sectional_z(cik: str, return_pct: float | None) -> float | None:
+        if return_pct is None:
+            return None
+        others = [r for c, r in all_valid_returns_with_cik if c != cik]
+        if len(others) < 2:
+            return None
+        other_mean = statistics.mean(others)
+        other_std = statistics.stdev(others)
+        if not other_std:
+            return None
+        return (return_pct - other_mean) / other_std
+
     companies = []
     for row in company_returns:
         peer_avg = peer_avg_excluding_self(row["cik"], row["industry_segment"])
+        z = cross_sectional_z(row["cik"], row["return_pct"])
         companies.append(
             {
                 "cik": row["cik"],
@@ -63,6 +85,9 @@ def compute_company_digest(
                 "vs_soxx": diff(row["return_pct"], benchmark_returns.get("SOXX")),
                 "vs_smh": diff(row["return_pct"], benchmark_returns.get("SMH")),
                 "vs_spy": diff(row["return_pct"], benchmark_returns.get("SPY")),
+                "cross_sectional_z_score": z,
+                "is_cross_sectional_anomaly": z is not None
+                and abs(z) >= cross_sectional_z_threshold,
             }
         )
 
