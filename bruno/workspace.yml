@@ -1,0 +1,14 @@
+opencollection: 1.0.0
+info:
+  name: "bruno"
+  type: workspace
+
+collections:
+  - name: "app-apis"
+    path: "collections/app-apis"
+  - name: "external_apis"
+    path: "collections/external-apis"
+
+specs:
+
+docs: ''

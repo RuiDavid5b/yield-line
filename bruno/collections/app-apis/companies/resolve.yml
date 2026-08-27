@@ -5,7 +5,12 @@ info:
 
 http:
   method: GET
-  url: "{{base-url}}/companies/resolve"
+  url: "{{base-url}}/companies/resolve?query=Synopys"
+  params:
+    - name: query
+      value: Synopys
+      type: query
+      description: Intentionally misspelled "Synopsys", it should detect the actual company
   auth: inherit
 
 runtime:
