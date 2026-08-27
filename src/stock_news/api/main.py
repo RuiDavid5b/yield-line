@@ -25,6 +25,7 @@ from stock_news.storage.loaders import (
     get_all_companies,
     get_filing_signals,
     get_financial_metrics,
+    get_latest_price_anomalies,
     get_news_articles,
     get_price_anomalies,
     get_stock_price_history,
@@ -107,6 +108,11 @@ def news(cik: str, limit: int = 20, session: Session = Depends(get_session)):
 @app.get("/companies/{cik}/anomalies", response_model=list[AnomalyOut])
 def price_anomalies(cik: str, limit: int = 10, session: Session = Depends(get_session)):
     return get_price_anomalies(session, cik, limit=limit)
+
+
+@app.get("/anomalies/latest", response_model=list[AnomalyOut])
+def latest_anomalies(session: Session = Depends(get_session)):
+    return get_latest_price_anomalies(session)
 
 
 @app.post("/agent/ask", response_model=AgentAnswerOut)
