@@ -17,6 +17,7 @@ from stock_news.storage.loaders import (
     get_digest_results,
     get_filing_signals,
     get_financial_metrics,
+    get_latest_price_anomalies,
     get_news_articles,
     get_price_anomalies,
     get_stock_price_history,
@@ -1312,6 +1313,73 @@ class TestGetUnexplainedPriceAnomalies:
 
         assert len(rows) == 1
         assert rows[0]["cik"] == TEST_CIK
+
+
+class TestGetLatestAnomalies:
+    def test_returns_anomalies_from_most_recent_date_only(self, session):
+        older_date = dt.date.today() - dt.timedelta(days=5)
+        newer_date = dt.date.today() - dt.timedelta(days=1)
+        session.add_all(
+            [
+                PriceAnomaly(
+                    cik=TEST_CIK, date=older_date, return_pct=0.10, z_score=2.6
+                ),
+                PriceAnomaly(
+                    cik=TEST_CIK, date=newer_date, return_pct=0.15, z_score=3.1
+                ),
+            ]
+        )
+        session.flush()
+
+        rows = get_latest_price_anomalies(session)
+
+        assert len(rows) == 1
+        assert rows[0]["date"] == newer_date
+
+    def test_returns_all_companies_on_the_latest_date(self, session):
+        latest = dt.date.today()
+        session.add_all(
+            [
+                PriceAnomaly(cik=TEST_CIK, date=latest, return_pct=0.10, z_score=2.6),
+            ]
+        )
+        session.flush()
+
+        rows = get_latest_price_anomalies(session)
+
+        assert all(r["date"] == latest for r in rows)
+
+    def test_empty_table_returns_empty_list(self, session):
+        assert get_latest_price_anomalies(session) == []
+
+    def test_includes_explanation_fields(self, session):
+        session.add(
+            PriceAnomaly(
+                cik=TEST_CIK,
+                date=dt.date.today(),
+                return_pct=0.10,
+                z_score=2.6,
+                explanation="Coincided with a guidance raise.",
+                explained_at=dt.datetime.now(),
+            )
+        )
+        session.flush()
+
+        rows = get_latest_price_anomalies(session)
+
+        assert rows[0]["explanation"] == "Coincided with a guidance raise."
+
+    def test_unexplained_anomaly_has_none_explanation(self, session):
+        session.add(
+            PriceAnomaly(
+                cik=TEST_CIK, date=dt.date.today(), return_pct=0.10, z_score=2.6
+            )
+        )
+        session.flush()
+
+        rows = get_latest_price_anomalies(session)
+
+        assert rows[0]["explanation"] is None
 
 
 class TestSetPriceAnomalyExplanation:

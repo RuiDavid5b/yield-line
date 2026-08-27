@@ -241,6 +241,27 @@ def get_price_anomalies(
     return [dict(row._mapping) for row in rows]
 
 
+def get_latest_price_anomalies(session: Session) -> list[dict[str, Any]]:
+    """
+    Fetch all anomalies for the most recent date.
+    """
+    latest_date = session.scalar(select(func.max(PriceAnomaly.date)))
+    if latest_date is None:
+        return []
+
+    rows = session.execute(
+        select(
+            PriceAnomaly.cik,
+            PriceAnomaly.date,
+            PriceAnomaly.return_pct,
+            PriceAnomaly.z_score,
+            PriceAnomaly.explanation,
+            PriceAnomaly.explained_at,
+        ).where(PriceAnomaly.date == latest_date)
+    ).all()
+    return [dict(row._mapping) for row in rows]
+
+
 def get_unexplained_price_anomalies(
     session: Session, max_age_days: int = 7
 ) -> list[dict[str, Any]]:
