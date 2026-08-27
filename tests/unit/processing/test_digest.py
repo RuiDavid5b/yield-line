@@ -155,3 +155,39 @@ class TestComputeCompanyDigest:
         c = result["companies"][0]
         assert c["vs_peer_avg"] is None
         assert c["vs_soxx"] is None
+
+
+class TestCrossSectionalAnomaly:
+    def _row(self, cik, segment, return_pct):
+        return {"cik": cik, "industry_segment": segment, "return_pct": return_pct}
+
+    def test_outlier_flagged_even_with_flat_benchmark(self):
+        rows = [
+            self._row("A", "fabless", 0.05),
+            self._row("B", "foundry", 0.001),
+            self._row("C", "ip_eda", -0.002),
+            self._row("D", "osat", 0.003),
+        ]
+        result = digest.compute_company_digest(
+            rows, {"SOXX": 0.0, "SMH": 0.0, "SPY": 0.0}
+        )
+        by_cik = {c["cik"]: c for c in result["companies"]}
+        assert by_cik["A"]["is_cross_sectional_anomaly"] is True
+        assert by_cik["B"]["is_cross_sectional_anomaly"] is False
+
+    def test_uniform_returns_yield_no_anomaly_and_no_zero_division(self):
+        rows = [self._row("A", "fabless", 0.02), self._row("B", "foundry", 0.02)]
+        result = digest.compute_company_digest(
+            rows, {"SOXX": 0.0, "SMH": 0.0, "SPY": 0.0}
+        )
+        assert all(c["cross_sectional_z_score"] is None for c in result["companies"])
+        assert all(
+            c["is_cross_sectional_anomaly"] is False for c in result["companies"]
+        )
+
+    def test_fewer_than_two_valid_returns_yields_none(self):
+        rows = [self._row("A", "fabless", 0.05), self._row("B", "foundry", None)]
+        result = digest.compute_company_digest(
+            rows, {"SOXX": 0.0, "SMH": 0.0, "SPY": 0.0}
+        )
+        assert all(c["cross_sectional_z_score"] is None for c in result["companies"])

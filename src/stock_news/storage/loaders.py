@@ -422,24 +422,9 @@ def upsert_digest_results(session: Session, rows: list[dict[str, Any]]) -> None:
             "vs_soxx": stmt.excluded.vs_soxx,
             "vs_smh": stmt.excluded.vs_smh,
             "vs_spy": stmt.excluded.vs_spy,
+            "cross_sectional_z_score": stmt.excluded.cross_sectional_z_score,
+            "is_cross_sectional_anomaly": stmt.excluded.is_cross_sectional_anomaly,
         },
-    )
-    session.execute(stmt)
-
-
-def upsert_benchmark_returns(session: Session, rows: list[dict[str, Any]]) -> None:
-    """
-    Insert rows produced by processing.digest.fetch_benchmark_returns
-    (reshaped per-ticker), updating in place on conflict rather than
-    raising or duplicating. One row per benchmark ticker per date.
-    """
-    if not rows:
-        return
-
-    stmt = pg_insert(BenchmarkReturn).values(rows)
-    stmt = stmt.on_conflict_do_update(
-        index_elements=["ticker", "date"],
-        set_={"return_pct": stmt.excluded.return_pct},
     )
     session.execute(stmt)
 
@@ -461,6 +446,8 @@ def get_digest_results(session: Session, date: dt.date) -> list[dict[str, Any]]:
             DigestResult.vs_soxx,
             DigestResult.vs_smh,
             DigestResult.vs_spy,
+            DigestResult.cross_sectional_z_score,
+            DigestResult.is_cross_sectional_anomaly,
         ).where(DigestResult.date == date)
     ).all()
 
@@ -471,6 +458,7 @@ def get_digest_results(session: Session, date: dt.date) -> list[dict[str, Any]]:
         "vs_soxx",
         "vs_smh",
         "vs_spy",
+        "cross_sectional_z_score",
     )
     results = []
     for row in rows:
@@ -480,6 +468,23 @@ def get_digest_results(session: Session, date: dt.date) -> list[dict[str, Any]]:
                 row_dict[field] = float(row_dict[field])
         results.append(row_dict)
     return results
+
+
+def upsert_benchmark_returns(session: Session, rows: list[dict[str, Any]]) -> None:
+    """
+    Insert rows produced by processing.digest.fetch_benchmark_returns
+    (reshaped per-ticker), updating in place on conflict rather than
+    raising or duplicating. One row per benchmark ticker per date.
+    """
+    if not rows:
+        return
+
+    stmt = pg_insert(BenchmarkReturn).values(rows)
+    stmt = stmt.on_conflict_do_update(
+        index_elements=["ticker", "date"],
+        set_={"return_pct": stmt.excluded.return_pct},
+    )
+    session.execute(stmt)
 
 
 def get_benchmark_returns(session: Session, date: dt.date) -> dict[str, float | None]:
