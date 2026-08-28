@@ -54,6 +54,8 @@ class TestDigestForDate:
                         "vs_soxx": None,
                         "vs_smh": None,
                         "vs_spy": None,
+                        "cross_sectional_z_score": None,
+                        "is_cross_sectional_anomaly": False,
                     }
                 ],
                 "benchmarks": {
