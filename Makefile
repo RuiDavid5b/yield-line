@@ -1,9 +1,8 @@
 APP_IMAGE := stock-news-app:latest
-API_IMAGE := stock-news-api:latest
 AIRFLOW_TEST_IMAGE := stock-news-airflow-test
 
 app-image:
-	docker build -t $(APP_IMAGE) .
+	docker build -t $(APP_IMAGE) ./backend
 
 dev-up:
 	docker compose up -d
@@ -17,20 +16,14 @@ dev-build:
 dev-rebuild:
 	docker compose up -d --build
 
-api-image:
-	docker build -t $(API_IMAGE) -f api/Dockerfile .
-
-api-up: api-image
-	docker run -d \
-	  --name stock-news-api \
-	  --network stock_news_net \
-	  -p 8000:8000 \
-	  --env-file .env \
-	  $(API_IMAGE)
+api-up:
+	docker compose up -d api
 
 api-down:
-	docker stop stock-news-api
-	docker rm stock-news-api
+	docker compose stop api
+
+api-rebuild:
+	docker compose up -d --build api
 
 airflow-test-image:
 	docker build --target test -t $(AIRFLOW_TEST_IMAGE) -f airflow/Dockerfile airflow/
@@ -43,6 +36,7 @@ airflow-test: airflow-test-image
 
 test-env-up:
 	docker compose -f docker-compose.test.yml up -d --wait
+	cd backend && \
 	DATABASE_URL="postgresql+psycopg://test:test@localhost:5433/stock_news_test" \
 	  uv run alembic upgrade head
 
@@ -50,6 +44,7 @@ test-env-down:
 	docker compose -f docker-compose.test.yml down
 
 test:
+	cd backend && \
 	DATABASE_URL="postgresql+psycopg://test:test@localhost:5433/stock_news_test" \
 	REDIS_URL="redis://localhost:6380/0" \
-	uv run pytest tests/ $(ARGS)
+	uv run pytest backend/tests/ $(ARGS)
