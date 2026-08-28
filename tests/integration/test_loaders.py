@@ -19,6 +19,8 @@ from stock_news.storage.loaders import (
     get_financial_metrics,
     get_latest_price_anomalies,
     get_news_articles,
+    get_period_return,
+    get_period_returns,
     get_price_anomalies,
     get_stock_price_history,
     get_unexplained_price_anomalies,
@@ -610,6 +612,106 @@ class TestGetStockPriceHistory:
     def test_get_stock_price_history_empty_for_unknown_cik(self, session):
         history = get_stock_price_history(session, TEST_CIK)
         assert history == []
+
+
+class TestGetPeriodReturn:
+    def test_computes_return_between_boundaries(self, session):
+        upsert_stock_prices(
+            session,
+            [
+                _price_row(cik=TEST_CIK, date=dt.date(2026, 1, 1), close=100.0),
+                _price_row(cik=TEST_CIK, date=dt.date(2026, 6, 1), close=120.0),
+            ],
+        )
+        session.flush()
+
+        result = get_period_return(
+            session, TEST_CIK, dt.date(2026, 1, 1), dt.date(2026, 6, 1)
+        )
+
+        assert result == pytest.approx(0.20)
+
+    def test_falls_back_to_nearest_prior_close_on_weekend_gap(self, session):
+        upsert_stock_prices(
+            session,
+            [
+                _price_row(
+                    cik=TEST_CIK, date=dt.date(2026, 1, 2), close=100.0
+                ),  # Friday
+                _price_row(cik=TEST_CIK, date=dt.date(2026, 6, 1), close=110.0),
+            ],
+        )
+        session.flush()
+
+        result = get_period_return(
+            session, TEST_CIK, dt.date(2026, 1, 4), dt.date(2026, 6, 1)
+        )
+
+        assert result == pytest.approx(0.10)
+
+    def test_no_data_before_start_date_returns_none(self, session):
+        upsert_stock_prices(
+            session, [_price_row(cik=TEST_CIK, date=dt.date(2026, 6, 1), close=100.0)]
+        )
+        session.flush()
+
+        result = get_period_return(
+            session, TEST_CIK, dt.date(2025, 1, 1), dt.date(2026, 6, 1)
+        )
+
+        assert result is None
+
+    def test_no_data_at_all_returns_none(self, session):
+        assert (
+            get_period_return(
+                session, TEST_CIK, dt.date(2026, 1, 1), dt.date(2026, 6, 1)
+            )
+            is None
+        )
+
+    def test_zero_start_close_returns_none(self, session):
+        upsert_stock_prices(
+            session,
+            [
+                _price_row(cik=TEST_CIK, date=dt.date(2026, 1, 1), close=0.0),
+                _price_row(cik=TEST_CIK, date=dt.date(2026, 6, 1), close=50.0),
+            ],
+        )
+        session.flush()
+
+        assert (
+            get_period_return(
+                session, TEST_CIK, dt.date(2026, 1, 1), dt.date(2026, 6, 1)
+            )
+            is None
+        )
+
+
+class TestGetPeriodReturns:
+    def test_returns_keyed_by_cik_for_all_companies(self, session):
+        upsert_stock_prices(
+            session,
+            [
+                _price_row(cik=TEST_CIK, date=dt.date(2026, 1, 1), close=100.0),
+                _price_row(cik=TEST_CIK, date=dt.date(2026, 6, 1), close=110.0),
+            ],
+        )
+        session.flush()
+
+        result = get_period_returns(session, dt.date(2026, 1, 1), dt.date(2026, 6, 1))
+
+        assert TEST_CIK in result
+        assert result[TEST_CIK] == pytest.approx(0.10)
+
+    def test_company_with_no_data_maps_to_none_not_omitted(self, session):
+        # TEST_CIK exists as a Company row (per the fixture) but has no
+        # StockPrice rows at all - should appear with None, not be
+        # missing from the dict entirely, so the frontend can distinguish
+        # "no data" from "company not tracked."
+        result = get_period_returns(session, dt.date(2026, 1, 1), dt.date(2026, 6, 1))
+
+        assert TEST_CIK in result
+        assert result[TEST_CIK] is None
 
 
 def _news_row(**overrides):

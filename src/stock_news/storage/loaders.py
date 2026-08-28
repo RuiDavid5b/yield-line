@@ -187,6 +187,53 @@ def upsert_stock_prices(session: Session, rows: list[dict[str, Any]]) -> None:
     session.execute(stmt)
 
 
+def _closest_price_on_or_before(
+    session: Session, cik: str, date: dt.date
+) -> float | None:
+    """
+    Nearest stored close on or before `date`. Handles weekends/holidays/
+    missing data by walking backward rather than requiring an exact date
+    match.
+    """
+    close = session.scalar(
+        select(StockPrice.close)
+        .where(StockPrice.cik == cik, StockPrice.date <= date)
+        .order_by(StockPrice.date.desc())
+        .limit(1)
+    )
+    return float(close) if close is not None else None
+
+
+def get_period_return(
+    session: Session, cik: str, start_date: dt.date, end_date: dt.date
+) -> float | None:
+    """
+    Return between the nearest available close on/before start_date and
+    the nearest available close on/before end_date. None if either
+    boundary has no price data at or before it (e.g. the company didn't
+    have stored prices that far back, not yet ingested, or IPO'd after
+    start_date) or if the start close is 0.
+    """
+    start_close = _closest_price_on_or_before(session, cik, start_date)
+    end_close = _closest_price_on_or_before(session, cik, end_date)
+    if start_close is None or end_close is None or start_close == 0:
+        return None
+    return (end_close - start_close) / start_close
+
+
+def get_period_returns(
+    session: Session, start_date: dt.date, end_date: dt.date
+) -> dict[str, float | None]:
+    """
+    Period return for every tracked company, keyed by cik.s.
+    """
+    companies = get_all_companies(session)
+    return {
+        c["cik"]: get_period_return(session, c["cik"], start_date, end_date)
+        for c in companies
+    }
+
+
 def upsert_price_anomalies(session: Session, rows: list[dict[str, Any]]) -> None:
     """
     Insert rows produced by processing.stock_prices.detect_price_anomalies,
