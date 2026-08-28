@@ -97,6 +97,8 @@ def run_digest_pipeline(
             "vs_soxx": c["vs_soxx"],
             "vs_smh": c["vs_smh"],
             "vs_spy": c["vs_spy"],
+            "cross_sectional_z_score": c["cross_sectional_z_score"],
+            "is_cross_sectional_anomaly": c["is_cross_sectional_anomaly"],
         }
         for c in digest["companies"]
     ]

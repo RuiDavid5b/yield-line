@@ -187,6 +187,53 @@ def upsert_stock_prices(session: Session, rows: list[dict[str, Any]]) -> None:
     session.execute(stmt)
 
 
+def _closest_price_on_or_before(
+    session: Session, cik: str, date: dt.date
+) -> float | None:
+    """
+    Nearest stored close on or before `date`. Handles weekends/holidays/
+    missing data by walking backward rather than requiring an exact date
+    match.
+    """
+    close = session.scalar(
+        select(StockPrice.close)
+        .where(StockPrice.cik == cik, StockPrice.date <= date)
+        .order_by(StockPrice.date.desc())
+        .limit(1)
+    )
+    return float(close) if close is not None else None
+
+
+def get_period_return(
+    session: Session, cik: str, start_date: dt.date, end_date: dt.date
+) -> float | None:
+    """
+    Return between the nearest available close on/before start_date and
+    the nearest available close on/before end_date. None if either
+    boundary has no price data at or before it (e.g. the company didn't
+    have stored prices that far back, not yet ingested, or IPO'd after
+    start_date) or if the start close is 0.
+    """
+    start_close = _closest_price_on_or_before(session, cik, start_date)
+    end_close = _closest_price_on_or_before(session, cik, end_date)
+    if start_close is None or end_close is None or start_close == 0:
+        return None
+    return (end_close - start_close) / start_close
+
+
+def get_period_returns(
+    session: Session, start_date: dt.date, end_date: dt.date
+) -> dict[str, float | None]:
+    """
+    Period return for every tracked company, keyed by cik.s.
+    """
+    companies = get_all_companies(session)
+    return {
+        c["cik"]: get_period_return(session, c["cik"], start_date, end_date)
+        for c in companies
+    }
+
+
 def upsert_price_anomalies(session: Session, rows: list[dict[str, Any]]) -> None:
     """
     Insert rows produced by processing.stock_prices.detect_price_anomalies,
@@ -238,6 +285,27 @@ def get_price_anomalies(
         stmt = stmt.limit(limit)
 
     rows = session.execute(stmt).all()
+    return [dict(row._mapping) for row in rows]
+
+
+def get_latest_price_anomalies(session: Session) -> list[dict[str, Any]]:
+    """
+    Fetch all anomalies for the most recent date.
+    """
+    latest_date = session.scalar(select(func.max(PriceAnomaly.date)))
+    if latest_date is None:
+        return []
+
+    rows = session.execute(
+        select(
+            PriceAnomaly.cik,
+            PriceAnomaly.date,
+            PriceAnomaly.return_pct,
+            PriceAnomaly.z_score,
+            PriceAnomaly.explanation,
+            PriceAnomaly.explained_at,
+        ).where(PriceAnomaly.date == latest_date)
+    ).all()
     return [dict(row._mapping) for row in rows]
 
 
@@ -422,24 +490,9 @@ def upsert_digest_results(session: Session, rows: list[dict[str, Any]]) -> None:
             "vs_soxx": stmt.excluded.vs_soxx,
             "vs_smh": stmt.excluded.vs_smh,
             "vs_spy": stmt.excluded.vs_spy,
+            "cross_sectional_z_score": stmt.excluded.cross_sectional_z_score,
+            "is_cross_sectional_anomaly": stmt.excluded.is_cross_sectional_anomaly,
         },
-    )
-    session.execute(stmt)
-
-
-def upsert_benchmark_returns(session: Session, rows: list[dict[str, Any]]) -> None:
-    """
-    Insert rows produced by processing.digest.fetch_benchmark_returns
-    (reshaped per-ticker), updating in place on conflict rather than
-    raising or duplicating. One row per benchmark ticker per date.
-    """
-    if not rows:
-        return
-
-    stmt = pg_insert(BenchmarkReturn).values(rows)
-    stmt = stmt.on_conflict_do_update(
-        index_elements=["ticker", "date"],
-        set_={"return_pct": stmt.excluded.return_pct},
     )
     session.execute(stmt)
 
@@ -461,6 +514,8 @@ def get_digest_results(session: Session, date: dt.date) -> list[dict[str, Any]]:
             DigestResult.vs_soxx,
             DigestResult.vs_smh,
             DigestResult.vs_spy,
+            DigestResult.cross_sectional_z_score,
+            DigestResult.is_cross_sectional_anomaly,
         ).where(DigestResult.date == date)
     ).all()
 
@@ -471,6 +526,7 @@ def get_digest_results(session: Session, date: dt.date) -> list[dict[str, Any]]:
         "vs_soxx",
         "vs_smh",
         "vs_spy",
+        "cross_sectional_z_score",
     )
     results = []
     for row in rows:
@@ -480,6 +536,23 @@ def get_digest_results(session: Session, date: dt.date) -> list[dict[str, Any]]:
                 row_dict[field] = float(row_dict[field])
         results.append(row_dict)
     return results
+
+
+def upsert_benchmark_returns(session: Session, rows: list[dict[str, Any]]) -> None:
+    """
+    Insert rows produced by processing.digest.fetch_benchmark_returns
+    (reshaped per-ticker), updating in place on conflict rather than
+    raising or duplicating. One row per benchmark ticker per date.
+    """
+    if not rows:
+        return
+
+    stmt = pg_insert(BenchmarkReturn).values(rows)
+    stmt = stmt.on_conflict_do_update(
+        index_elements=["ticker", "date"],
+        set_={"return_pct": stmt.excluded.return_pct},
+    )
+    session.execute(stmt)
 
 
 def get_benchmark_returns(session: Session, date: dt.date) -> dict[str, float | None]:

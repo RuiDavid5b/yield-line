@@ -12,6 +12,7 @@ from stock_news.api.models import (
     AgentQuery,
     AnomalyOut,
     CompanyOut,
+    CompanyReturnsOut,
     DigestOut,
     FilingSignalOut,
     FinancialMetricOut,
@@ -25,7 +26,9 @@ from stock_news.storage.loaders import (
     get_all_companies,
     get_filing_signals,
     get_financial_metrics,
+    get_latest_price_anomalies,
     get_news_articles,
+    get_period_returns,
     get_price_anomalies,
     get_stock_price_history,
 )
@@ -78,6 +81,13 @@ def prices(cik: str, session: Session = Depends(get_session)):
     return get_stock_price_history(session, cik)
 
 
+@app.get("/companies/returns", response_model=CompanyReturnsOut)
+def companies_returns(
+    start_date: dt.date, end_date: dt.date, session: Session = Depends(get_session)
+):
+    return {"returns": get_period_returns(session, start_date, end_date)}
+
+
 @app.get("/companies/{cik}/filing-signals", response_model=list[FilingSignalOut])
 def filing_signals(
     cik: str,
@@ -105,8 +115,19 @@ def news(cik: str, limit: int = 20, session: Session = Depends(get_session)):
 
 
 @app.get("/companies/{cik}/anomalies", response_model=list[AnomalyOut])
-def price_anomalies(cik: str, limit: int = 10, session: Session = Depends(get_session)):
-    return get_price_anomalies(session, cik, limit=limit)
+def price_anomalies(
+    cik: str,
+    limit: int = 10,
+    start_date: dt.date | None = None,
+    end_date: dt.date | None = None,
+    session: Session = Depends(get_session),
+):
+    return get_price_anomalies(session, cik, start_date, end_date, limit)
+
+
+@app.get("/anomalies/latest", response_model=list[AnomalyOut])
+def latest_price_anomalies(session: Session = Depends(get_session)):
+    return get_latest_price_anomalies(session)
 
 
 @app.post("/agent/ask", response_model=AgentAnswerOut)

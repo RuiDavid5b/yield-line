@@ -195,6 +195,10 @@ class DigestResult(Base):
     vs_soxx: Mapped[float | None] = mapped_column(Numeric(10, 6), nullable=True)
     vs_smh: Mapped[float | None] = mapped_column(Numeric(10, 6), nullable=True)
     vs_spy: Mapped[float | None] = mapped_column(Numeric(10, 6), nullable=True)
+    cross_sectional_z_score: Mapped[float | None] = mapped_column(
+        Numeric(10, 4), nullable=True
+    )
+    is_cross_sectional_anomaly: Mapped[bool] = mapped_column(default=False)
 
     company: Mapped["Company"] = relationship()
 

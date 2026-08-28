@@ -44,6 +44,10 @@ class FilingSignalOut(BaseModel):
     mentioned_competitors: list[str]
 
 
+class CompanyReturnsOut(BaseModel):
+    returns: dict[str, float | None]
+
+
 class FinancialMetricOut(BaseModel):
     tag: str
     period_start: dt.date
@@ -82,6 +86,8 @@ class DigestCompanyOut(BaseModel):
     vs_soxx: float | None
     vs_smh: float | None
     vs_spy: float | None
+    cross_sectional_z_score: float | None
+    is_cross_sectional_anomaly: bool
 
 
 class DigestBenchmarksOut(BaseModel):
