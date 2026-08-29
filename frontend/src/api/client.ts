@@ -57,20 +57,16 @@ export const api = {
     return data;
   },
 
-  prices: async (cik: string) => {
-    const { data, error } = await client.GET(
-      "/companies/{cik}/prices",
-      {
-        params: {
-          path: { cik },
-        },
+  prices: async (cik: string, start?: string, end?: string) => {
+    const { data, error } = await client.GET("/companies/{cik}/prices", {
+      params: {
+        path: { cik },
+        query: { start_date: start, end_date: end },
       },
-    );
-
+    });
     if (error) {
       throw new Error("Failed to fetch prices");
     }
-
     return data;
   },
 

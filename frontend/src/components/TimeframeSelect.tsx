@@ -20,3 +20,8 @@ export default function TimeframeSelect({ value, onChange }: Props) {
     </select>
   );
 }
+
+export function chartRangeFor(timeframe: Timeframe) {
+  if (timeframe === "1D") return dateRangeFor("1W");
+  return dateRangeFor(timeframe);
+}

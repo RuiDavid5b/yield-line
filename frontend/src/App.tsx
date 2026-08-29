@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "./api/client";
-import { dateRangeFor, type Timeframe } from "./lib/timeframes";
+import { dateRangeFor, chartRangeFor, type Timeframe } from "./lib/timeframes";
 
 import CompanyList from "./components/CompanyList";
 import TimeframeSelect from "./components/TimeframeSelect";
@@ -54,9 +54,9 @@ export default function App() {
 
   useEffect(() => {
     if (!selected) return;
-
-    api.prices(selected.cik).then(setPrices);
-  }, [selected]);
+    const { start, end } = chartRangeFor(timeframe);
+    api.prices(selected.cik, start, end).then(setPrices);
+  }, [selected, timeframe]);
 
   const { start, end } = dateRangeFor(timeframe);
 

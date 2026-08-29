@@ -537,7 +537,10 @@ export interface operations {
     };
     prices_companies__cik__prices_get: {
         parameters: {
-            query?: never;
+            query?: {
+                start_date?: string | null;
+                end_date?: string | null;
+            };
             header?: never;
             path: {
                 cik: string;
