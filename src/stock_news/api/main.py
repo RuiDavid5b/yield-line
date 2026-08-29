@@ -77,8 +77,13 @@ def digest_for_date(date: dt.date, session: Session = Depends(get_session)):
 
 
 @app.get("/companies/{cik}/prices", response_model=list[StockPriceOut])
-def prices(cik: str, session: Session = Depends(get_session)):
-    return get_stock_price_history(session, cik)
+def prices(
+    cik: str,
+    start_date: dt.date | None = None,
+    end_date: dt.date | None = None,
+    session: Session = Depends(get_session),
+):
+    return get_stock_price_history(session, cik, start_date, end_date)
 
 
 @app.get("/companies/returns", response_model=CompanyReturnsOut)

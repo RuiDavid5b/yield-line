@@ -345,22 +345,33 @@ def set_price_anomaly_explanation(
     )
 
 
-def get_stock_price_history(session: Session, cik: str) -> list[dict[str, Any]]:
+def get_stock_price_history(
+    session: Session,
+    cik: str,
+    start_date: dt.date | None = None,
+    end_date: dt.date | None = None,
+) -> list[dict[str, Any]]:
     """
-    Fetch all stored price rows for a company, as plain dicts, for use
-    with processing.prices.compute_daily_returns / detect_price_anomalies.
+    Fetch stored price rows for a company, as plain dicts, optionally
+    bounded by date range.
     """
-    rows = session.execute(
-        select(
-            StockPrice.cik,
-            StockPrice.date,
-            StockPrice.open,
-            StockPrice.high,
-            StockPrice.low,
-            StockPrice.close,
-            StockPrice.volume,
-        ).where(StockPrice.cik == cik)
-    ).all()
+    stmt = select(
+        StockPrice.cik,
+        StockPrice.date,
+        StockPrice.open,
+        StockPrice.high,
+        StockPrice.low,
+        StockPrice.close,
+        StockPrice.volume,
+    ).where(StockPrice.cik == cik)
+
+    if start_date is not None:
+        stmt = stmt.where(StockPrice.date >= start_date)
+    if end_date is not None:
+        stmt = stmt.where(StockPrice.date <= end_date)
+
+    stmt = stmt.order_by(StockPrice.date)
+    rows = session.execute(stmt).all()
 
     numeric_fields = ("open", "high", "low", "close")
     results = []
