@@ -614,6 +614,98 @@ class TestGetStockPriceHistory:
         assert history == []
 
 
+class TestGetStockPriceHistoryRangeFiltering:
+    def test_no_range_returns_everything(self, session):
+        session.add_all(
+            [
+                StockPrice(
+                    cik=TEST_CIK,
+                    date=dt.date(2020, 1, 1),
+                    open=1,
+                    high=1,
+                    low=1,
+                    close=1,
+                    volume=1,
+                ),
+                StockPrice(
+                    cik=TEST_CIK,
+                    date=dt.date(2026, 1, 1),
+                    open=2,
+                    high=2,
+                    low=2,
+                    close=2,
+                    volume=1,
+                ),
+            ]
+        )
+        session.flush()
+
+        rows = get_stock_price_history(session, TEST_CIK)
+
+        assert len(rows) == 2
+
+    def test_range_narrows_results(self, session):
+        session.add_all(
+            [
+                StockPrice(
+                    cik=TEST_CIK,
+                    date=dt.date(2020, 1, 1),
+                    open=1,
+                    high=1,
+                    low=1,
+                    close=1,
+                    volume=1,
+                ),
+                StockPrice(
+                    cik=TEST_CIK,
+                    date=dt.date(2026, 1, 1),
+                    open=2,
+                    high=2,
+                    low=2,
+                    close=2,
+                    volume=1,
+                ),
+            ]
+        )
+        session.flush()
+
+        rows = get_stock_price_history(
+            session, TEST_CIK, start_date=dt.date(2025, 1, 1)
+        )
+
+        assert len(rows) == 1
+        assert rows[0]["date"] == dt.date(2026, 1, 1)
+
+    def test_results_ordered_by_date_ascending(self, session):
+        session.add_all(
+            [
+                StockPrice(
+                    cik=TEST_CIK,
+                    date=dt.date(2026, 3, 1),
+                    open=1,
+                    high=1,
+                    low=1,
+                    close=1,
+                    volume=1,
+                ),
+                StockPrice(
+                    cik=TEST_CIK,
+                    date=dt.date(2026, 1, 1),
+                    open=1,
+                    high=1,
+                    low=1,
+                    close=1,
+                    volume=1,
+                ),
+            ]
+        )
+        session.flush()
+
+        rows = get_stock_price_history(session, TEST_CIK)
+
+        assert [r["date"] for r in rows] == sorted(r["date"] for r in rows)
+
+
 class TestGetPeriodReturn:
     def test_computes_return_between_boundaries(self, session):
         upsert_stock_prices(
