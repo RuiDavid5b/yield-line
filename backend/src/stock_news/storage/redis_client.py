@@ -18,7 +18,7 @@ from stock_news.config import get_settings
 DIGEST_TTL_SECONDS = (
     90 * 24 * 60 * 60
 )  # ~1 quarter - matches the Postgres fallback boundary
-DIGEST_SCHEMA_VERSION = 1
+DIGEST_SCHEMA_VERSION = 2
 
 _LATEST_KEY = "digest:latest"
 

@@ -197,7 +197,9 @@ def _closest_price_on_or_before(
     """
     close = session.scalar(
         select(StockPrice.close)
-        .where(StockPrice.cik == cik, StockPrice.date <= date)
+        .where(
+            StockPrice.cik == cik, StockPrice.date <= date, StockPrice.close.isnot(None)
+        )
         .order_by(StockPrice.date.desc())
         .limit(1)
     )

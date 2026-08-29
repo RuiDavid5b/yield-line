@@ -45,12 +45,21 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (timeframe === "1D") {
+      if (!latestDigest) return;
+      const digestReturns = Object.fromEntries(
+        latestDigest.companies.map((c) => [c.cik, c.return_pct])
+      );
+      setReturns(digestReturns);
+      return;
+    }
+  
     const { start, end } = dateRangeFor(timeframe);
-
     api.periodReturns(start, end).then((data) => {
+      console.log("periodReturns response:", data);
       setReturns(data.returns);
     });
-  }, [timeframe, companies.length]);
+  }, [timeframe, companies.length, latestDigest]);
 
   useEffect(() => {
     if (!selected) return;

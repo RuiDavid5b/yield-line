@@ -78,6 +78,15 @@ def run_digest_pipeline(
         1 for c in company_returns if c["return_pct"] is None
     )
 
+    # If no company has data for this date (e.g. a weekend/holiday, or
+    # the price pipeline hasn't run yet),skip it
+    if result.companies_missing_data == len(companies):
+        logger.info(
+            "No company price data for %s - skipping digest (likely non-trading day)",
+            target_date,
+        )
+        return result
+
     try:
         benchmark_returns = fetch_benchmark_returns()
     except Exception as exc:

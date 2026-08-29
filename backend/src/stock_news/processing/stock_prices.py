@@ -4,6 +4,7 @@ Processes stored stock price rows: return calculation and anomaly detection.
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 import pandas as pd
@@ -84,17 +85,22 @@ def transform_price_history(history: pd.DataFrame, cik: str) -> list[dict[str, A
     """
     Convert a raw yfinance history DataFrame (as returned by
     ingestion.fetchers.fetch_prices) into rows matching the StockPrice
-    schema.
+    schema. Rows with any NaN OHLCV value are skipped.
     """
-    return [
-        {
-            "cik": cik,
-            "date": row["Date"].date(),
-            "open": float(row["Open"]),
-            "high": float(row["High"]),
-            "low": float(row["Low"]),
-            "close": float(row["Close"]),
-            "volume": int(row["Volume"]),
-        }
-        for _, row in history.iterrows()
-    ]
+    rows = []
+    for _, row in history.iterrows():
+        values = [row["Open"], row["High"], row["Low"], row["Close"], row["Volume"]]
+        if any(math.isnan(v) for v in values):
+            continue
+        rows.append(
+            {
+                "cik": cik,
+                "date": row["Date"].date(),
+                "open": float(row["Open"]),
+                "high": float(row["High"]),
+                "low": float(row["Low"]),
+                "close": float(row["Close"]),
+                "volume": int(row["Volume"]),
+            }
+        )
+    return rows
