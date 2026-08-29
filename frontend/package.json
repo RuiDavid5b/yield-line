@@ -9,8 +9,8 @@
     "generate-api": "openapi-typescript http://localhost:8000/openapi.json -o src/api/schema.ts"
   },
   "dependencies": {
+    "openapi-fetch": "^0.17.0",
     "openapi-typescript": "^7.13.0",
-    "openapi-typescript-fetch": "^2.2.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "recharts": "^3.10.1"

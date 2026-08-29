@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "./api/client";
-import { dateRangeFor, type Timeframe } from "./api/timeframes";
+import { dateRangeFor, type Timeframe } from "./lib/timeframes";
 
 import CompanyList from "./components/CompanyList";
 import TimeframeSelect from "./components/TimeframeSelect";

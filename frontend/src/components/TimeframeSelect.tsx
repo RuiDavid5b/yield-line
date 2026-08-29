@@ -1,28 +1,22 @@
-export const TIMEFRAMES = {
-  "1D": 1,
-  "1W": 7,
-  "1M": 30,
-  "3M": 90,
-  "1Y": 365,
-  "5Y": 365 * 5,
-} as const;
+import { TIMEFRAMES, type Timeframe } from "../lib/timeframes";
 
-export type Timeframe = keyof typeof TIMEFRAMES | "YTD";
+interface Props {
+  value: Timeframe;
+  onChange: (value: Timeframe) => void;
+}
 
-export function dateRangeFor(timeframe: Timeframe) {
-  const end = new Date();
-  const start = new Date();
-
-  if (timeframe === "YTD") {
-    start.setMonth(0, 1);
-  } else {
-    start.setDate(start.getDate() - TIMEFRAMES[timeframe]);
-  }
-
-  const iso = (d: Date) => d.toISOString().slice(0, 10);
-
-  return {
-    start: iso(start),
-    end: iso(end),
-  };
+export default function TimeframeSelect({ value, onChange }: Props) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value as Timeframe)}
+    >
+      {Object.keys(TIMEFRAMES).map((tf) => (
+        <option key={tf} value={tf}>
+          {tf}
+        </option>
+      ))}
+      <option value="YTD">YTD</option>
+    </select>
+  );
 }
