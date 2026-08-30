@@ -26,6 +26,7 @@ from stock_news.storage.loaders import (
     get_all_companies,
     get_filing_signals,
     get_financial_metrics,
+    get_latest_close_prices,
     get_latest_price_anomalies,
     get_news_articles,
     get_period_returns,
@@ -91,6 +92,13 @@ def companies_returns(
     start_date: dt.date, end_date: dt.date, session: Session = Depends(get_session)
 ):
     return {"returns": get_period_returns(session, start_date, end_date)}
+
+
+@app.get("/companies/latest-prices")
+def companies_latest_prices(
+    session: Session = Depends(get_session),
+) -> dict[str, float | None]:
+    return get_latest_close_prices(session)
 
 
 @app.get("/companies/{cik}/filing-signals", response_model=list[FilingSignalOut])

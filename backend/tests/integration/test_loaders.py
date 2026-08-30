@@ -17,6 +17,7 @@ from stock_news.storage.loaders import (
     get_digest_results,
     get_filing_signals,
     get_financial_metrics,
+    get_latest_close_prices,
     get_latest_price_anomalies,
     get_news_articles,
     get_period_return,
@@ -796,13 +797,33 @@ class TestGetPeriodReturns:
         assert result[TEST_CIK] == pytest.approx(0.10)
 
     def test_company_with_no_data_maps_to_none_not_omitted(self, session):
-        # TEST_CIK exists as a Company row (per the fixture) but has no
-        # StockPrice rows at all - should appear with None, not be
-        # missing from the dict entirely, so the frontend can distinguish
-        # "no data" from "company not tracked."
         result = get_period_returns(session, dt.date(2026, 1, 1), dt.date(2026, 6, 1))
 
         assert TEST_CIK in result
+        assert result[TEST_CIK] is None
+
+
+class TestGetLatestClosePrices:
+    def test_returns_most_recent_close_per_company(self, session):
+        upsert_stock_prices(
+            session,
+            [
+                _price_row(
+                    cik=TEST_CIK,
+                    date=dt.date.today() - dt.timedelta(days=1),
+                    close=100.0,
+                ),
+                _price_row(cik=TEST_CIK, date=dt.date.today(), close=105.0),
+            ],
+        )
+        session.flush()
+
+        result = get_latest_close_prices(session)
+
+        assert result[TEST_CIK] == pytest.approx(105.0)
+
+    def test_company_with_no_prices_maps_to_none(self, session):
+        result = get_latest_close_prices(session)
         assert result[TEST_CIK] is None
 
 

@@ -223,6 +223,17 @@ def get_period_return(
     return (end_close - start_close) / start_close
 
 
+def get_latest_close_prices(session: Session) -> dict[str, float | None]:
+    """
+    Most recent available close price per company, keyed by cik.
+    """
+    companies = get_all_companies(session)
+    return {
+        c["cik"]: _closest_price_on_or_before(session, c["cik"], dt.date.today())
+        for c in companies
+    }
+
+
 def get_period_returns(
     session: Session, start_date: dt.date, end_date: dt.date
 ) -> dict[str, float | None]:
