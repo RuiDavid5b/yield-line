@@ -1,5 +1,6 @@
 import createClient from "openapi-fetch";
 import type { paths } from "./schema";
+import type { Company } from "./types";
 
 const client = createClient<paths>({
   baseUrl: import.meta.env.VITE_API_URL || "http://localhost:8000",
@@ -113,17 +114,19 @@ export const api = {
     return data;
   },
 
-  askAgent: async (question: string) => {
+  askAgent: async (question: string, threadId: string, selectedCompany: Company | null) => {
     const { data, error } = await client.POST("/agent/ask", {
       body: {
         question,
+        thread_id: threadId,
+        selected_company: selectedCompany
+          ? { cik: selectedCompany.cik, ticker: selectedCompany.ticker, name: selectedCompany.name }
+          : null,
       },
     });
-
     if (error) {
       throw new Error("Failed to ask agent");
     }
-
     return data;
   },
 };
