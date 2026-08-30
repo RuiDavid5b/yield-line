@@ -374,6 +374,10 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** LatestPricesOut */
+        LatestPricesOut: {
+            [key: string]: number | null;
+        };
         /** NewsArticleOut */
         NewsArticleOut: {
             /** Cik */
@@ -633,9 +637,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: number | null;
-                    };
+                    "application/json": components["schemas"]["LatestPricesOut"];
                 };
             };
         };
