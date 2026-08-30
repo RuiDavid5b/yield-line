@@ -219,3 +219,32 @@ code {
 .company-row.anomaly-down { background: color-mix(in srgb, var(--red) 12%, var(--bg)); }
 .company-row.anomaly-up:hover { background: color-mix(in srgb, var(--green) 20%, var(--bg)); }
 .company-row.anomaly-down:hover { background: color-mix(in srgb, var(--red) 20%, var(--bg)); }
+
+.signal-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.signal-tag {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.section-heading {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 8px;
+}
+
+.panel {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+  background: var(--bg-alt);
+}
+
+.main > .panel + .panel {
+  margin-top: 4px;
+}

@@ -101,6 +101,7 @@ export default function App() {
               cik={selected.cik}
               start={start}
               end={end}
+              latestDigest={latestDigest}
             />
           </>
         ) : (
