@@ -16,6 +16,7 @@ from stock_news.api.models import (
     DigestOut,
     FilingSignalOut,
     FinancialMetricOut,
+    LatestPricesOut,
     NewsArticleOut,
     ResolvedCompanyOut,
     StockPriceOut,
@@ -94,7 +95,7 @@ def companies_returns(
     return {"returns": get_period_returns(session, start_date, end_date)}
 
 
-@app.get("/companies/latest-prices")
+@app.get("/companies/latest-prices", response_model=LatestPricesOut)
 def companies_latest_prices(
     session: Session = Depends(get_session),
 ) -> dict[str, float | None]:

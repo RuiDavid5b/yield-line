@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import datetime as dt
 
-from pydantic import BaseModel
+from pydantic import BaseModel, RootModel
 
 
 class CompanyOut(BaseModel):
@@ -46,6 +46,10 @@ class FilingSignalOut(BaseModel):
 
 class CompanyReturnsOut(BaseModel):
     returns: dict[str, float | None]
+
+
+class LatestPricesOut(RootModel[dict[str, float | None]]):
+    pass
 
 
 class FinancialMetricOut(BaseModel):
