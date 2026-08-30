@@ -57,6 +57,12 @@ export const api = {
     return data;
   },
 
+  latestPrices: async () => {
+    const { data, error } = await client.GET("/companies/latest-prices");
+    if (error) throw new Error("Failed to fetch latest prices");
+    return data;
+  },
+
   prices: async (cik: string, start?: string, end?: string) => {
     const { data, error } = await client.GET("/companies/{cik}/prices", {
       params: {

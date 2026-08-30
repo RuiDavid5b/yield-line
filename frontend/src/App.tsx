@@ -21,6 +21,10 @@ export default function App() {
     Awaited<ReturnType<typeof api.latestDigest>> | null
   >(null);
 
+  const [latestPrices, setLatestPrices] = useState<
+    Record<string, number | null>
+  >({});
+
   const [timeframe, setTimeframe] =
     useState<Timeframe>("1D");
 
@@ -38,10 +42,8 @@ export default function App() {
   useEffect(() => {
     api.listCompanies().then(setCompanies);
     api.latestAnomalies().then(setLatestAnomalies);
-
-    api.latestDigest()
-      .then(setLatestDigest)
-      .catch(() => {});
+    api.latestDigest().then(setLatestDigest).catch(() => {});
+    api.latestPrices().then(setLatestPrices);
   }, []);
 
   useEffect(() => {
@@ -74,6 +76,7 @@ export default function App() {
       <CompanyList
         companies={companies}
         returns={returns}
+        latestPrices={latestPrices}
         latestAnomalies={latestAnomalies}
         latestDigest={latestDigest}
         selectedCik={selected?.cik}

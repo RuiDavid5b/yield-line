@@ -5,6 +5,7 @@ import { api } from "../api/client";
 interface CompanyListProps {
   companies: Company[];
   returns: Record<string, number | null>;
+  latestPrices: Record<string, number | null>;
   latestAnomalies: Anomaly[];
   latestDigest: Digest | null;
   selectedCik: string | undefined;
@@ -14,6 +15,7 @@ interface CompanyListProps {
 export default function CompanyList({
   companies,
   returns,
+  latestPrices,
   latestAnomalies,
   latestDigest,
   selectedCik,
@@ -92,11 +94,12 @@ export default function CompanyList({
             <div className="company-info">
               <div className="company-top-line">
                 <span className="company-ticker">{company.ticker}</span>
-                {returnPct != null && (
-                  <span className={`return-pct ${returnPct >= 0 ? "positive" : "negative"}`}>
-                    {(returnPct * 100).toFixed(1)}%
-                  </span>
-                )}
+                <span className="company-price">
+                  {latestPrices[company.cik] != null ? `$${latestPrices[company.cik]!.toFixed(2)}` : ""}
+                </span>
+                <span className={`return-pct ${returnPct != null && returnPct >= 0 ? "positive" : "negative"}`}>
+                  {returnPct != null ? `${(returnPct * 100).toFixed(1)}%` : ""}
+                </span>
               </div>
               <span className="company-segment">{company.industry_segment}</span>
             </div>
