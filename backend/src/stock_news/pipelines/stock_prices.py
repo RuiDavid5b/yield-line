@@ -72,6 +72,7 @@ def run_price_pipeline(
         return result
 
     if history.empty:
+        result.error = "fetch: no price data returned (empty history)"
         return result
 
     rows = transform_price_history(history, cik)

@@ -74,11 +74,22 @@ def backfill_pipeline():
     list_companies = app_task(
         task_id="list_companies",
         command="stock_news.scripts.list_companies",
+        do_xcom_push=True,
     )
 
     @task
-    def parse_companies(raw: str) -> list[dict]:
-        return json.loads(raw)
+    def parse_companies(raw: str, **context) -> list[dict]:
+        """
+        Parses the full company list, then optionally filters it down to
+        just the CIKs passed via dag_run.conf - e.g. triggering with
+        config {"ciks": ["0000937966", "0001046179"]} runs backfill only
+        for those two.
+        """
+        all_companies = json.loads(raw)
+        requested_ciks = context["dag_run"].conf.get("ciks") if context["dag_run"].conf else None
+        if requested_ciks:
+            return [c for c in all_companies if c["cik"] in requested_ciks]
+        return all_companies
 
     companies = parse_companies(list_companies.output)
 
