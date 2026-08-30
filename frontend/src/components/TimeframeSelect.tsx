@@ -7,7 +7,7 @@ interface Props {
 
 export default function TimeframeSelect({ value, onChange }: Props) {
   return (
-    <select
+    <select className="timeframe-select"
       value={value}
       onChange={(e) => onChange(e.target.value as Timeframe)}
     >
