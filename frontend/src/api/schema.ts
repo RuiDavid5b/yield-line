@@ -238,6 +238,12 @@ export interface components {
         AgentQuery: {
             /** Question */
             question: string;
+            /** Thread Id */
+            thread_id: string;
+            /** Selected Company */
+            selected_company?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** AnomalyOut */
         AnomalyOut: {
