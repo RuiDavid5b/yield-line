@@ -165,7 +165,7 @@ code {
 .company-row:hover { background: var(--bg-alt); }
 .company-row.selected { border-left: 3px solid var(--accent); padding-left: 7px; }
 
-.company-logo { width: 32px; height: 32px; border-radius: 10%; flex-shrink: 0; padding-right: 12px; }
+.company-logo { width: 32px; height: 32px; border-radius: 10%; flex-shrink: 0 }
 
 .company-info {
   flex: 1;
@@ -190,8 +190,16 @@ code {
   font-variant-numeric: tabular-nums;
 }
 
-.company-ticker { font-weight: 600; font-size: 14px; line-height: 1.1; }
-.company-segment { font-size: 9px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.3px; margin-top: 0px; line-height: 1; }
+.company-ticker { font-weight: 600; font-size: 14px; line-height: 1.1; padding-left: 12px; }
+.company-segment { 
+  font-size: 9px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.3px; 
+  margin-top: 0px; 
+  line-height: 1;
+  padding-left: 12px;
+}
 
 .return-pct.positive { color: var(--green); font-weight: 600; font-size: 16px; flex-shrink: 0; }
 .return-pct.negative { color: var(--red); font-weight: 600; font-size: 16px; flex-shrink: 0; }

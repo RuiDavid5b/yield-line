@@ -31,7 +31,7 @@ export default function PriceChart({
           />
           <Tooltip />
           <Line
-            type="monotone"
+            type="linear"
             dataKey="close"
             stroke="var(--accent)"
             dot={false}
