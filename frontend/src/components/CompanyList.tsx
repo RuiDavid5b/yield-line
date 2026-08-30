@@ -36,25 +36,26 @@ export default function CompanyList({
     return () => clearTimeout(handle);
   }, [query]);
 
+
   const anomalyByCik = useMemo(() => {
-    const map = new Map<string, string[]>();
-
+    const map = new Map<string, { reasons: string[]; direction: "up" | "down" }>();
+  
+    const addReason = (cik: string, reason: string, returnPct: number) => {
+      const entry = map.get(cik) ?? { reasons: [], direction: returnPct >= 0 ? "up" : "down" };
+      entry.reasons.push(reason);
+      map.set(cik, entry);
+    };
+  
     for (const anomaly of latestAnomalies) {
-      map.set(anomaly.cik, [
-        ...(map.get(anomaly.cik) ?? []),
-        `Rolling anomaly (z=${anomaly.z_score.toFixed(2)})`,
-      ]);
+      addReason(anomaly.cik, `Rolling anomaly on ${anomaly.date} (z=${anomaly.z_score.toFixed(2)})`, anomaly.return_pct);
     }
-
+  
     for (const company of latestDigest?.companies ?? []) {
-      if (company.is_cross_sectional_anomaly) {
-        map.set(company.cik, [
-          ...(map.get(company.cik) ?? []),
-          "Unusual vs. all tracked companies today",
-        ]);
+      if (company.is_cross_sectional_anomaly && company.return_pct != null) {
+        addReason(company.cik, `Unusual vs. all tracked companies on ${latestDigest?.date}`, company.return_pct);
       }
     }
-
+  
     return map;
   }, [latestAnomalies, latestDigest]);
 
@@ -73,57 +74,32 @@ export default function CompanyList({
 
       {visible.map((company) => {
         const returnPct = returns[company.cik];
-        const anomalyReasons = anomalyByCik.get(company.cik);
+        const anomaly = anomalyByCik.get(company.cik);
 
         return (
           <div
             key={company.cik}
-            className={`company-row${
-              company.cik === selectedCik ? " selected" : ""
-            }`}
+            className={["company-row", company.cik === selectedCik ? "selected" : "", anomaly ? `anomaly-${anomaly.direction}` : ""].filter(Boolean).join(" ")}
             onClick={() => onSelect(company)}
           >
             <img
               className="company-logo"
-              src={`https://img.logo.dev/ticker/${company.ticker}?token=${
-                import.meta.env.VITE_LOGODEV_TOKEN
-              }`}
-              onError={(e) => {
-                e.currentTarget.style.display = "none";
-              }}
+              src={`https://img.logo.dev/ticker/${company.ticker}?token=${import.meta.env.VITE_LOGODEV_TOKEN}`}
+              onError={(e) => { e.currentTarget.style.display = "none"; }}
               alt=""
+              title={company.name}
             />
-
-            <div style={{ flex: 1 }}>
-              <div>{company.name}</div>
-              <div
-                style={{
-                  fontSize: 12,
-                  color: "var(--text-dim)",
-                }}
-              >
-                {company.industry_segment}
+            <div className="company-info">
+              <div className="company-top-line">
+                <span className="company-ticker">{company.ticker}</span>
+                {returnPct != null && (
+                  <span className={`return-pct ${returnPct >= 0 ? "positive" : "negative"}`}>
+                    {(returnPct * 100).toFixed(1)}%
+                  </span>
+                )}
               </div>
+              <span className="company-segment">{company.industry_segment}</span>
             </div>
-
-            {returnPct != null && (
-              <span
-                className={`return-pct ${
-                  returnPct >= 0 ? "positive" : "negative"
-                }`}
-              >
-                {(returnPct * 100).toFixed(1)}%
-              </span>
-            )}
-
-            {anomalyReasons && (
-              <span
-                className="anomaly-badge"
-                title={anomalyReasons.join(" · ")}
-              >
-                !
-              </span>
-            )}
           </div>
         );
       })}
