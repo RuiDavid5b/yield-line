@@ -146,4 +146,6 @@ def latest_price_anomalies(session: Session = Depends(get_session)):
 
 @app.post("/agent/ask", response_model=AgentAnswerOut)
 def ask_agent(body: AgentQuery):
-    return {"answer": run_agent_query(body.question)}
+    return {
+        "answer": run_agent_query(body.question, body.thread_id, body.selected_company)
+    }

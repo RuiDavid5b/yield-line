@@ -107,6 +107,8 @@ class DigestOut(BaseModel):
 
 class AgentQuery(BaseModel):
     question: str
+    thread_id: str
+    selected_company: dict | None = None
 
 
 class AgentAnswerOut(BaseModel):

@@ -9,10 +9,13 @@ rather than hidden behind a helper.
 
 from __future__ import annotations
 
-from langchain_core.messages import SystemMessage
+from functools import lru_cache
+from typing import Annotated, NotRequired, TypedDict
+
+from langchain_core.messages import BaseMessage, SystemMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.graph import END, StateGraph
-from langgraph.graph.message import MessagesState
+from langgraph.graph.message import MessagesState, add_messages
 from langgraph.prebuilt import ToolNode
 
 from stock_news.agent.tools import ALL_TOOLS
@@ -53,6 +56,11 @@ Rules you must follow:
 """
 
 
+class AgentState(TypedDict):
+    messages: Annotated[list[BaseMessage], add_messages]
+    selected_company: NotRequired[dict | None]
+
+
 def _build_llm():
     settings = get_settings()
     return ChatGoogleGenerativeAI(
@@ -60,11 +68,27 @@ def _build_llm():
     ).bind_tools(ALL_TOOLS)
 
 
-def _agent_node(state: MessagesState) -> dict:
+def _agent_node(state: AgentState) -> dict:
     acquire_gemini_call()
     llm = _build_llm()
-    messages = [SystemMessage(content=SYSTEM_PROMPT), *state["messages"]]
-    response = llm.invoke(messages)
+
+    system_messages = [SystemMessage(content=SYSTEM_PROMPT)]
+    selected_company = state.get("selected_company")
+    if selected_company:
+        c = selected_company
+        system_messages.append(
+            SystemMessage(
+                content=(
+                    f"The user currently has {c['name']} ({c['ticker']}, cik {c['cik']}) "
+                    f"selected in the UI. If their question doesn't name a company, "
+                    f"assume they mean this one. If they do name a different company, "
+                    f"use that one instead - don't force the selected company onto an "
+                    f"unrelated question."
+                )
+            )
+        )
+
+    response = llm.invoke([*system_messages, *state["messages"]])
     return {"messages": [response]}
 
 
@@ -82,23 +106,38 @@ def build_agent_graph():
 
     graph.set_entry_point("agent")
     graph.add_conditional_edges("agent", _should_continue, {"tools": "tools", END: END})
-    graph.add_edge(
-        "tools", "agent"
-    )  # tool results always route back to the agent to decide the next step
+    graph.add_edge("tools", "agent")
 
     return graph.compile()
 
 
-def run_agent_query(prompt: str) -> str:
+@lru_cache
+def get_agent():
     """
-    Run one query through the agent, returning only the final answer text.
+    Built once and cached for the process's lifetime - MemorySaver stores
+    checkpoint history in the object itself, so a fresh instance per call
+    would have nothing to remember regardless of thread_id.
     """
-    result = build_agent_graph().invoke({"messages": [("user", prompt)]})
-    content = result["messages"][-1].content
+    return build_agent_graph()
 
+
+def run_agent_query(
+    prompt: str, thread_id: str, selected_company: dict | None = None
+) -> str:
+    """
+    Run one turn of a conversation. thread_id identifies the conversation
+    for checkpointing - the same thread_id across calls continues the
+    same chat history. selected_company is re-injected fresh each call,
+    not persisted into message history, so switching companies mid-
+    conversation doesn't rewrite prior turns.
+    """
+    result = get_agent().invoke(
+        {"messages": [("user", prompt)], "selected_company": selected_company},
+        config={"configurable": {"thread_id": thread_id}},
+    )
+    content = result["messages"][-1].content
     if isinstance(content, str):
         return content
-
     if isinstance(content, list):
         text_parts = [
             block.get("text", "")
@@ -106,5 +145,4 @@ def run_agent_query(prompt: str) -> str:
             if isinstance(block, dict) and block.get("type") == "text"
         ]
         return "".join(text_parts)
-
     return str(content)
