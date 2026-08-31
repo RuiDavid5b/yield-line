@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "stock-news"
+name = "yield-line"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
@@ -44,3 +44,6 @@ profile = "black"
 markers = [
     "requires_env(*names): skip test unless all named env vars are set, in addition to DATABASE_URL",
 ]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/stock_news"]
