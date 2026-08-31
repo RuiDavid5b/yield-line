@@ -63,14 +63,13 @@ class TestRunPricePipelineUnit:
     @patch("stock_news.pipelines.stock_prices.fetch_prices")
     def test_empty_history_short_circuits(self, mock_fetch):
         mock_fetch.return_value = pd.DataFrame()
-
         result = run_price_pipeline(
             cik="0000320193", ticker="AAPL", session=MagicMock()
         )
-
         assert result.rows_fetched == 0
         assert result.rows_upserted == 0
-        assert result.error is None
+        assert result.error is not None
+        assert "empty history" in result.error
 
     @patch("stock_news.pipelines.stock_prices.fetch_prices")
     def test_fetch_failure_captured_on_result_not_raised(self, mock_fetch):

@@ -82,14 +82,21 @@ class TestDigestForDate:
 class TestAskAgent:
     def test_returns_answer(self, client, monkeypatch):
         monkeypatch.setattr(
-            api_main, "run_agent_query", lambda question: "Synopsys reported..."
+            api_main,
+            "run_agent_query",
+            lambda question, thread_id, selected_company: "Synopsys reported...",
         )
         response = client.post(
-            "/agent/ask", json={"question": "How is Synopsys doing?"}
+            "/agent/ask",
+            json={
+                "question": "How is Synopsys doing?",
+                "thread_id": "test-thread-1",
+                "selected_company": None,
+            },
         )
         assert response.status_code == 200
         assert response.json()["answer"] == "Synopsys reported..."
 
     def test_missing_question_returns_422(self, client):
-        response = client.post("/agent/ask", json={})
+        response = client.post("/agent/ask", json={"thread_id": "test-thread-1"})
         assert response.status_code == 422

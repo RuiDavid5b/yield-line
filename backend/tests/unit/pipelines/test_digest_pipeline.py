@@ -82,7 +82,20 @@ class TestRunDigestPipeline:
         assert result.redis_written is True
 
     def test_benchmark_fetch_failure_short_circuits(self, monkeypatch):
-        monkeypatch.setattr(digest_pipeline, "get_all_companies", lambda session: [])
+        monkeypatch.setattr(
+            digest_pipeline,
+            "get_all_companies",
+            lambda session: [{"cik": "A", "industry_segment": "foundry"}],
+        )
+        monkeypatch.setattr(
+            digest_pipeline,
+            "_company_return_for_date",
+            lambda session, cik, seg, date: {
+                "cik": cik,
+                "industry_segment": seg,
+                "return_pct": 0.05,
+            },
+        )
 
         def raise_fetch():
             raise RuntimeError("network down")
@@ -90,8 +103,30 @@ class TestRunDigestPipeline:
         monkeypatch.setattr(digest_pipeline, "fetch_benchmark_returns", raise_fetch)
 
         result = digest_pipeline.run_digest_pipeline(session=None, date=TEST_DATE)
+
         assert result.error is not None
         assert "benchmark_fetch" in result.error
+
+    def test_all_companies_missing_data_skips_cleanly(self, monkeypatch):
+        monkeypatch.setattr(
+            digest_pipeline,
+            "get_all_companies",
+            lambda session: [{"cik": "A", "industry_segment": "foundry"}],
+        )
+        monkeypatch.setattr(
+            digest_pipeline,
+            "_company_return_for_date",
+            lambda session, cik, seg, date: {
+                "cik": cik,
+                "industry_segment": seg,
+                "return_pct": None,
+            },
+        )
+        result = digest_pipeline.run_digest_pipeline(session=None, date=TEST_DATE)
+
+        assert result.error is None
+        assert result.digest_rows_upserted == 0
+        assert result.redis_written is False
 
     def test_postgres_failure_prevents_redis_write(self, monkeypatch):
         companies = [{"cik": "A", "industry_segment": "foundry"}]
