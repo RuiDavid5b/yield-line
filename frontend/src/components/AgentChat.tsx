@@ -3,6 +3,8 @@ import { api } from "../api/client";
 
 import { type Company } from "../api/types";
 
+import ReactMarkdown from "react-markdown";
+
 interface Message {
   role: "user" | "agent";
   text: string;
@@ -48,7 +50,11 @@ export default function AgentChat({ selectedCompany }: AgentChatProps) {
         <div className="chat-messages">
           {messages.map((message, index) => (
             <div key={index} className={`chat-msg ${message.role}`}>
-              {message.text}
+              {message.role === "agent" ? (
+                <ReactMarkdown>{message.text}</ReactMarkdown>
+              ) : (
+                message.text
+              )}
             </div>
           ))}
 
