@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
-import type { Anomaly, Digest } from "../api/types";
+import type { Digest } from "../api/types";
+
+import ReactMarkdown from "react-markdown";
 
 interface AnomalyPanelProps {
   cik: string;
@@ -52,7 +54,13 @@ export default function AnomalyPanel({ cik, start, end, latestDigest }: AnomalyP
             <div style={{ marginTop: 6 }}>
               Return: {(current.return_pct * 100).toFixed(2)}% (z={current.z_score.toFixed(2)})
             </div>
-            <p>{current.explanation || "Explanation pending."}</p>
+            {current.explanation ? (
+              <div className="explanation-text">
+                <ReactMarkdown>{current.explanation}</ReactMarkdown>
+              </div>
+            ) : (
+              <p>Explanation pending.</p>
+            )}
           </div>
         ) : (
           <p style={{ color: "var(--text-dim)", marginTop: 8 }}>
