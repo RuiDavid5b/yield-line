@@ -10,26 +10,27 @@ jobs:
   lint:
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        working-directory: backend
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.14"
-
       - name: Install uv
         uses: astral-sh/setup-uv@v5
-
       - name: Install dependencies
         run: uv sync --all-groups
-
       - name: Run Flake8
         run: uv run flake8 src tests
-
   tests:
     needs: lint
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        working-directory: backend
     services:
       postgres:
         image: postgres:18.4-alpine3.24
