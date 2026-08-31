@@ -14,6 +14,7 @@ from typing import Annotated, NotRequired, TypedDict
 
 from langchain_core.messages import BaseMessage, SystemMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
 from langgraph.graph.message import MessagesState, add_messages
 from langgraph.prebuilt import ToolNode
@@ -108,7 +109,9 @@ def build_agent_graph():
     graph.add_conditional_edges("agent", _should_continue, {"tools": "tools", END: END})
     graph.add_edge("tools", "agent")
 
-    return graph.compile()
+    memory = MemorySaver()
+
+    return graph.compile(checkpointer=memory)
 
 
 @lru_cache
