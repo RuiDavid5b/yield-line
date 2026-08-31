@@ -1,9 +1,10 @@
 :root {
-  --text: #6b6375;
+  --text: #4a4a4a;
   --text-h: #08060d;
   --bg: #fff;
-  --bg-alt: #f4f3ec;
+  --bg-alt: #fcfcf9;
   --border: #e5e4e7;
+  --chat-bubble: #ebebeb;
   --code-bg: #f4f3ec;
   --accent: #aa3bff;
   --accent-bg: rgba(170, 59, 255, 0.1);
@@ -36,11 +37,12 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --text: #9ca3af;
+    --text: #c6c6c6;
     --text-h: #f3f4f6;
     --bg: #16171d;
     --bg-alt: #1f2028;
     --border: #2e303a;
+    --chat-bubble: #2e303a;
     --code-bg: #1f2028;
     --accent: #c084fc;
     --accent-bg: rgba(192, 132, 252, 0.15);
@@ -243,7 +245,7 @@ code {
 
 .chat-msg.user {
   align-self: flex-end;
-  background: var(--border);
+  background: var(--chat-bubble);
   border-radius: 14px;
   border-bottom-right-radius: 4px;
   color: var(--text);
