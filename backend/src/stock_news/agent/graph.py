@@ -10,13 +10,13 @@ rather than hidden behind a helper.
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Annotated, NotRequired, TypedDict
+from typing import Annotated, TypedDict
 
 from langchain_core.messages import BaseMessage, SystemMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
-from langgraph.graph.message import MessagesState, add_messages
+from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 
 from stock_news.agent.tools import ALL_TOOLS
@@ -34,6 +34,11 @@ Rules you must follow:
 - If a query mentions a company by name, ticker, or alias, call \
   resolve_company_tool FIRST to get its exact cik/ticker before calling \
   any other tool. Never guess a cik.
+- If a query does NOT name any company, but a company is currently \
+  selected in the UI (you'll see a separate note below indicating this), \
+  assume the query is about that selected company. Do not ask the user \
+  to clarify in this case - use the selected company's cik/ticker \
+  directly, exactly as given in that note.
 - For questions about specific reported figures (revenue, capex, \
   guidance numbers, etc.), prefer get_financial_metrics_tool's actual \
   reported values over get_filing_signals_tool's guidance_commentary \
@@ -50,16 +55,17 @@ Rules you must follow:
   explanations can coexist; present them as such rather than picking one.
 - If tool results are sparse or contradictory, say that explicitly \
   rather than filling the gap with a confident-sounding narrative.
-- Only use a cik/ticker that came from a tool result in THIS conversation \
-  - never one you recall from general knowledge, even if you're confident \
-  it's correct. If resolve_company_tool is unavailable or fails, say so \
-  and stop rather than proceeding with a remembered value.
+- Only use a cik/ticker that came from a tool result in THIS conversation, \
+  or from the selected-company note below - never one you recall from \
+  general knowledge, even if you're confident it's correct. If \
+  resolve_company_tool is unavailable or fails, say so and stop rather \
+  than proceeding with a remembered value.
 """
 
 
 class AgentState(TypedDict):
     messages: Annotated[list[BaseMessage], add_messages]
-    selected_company: NotRequired[dict | None]
+    selected_company: dict | None
 
 
 def _build_llm():
@@ -93,7 +99,7 @@ def _agent_node(state: AgentState) -> dict:
     return {"messages": [response]}
 
 
-def _should_continue(state: MessagesState) -> str:
+def _should_continue(state: AgentState) -> str:
     last_message = state["messages"][-1]
     if getattr(last_message, "tool_calls", None):
         return "tools"
@@ -101,7 +107,7 @@ def _should_continue(state: MessagesState) -> str:
 
 
 def build_agent_graph():
-    graph = StateGraph(MessagesState)
+    graph = StateGraph(AgentState)
     graph.add_node("agent", _agent_node)
     graph.add_node("tools", ToolNode(ALL_TOOLS))
 
