@@ -23,13 +23,13 @@ services:
 
   api:
     build:
-      context: .
+      context: ./backend
       dockerfile: api/Dockerfile
     ports:
       - "8000:8000"
     env_file:
       - .env
-      - api/.env
+      - backend/api/.env
     networks:
       - stock_news_net
  

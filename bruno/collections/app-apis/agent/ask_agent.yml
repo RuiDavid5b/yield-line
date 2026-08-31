@@ -10,7 +10,9 @@ http:
     type: json
     data: |-
       {
-        "question": "How has Synopsys performed relative to its peers recently?"
+        "question": "How has Synopsys performed relative to its peers recently?",
+        "thread_id": "bruno-test-thread-1",
+        "selected_company": null
       }
   auth: inherit
 
