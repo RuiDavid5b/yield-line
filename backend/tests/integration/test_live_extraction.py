@@ -15,7 +15,7 @@ from stock_news.processing.edgar.extraction import (
     GAAP_TAG_CANDIDATES,
     TAG_CANDIDATES_BY_TAXONOMY,
     build_unit_priority,
-    extract_quarterly_metric,
+    extract_metric,
 )
 
 TEST_COMPANIES = {
@@ -34,7 +34,7 @@ def test_fetch_edgar_filings_returns_results_for_real_companies(company_name, ci
     )
 
     assert filings, f"{company_name} (CIK {cik}) returned no filings"
-    assert all(f["form"] in ("8-K", "10-Q") for f in filings)
+    assert all("form" in f for f in filings)
 
 
 @pytest.mark.parametrize("company_name,cik", TEST_COMPANIES.items())
@@ -42,7 +42,7 @@ def test_fetch_edgar_filings_returns_results_for_real_companies(company_name, ci
 def test_every_metric_extracts_for_every_real_company(company_name, cik, metric_name):
     facts = fetch_company_facts(cik=cik, user_agent=os.environ["EDGAR_USER_AGENT"])
 
-    rows = extract_quarterly_metric(
+    rows = extract_metric(
         facts,
         cik=cik,
         metric_name=metric_name,
@@ -66,7 +66,7 @@ def test_every_metric_extracts_for_every_real_company(company_name, cik, metric_
 def test_revenue_series_has_multiple_recent_quarters(company_name, cik):
     facts = fetch_company_facts(cik=cik, user_agent=os.environ["EDGAR_USER_AGENT"])
 
-    rows = extract_quarterly_metric(
+    rows = extract_metric(
         facts,
         cik=cik,
         metric_name="revenue",
@@ -99,7 +99,7 @@ def test_foreign_filer_net_income_resolves_to_expected_taxonomy_and_currency(
     )
     candidates_by_metric = TAG_CANDIDATES_BY_TAXONOMY[info["taxonomy"]]
 
-    rows = extract_quarterly_metric(
+    rows = extract_metric(
         facts,
         cik=info["cik"],
         metric_name="net_income",

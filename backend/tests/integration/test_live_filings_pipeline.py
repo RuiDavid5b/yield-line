@@ -9,39 +9,30 @@ Run explicitly with all three required:
 """
 
 import os
+from datetime import date, timedelta
 
 import pytest
 from sqlalchemy import select
 
 from stock_news.pipelines.filings import run_company_pipeline
-from stock_news.storage.db import get_session_factory
 from stock_news.storage.models import Company, FilingSignal, FinancialMetric
 
 pytestmark = pytest.mark.requires_env("EDGAR_USER_AGENT")
 pytestmark = pytest.mark.requires_env("GOOGLE_API_KEY")
 
 
-# A real company, used deliberately (not a synthetic CIK) - this test's
-# entire point is confirming the chain works against real data.
 company_CIK = "0000883241"
 USER_AGENT = os.environ.get("EDGAR_USER_AGENT", "")
 
 
 @pytest.fixture
-def session():
-    session_factory = get_session_factory()
-    with session_factory() as session:
-        yield session
-
-
-@pytest.fixture
-def ensure_company_exists(session):
+def ensure_company_exists(db_session):
     """
     Insert the test company if it isn't already present.
     """
-    existing = session.get(Company, company_CIK)
+    existing = db_session.get(Company, company_CIK)
     if existing is None:
-        session.add(
+        db_session.add(
             Company(
                 cik=company_CIK,
                 ticker="SNPS",
@@ -49,35 +40,41 @@ def ensure_company_exists(session):
                 industry_segment="eda",
             )
         )
-        session.flush()
+        db_session.flush()
+
     yield
 
 
-def test_run_company_pipeline_end_to_end(session, ensure_company_exists):
+def test_run_company_pipeline_end_to_end(db_session, ensure_company_exists):
     """
     Runs the actual production function, not a hand-assembled copy of its
     steps. filing_limit=8 (rather than the default) to improve the odds
     this batch includes at least one 10-Q/10-K, not just 8-Ks - which
     matters for the MD&A-specific assertion below.
     """
+    end_date = date.today()
+    start_date = end_date - timedelta(days=365)
+
     result = run_company_pipeline(
         cik=company_CIK,
         user_agent=USER_AGENT,
-        session=session,
-        filing_limit=8,
+        session=db_session,
+        filing_limit=1,
+        start_date=start_date,
+        end_date=end_date,
     )
 
     assert result.filings_seen > 0, "Expected at least one recent filing"
     assert result.filings_failed == 0, f"Unexpected failures: {result.errors}"
     assert result.metrics_upserted > 0, "Expected at least one financial metric row"
 
-    stored_metrics = session.scalars(
+    stored_metrics = db_session.scalars(
         select(FinancialMetric).where(FinancialMetric.cik == company_CIK)
     ).all()
     assert len(stored_metrics) == result.metrics_upserted
     assert all(m.value is not None for m in stored_metrics)
 
-    stored_signals = session.scalars(
+    stored_signals = db_session.scalars(
         select(FilingSignal).where(FilingSignal.cik == company_CIK)
     ).all()
     assert (

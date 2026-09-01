@@ -4,7 +4,7 @@ from stock_news.processing.edgar.extraction import (
     GAAP_TAG_CANDIDATES,
     UNIT_SUFFIXES,
     build_unit_priority,
-    extract_quarterly_metric,
+    extract_metric,
 )
 
 
@@ -56,7 +56,7 @@ def test_extracts_quarterly_periods_and_discards_year_to_date():
         }
     }
 
-    rows = extract_quarterly_metric(
+    rows = extract_metric(
         facts,
         cik="1234",
         metric_name="revenue",
@@ -109,7 +109,7 @@ def test_unions_results_across_candidate_tags():
         }
     }
 
-    rows = extract_quarterly_metric(
+    rows = extract_metric(
         facts,
         cik="1234",
         metric_name="revenue",
@@ -156,7 +156,7 @@ def test_prefers_original_filing_over_amendment_for_same_period():
         }
     }
 
-    rows = extract_quarterly_metric(
+    rows = extract_metric(
         facts,
         cik="1234",
         metric_name="revenue",
@@ -198,7 +198,7 @@ def test_breaks_ties_by_most_recently_filed_when_amendment_status_matches():
         }
     }
 
-    rows = extract_quarterly_metric(
+    rows = extract_metric(
         facts,
         cik="1234",
         metric_name="revenue",
@@ -212,7 +212,7 @@ def test_breaks_ties_by_most_recently_filed_when_amendment_status_matches():
 def test_missing_tag_returns_empty_list_without_error():
     facts = {"facts": {"us-gaap": {}}}
 
-    rows = extract_quarterly_metric(
+    rows = extract_metric(
         facts,
         cik="1234",
         metric_name="revenue",
@@ -254,7 +254,7 @@ def test_annual_period_type_keeps_twelve_month_durations():
         }
     }
 
-    rows = extract_quarterly_metric(
+    rows = extract_metric(
         facts,
         cik="1234",
         metric_name="net_income",
@@ -292,7 +292,7 @@ def test_skips_entries_without_start_date():
         }
     }
 
-    rows = extract_quarterly_metric(
+    rows = extract_metric(
         facts,
         cik="1234",
         metric_name="revenue",
@@ -327,14 +327,14 @@ def test_reads_from_specified_unit_key_not_just_usd():
         }
     }
 
-    rows_with_correct_unit = extract_quarterly_metric(
+    rows_with_correct_unit = extract_metric(
         facts,
         cik="1234",
         metric_name="eps_diluted",
         candidate_tags=["EarningsPerShareDiluted"],
         units=["USD/shares"],
     )
-    rows_with_default_unit = extract_quarterly_metric(
+    rows_with_default_unit = extract_metric(
         facts,
         cik="1234",
         metric_name="eps_diluted",

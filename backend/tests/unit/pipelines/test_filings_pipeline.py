@@ -133,7 +133,7 @@ def test_continues_past_a_single_filing_failure(
 
 
 @patch("stock_news.pipelines.filings.upsert_financial_metrics")
-@patch("stock_news.pipelines.filings.extract_quarterly_metric")
+@patch("stock_news.pipelines.filings.extract_metric")
 @patch("stock_news.pipelines.filings.fetch_company_facts")
 @patch("stock_news.pipelines.filings.fetch_edgar_filings")
 @patch("stock_news.pipelines.filings._get_already_processed_accessions")
@@ -147,13 +147,22 @@ def test_counts_upserted_financial_metric_rows(
     mock_already_processed.return_value = set()
     mock_fetch_filings.return_value = []
     mock_fetch_facts.return_value = {"facts": {"us-gaap": {}}}
-    mock_extract_metric.return_value = [{"value": 100}, {"value": 200}]
+
+    def extract_metric_side_effect(*args, **kwargs):
+        if kwargs["period_type"] == "quarterly":
+            return [{"value": 100}, {"value": 200}]
+        if kwargs["period_type"] == "annual":
+            return [{"value": 300}, {"value": 400}]
+        raise AssertionError(f"Unexpected period_type: {kwargs['period_type']}")
+
+    mock_extract_metric.side_effect = extract_metric_side_effect
 
     session = MagicMock()
     result = run_company_pipeline(CIK, USER_AGENT, session)
 
-    # 6 tracked metrics (GAAP_TAG_CANDIDATES), 2 rows each in this mock
-    assert result.metrics_upserted == 12
+    # 6 tracked metrics × 2 quarterly rows
+    # + 6 tracked metrics × 2 annual rows
+    assert result.metrics_upserted == 24
 
 
 @patch("stock_news.pipelines.filings.fetch_company_facts")
