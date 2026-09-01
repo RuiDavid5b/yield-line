@@ -10,7 +10,7 @@
 companies:
   - cik: "0001045810"
     ticker: NVDA
-    name: NVIDIA Corporation
+    name: NVIDIA Corp.
     industry_segment: fabless
     aliases: ["Nvidia"]
     reporting_currency: USD
@@ -20,50 +20,378 @@ companies:
     ticker: ASML
     name: ASML Holding NV
     industry_segment: equipment
-    aliases: []
+    aliases: ["ASML"]
     reporting_currency: EUR
     notes: "Sole supplier of EUV lithography systems; foreign private issuer, files 20-F not 10-K."
 
   - cik: "0001046179"
     ticker: TSM
-    name: Taiwan Semiconductor Manufacturing Company
+    name: Taiwan Semiconductor Manufacturing Co Ltd
     industry_segment: foundry
     aliases: ["TSMC"]
     reporting_currency: TWD
-    notes: "Leading-edge foundry; files 20-F, not 10-K/10-Q - EDGAR ingestion may need a form-type adjustment for this one."
+    notes: "Leading-edge foundry; Manufactures both mature and cutting-edge process nodes."
 
   - cik: "0000813672"
     ticker: CDNS
-    name: Cadence Design Systems
+    name: Cadence Design Systems Inc.
     industry_segment: ip_eda
-    aliases: []
+    aliases: ["Cadence"]
     reporting_currency: USD
     notes: "EDA tooling; also licenses IP (Tensilica cores)."
 
   - cik: "0000883241"
     ticker: SNPS
-    name: Synopsys
+    name: Synopsys Inc.
     industry_segment: ip_eda
-    aliases: []
+    aliases: ["Synopsys"]
     reporting_currency: USD
     notes: "EDA tooling; also licenses IP (DesignWare)."
 
   - cik: "0001973239"
     ticker: ARM
-    name: Arm Holdings
+    name: Arm Holdings PLC
     industry_segment: ip_eda
     aliases: ["Arm Ltd"]
     reporting_currency: USD
-    notes: "IP licensing only, no EDA tooling - primary industry_segment still ip_eda per the merged taxonomy."
+    notes: "IP licensing; primarily designs CPU cores with the Arm instruction set architecture (ISA)."
     news_disambiguation: ["chip", "semiconductor", "SoftBank", "processor"]
 
   - cik: "0001047127"
     ticker: AMKR
-    name: Amkor Technology
+    name: Amkor Technology, Inc.
     industry_segment: osat
+    aliases: ["Amkor"]
+    reporting_currency: USD
+    notes: "Outsourced assembly and test; packages and tests semiconductors for other companies."
+
+  - cik: "0001730168"
+    ticker: AVGO
+    name: Broadcom Inc.
+    industry_segment: fabless
+    aliases: ["Broadcom"]
+    reporting_currency: USD
+    notes: "Diversified fabless semiconductor + infrastructure software; networking/broadband chips."
+
+  - cik: "0000002488"
+    ticker: AMD
+    name: Advanced Micro Devices Inc.
+    industry_segment: fabless
+    aliases: ["AMD"]
+    reporting_currency: USD
+    notes: "Mostly CPU and GPU design, also provide FGPA products."
+
+  - cik: "0000723125"
+    ticker: MU
+    name: Micron Technology Inc.
+    industry_segment: idm
+    aliases: ["Micron"]
+    reporting_currency: USD
+    notes: "DRAM and flash memory manufacturer."
+
+  - cik: "0000006951"
+    ticker: AMAT
+    name: Applied Materials Inc.
+    industry_segment: equipment
+    aliases: ["Applied Materials"]
+    reporting_currency: USD
+    notes: "Semiconductor manufacturing equipment."
+
+  - cik: "0000804328"
+    ticker: QCOM
+    name: Qualcomm Inc.
+    industry_segment: fabless
+    aliases: ["Qualcomm"]
+    reporting_currency: USD
+    notes: "Mobile/wireless chips; also licenses IP."
+
+  - cik: "0002120882"
+    ticker: SKHY
+    name: SK hynix Inc.
+    industry_segment: idm
+    aliases: ["SK Hynix"]
+    reporting_currency: KRW
+    notes: "DRAM (including HBM) and flash memory manufacturer."
+
+  - cik: "0000050863"
+    ticker: INTC
+    name: Intel Corp.
+    industry_segment: idm
+    aliases: ["Intel"]
+    reporting_currency: USD
+    notes: "Designs and manufactures own chips; also operates foundry services (Intel Foundry)."
+
+  - cik: "0000707549"
+    ticker: LRCX
+    name: Lam Research Corp.
+    industry_segment: equipment
+    aliases: ["Lam Research"]
+    reporting_currency: USD
+    notes: "Semiconductor manufacturing equipment (etch/deposition)."
+
+  - cik: "0001835632"
+    ticker: MRVL
+    name: Marvell Technology, Inc.
+    industry_segment: fabless
+    aliases: ["Marvell"]
+    reporting_currency: USD
+    notes: "Designs and manufactures semiconductors for data infrastructure applications."
+
+  - cik: "0000006281"
+    ticker: ADI
+    name: Analog Devices, Inc.
+    industry_segment: idm
+    aliases: ["Analog Devices"]
+    reporting_currency: USD
+    notes: "Analog/mixed-signal chips, owns fabs."
+
+  - cik: "0001413447"
+    ticker: NXPI
+    name: NXP Semiconductors N.V.
+    industry_segment: idm
+    aliases: ["NXP"]
+    reporting_currency: USD
+    notes: "Designs and manufactures automotive, IoT and mobile chips."
+
+  - cik: "0000932787"
+    ticker: STM
+    name: STMicroelectronics N.V.
+    industry_segment: idm
+    aliases: ["ST Microelectronics"]
+    reporting_currency: USD
+    notes: "Designs and manufactures diversified chips, such as microcontrollers, microprocessors and memories."
+
+  - cik: "0001910139"
+    ticker: MBLY
+    name: Mobileye Global Inc.
+    industry_segment: fabless
+    aliases: ["Mobileye"]
+    reporting_currency: USD
+    notes: "Designs automotive ADAS/self-driving chips. Intel is their parent company."
+
+  - cik: "0000895419"
+    ticker: WOLF
+    name: Wolfspeed, Inc.
+    industry_segment: idm
+    aliases: ["Wolfspeed"]
+    reporting_currency: USD
+    notes: "Designs wide-bandgap semiconductors, mainly silicon carbide (SiC) for power semiconductors; also produces SiC materials/wafers."
+
+  - cik: "0001097864"
+    ticker: ON
+    name: ON Semiconductor Corp.
+    industry_segment: idm
+    aliases: ["Onsemi"]
+    reporting_currency: USD
+    notes: "Designs power and signal semiconductors, owns some fabs."
+
+  - cik: "0000097476"
+    ticker: TXN
+    name: Texas Instruments Inc.
+    industry_segment: idm
+    aliases: ["TI"]
+    reporting_currency: USD
+    notes: "Designs analog and embedded chips, owns some fabs."
+
+  - cik: "0002021728"
+    ticker: CBRS
+    name: Cerebras Systems Inc.
+    industry_segment: fabless
+    aliases: ["Cerebras"]
+    reporting_currency: USD
+    notes: "Designs wafer-scale AI accelerator chips."
+
+  - cik: "0001604778"
+    ticker: QRVO
+    name: Qorvo, Inc.
+    industry_segment: fabless
+    aliases: ["Qorvo"]
+    reporting_currency: USD
+    notes: "Designs chips for wireless/wired communications and power applications, owns some fabs."
+
+  - cik: "0000004127"
+    ticker: SWKS
+    name: Skyworks Solutions, Inc.
+    industry_segment: fabless
+    aliases: ["Skyworks"]
+    reporting_currency: USD
+    notes: "Designs wireless communication semiconductors."
+
+  - cik: "0000319201"
+    ticker: KLAC
+    name: KLA Corp.
+    industry_segment: equipment
+    aliases: ["KLA"]
+    reporting_currency: USD
+    notes: "Provides wafer fab equipment with process control/inspection equipment."
+
+  - cik: "0001280452"
+    ticker: MPWR
+    name: Monolithic Power Systems, Inc.
+    industry_segment: fabless
+    aliases: ["MPS"]
+    reporting_currency: USD
+    notes: "Designs power semiconductors for several industry applications."
+
+  - cik: "0001122411"
+    ticker: ASX
+    name: ASE Technology Holding Co., Ltd.
+    industry_segment: osat
+    aliases: ["ASE Technology"]
+    reporting_currency: TWD
+    notes: "Provides many assembly and testing services to many companies."
+
+  - cik: "0000097210"
+    ticker: TER
+    name: Teradyne, Inc.
+    industry_segment: equipment
+    aliases: ["Teradyne"]
+    reporting_currency: USD
+    notes: "Automated test equipment."
+
+  - cik: "0001709048"
+    ticker: GFS
+    name: GlobalFoundries Inc.
+    industry_segment: foundry
+    aliases: ["Global Foundries"]
+    reporting_currency: USD
+    notes: "Foundry focused on trailing/mature nodes."
+
+  - cik: "0000928876"
+    ticker: TSEM
+    name: Tower Semiconductor Ltd.
+    industry_segment: foundry
+    aliases: ["Tower Semiconductor"]
+    reporting_currency: USD
+    notes: "Foundry of specialty analog integrated circuits, including photonics."
+
+  - cik: "0000855658"
+    ticker: LSCC
+    name: Lattice Semiconductor Corp.
+    industry_segment: fabless
+    aliases: ["Lattice Semiconductor"]
+    reporting_currency: USD
+    notes: "Designs and manufactures low-power FPGA."
+
+  - cik: "0000088941"
+    ticker: SMTC
+    name: Semtech Corp.
+    industry_segment: fabless
+    aliases: ["Semtech"]
+    reporting_currency: USD
+    notes: "Designs LoRa, wireless communications and  power management semiconductors."
+
+  - cik: "0000917273"
+    ticker: RMBS
+    name: Rambus Inc.
+    industry_segment: ip_eda
+    aliases: ["Rambus"]
+    reporting_currency: USD
+    notes: "Designs interface IP, such as memory interfaces."
+
+  - cik: "0001329394"
+    ticker: SIMO
+    name: Silicon Motion Technology Corp.
+    industry_segment: fabless
     aliases: []
     reporting_currency: USD
-    notes: "Outsourced assembly and test."
+    notes: "NAND/storage controller chips, fabless."
+
+  - cik: "0001038074"
+    ticker: SLAB
+    name: Silicon Laboratories Inc.
+    industry_segment: fabless
+    aliases: ["SMI"]
+    reporting_currency: USD
+    notes: "Mainly designs NAND flash controllers."
+
+  - cik: "0001039399"
+    ticker: FORM
+    name: FormFactor, Inc.
+    industry_segment: equipment
+    aliases: ["FormFactor"]
+    reporting_currency: USD
+    notes: "Provides test and measurement systems, such as probe cards and wafer test equipment."
+
+  - cik: "0000866291"
+    ticker: ALGM
+    name: Allegro MicroSystems, Inc.
+    industry_segment: fabless
+    aliases: ["Allegro MicroSystems"]
+    reporting_currency: USD
+    notes: "Designs intelligent sensing and power solutions with mangnetic sensors."
+
+  - cik: "0000029002"
+    ticker: DIOD
+    name: Diodes Inc.
+    industry_segment: idm
+    aliases: []
+    reporting_currency: USD
+    notes: "Manufactures and supplies electronic components such as diodes, rectifiers and amplifiers."
+
+  - cik: "0001113232"
+    ticker: ACLS
+    name: Axcelis Technologies Inc.
+    industry_segment: equipment
+    aliases: ["Axcelis"]
+    reporting_currency: USD
+    notes: "Povides ion implantation equipment."
+
+  - cik: "0001667011"
+    ticker: AIP
+    name: Arteris, Inc.
+    industry_segment: ip_eda
+    aliases: ["Arteris"]
+    reporting_currency: USD
+    notes: "Designs Network-on-chip (NoC) and system-on-chip (SoC) IP."
+
+  - cik: "0001821769"
+    ticker: NVTS
+    name: Navitas Semiconductor Corp.
+    industry_segment: fabless
+    aliases: []
+    reporting_currency: USD
+    notes: "Gallium nitride (GaN) and silicon carbide (SiC) power semiconductors."
+
+  - cik: "0001601046"
+    ticker: KEYS
+    name: Keysight Technologies, Inc.
+    industry_segment: idm
+    aliases: ["Keysight"]
+    reporting_currency: USD
+    notes: "Manufactures hardware and test instruments, also does EDA software."
+
+  - cik: "0000106040"
+    ticker: WDC
+    name: Western Digital Corp.
+    industry_segment: idm
+    aliases: ["Western Digital"]
+    reporting_currency: USD
+    notes: "NAND flash/storage and hard disk drives (HDD)."
+
+  - cik: "0000772406"
+    ticker: CRUS
+    name: Cirrus Logic, Inc.
+    industry_segment: fabless
+    aliases: ["Cirrus Logic"]
+    reporting_currency: USD
+    notes: "Designs Analog, mixed-signal and audio DSP chips."
+
+  - cik: "0001101302"
+    ticker: ENTG
+    name: Entegris, Inc.
+    industry_segment: materials
+    aliases: ["Entegris"]
+    reporting_currency: USD
+    notes: "Supplier of semiconductor materials, they increase yields by improving contamination control in several key processes of chip manufacturing."
+
+  - cik: "0001275014"
+    ticker: UCTT
+    name: Ultra Clean Holdings, Inc.
+    industry_segment: equipment
+    aliases: ["UCT"]
+    reporting_currency: USD
+    notes: "Developer and supplier of critical subsystems, components and ultra-high purity cleaning, primarily for the semiconductor industry."
 
 edges:
   - source: NVDA
