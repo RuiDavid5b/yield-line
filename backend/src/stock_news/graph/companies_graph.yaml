@@ -178,8 +178,8 @@ companies:
     notes: "Designs wide-bandgap semiconductors, mainly silicon carbide (SiC) for power semiconductors; also produces SiC materials/wafers."
 
   - cik: "0001097864"
-    ticker: ON
-    name: ON Semiconductor Corp.
+    ticker: "ON"
+    name: "ON Semiconductor Corp."
     industry_segment: idm
     aliases: ["Onsemi"]
     reporting_currency: USD
