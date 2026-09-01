@@ -24,7 +24,7 @@ from stock_news.ingestion.fetchers import (
 from stock_news.processing.edgar.extraction import (
     TAG_CANDIDATES_BY_TAXONOMY,
     build_unit_priority,
-    extract_quarterly_metric,
+    extract_metric,
 )
 from stock_news.processing.edgar.html_cleaning import clean_filing_html
 from stock_news.processing.edgar.routing.classifier import classify_filing
@@ -120,17 +120,19 @@ def _run_financial_metrics(session: Session, cik: str, user_agent: str) -> int:
 
     total_rows = 0
     for metric_name, candidate_tags in candidates_by_metric.items():
-        rows = extract_quarterly_metric(
-            facts,
-            cik=cik,
-            metric_name=metric_name,
-            candidate_tags=candidate_tags,
-            units=build_unit_priority(metric_name, currencies),
-            taxonomy=taxonomy,
-        )
-        upsert_financial_metrics(session, rows)
-        session.commit()
-        total_rows += len(rows)
+        for period_type in ("quarterly", "annual"):
+            rows = extract_metric(
+                facts,
+                cik=cik,
+                metric_name=metric_name,
+                candidate_tags=candidate_tags,
+                period_type=period_type,
+                units=build_unit_priority(metric_name, currencies),
+                taxonomy=taxonomy,
+            )
+            upsert_financial_metrics(session, rows)
+            session.commit()
+            total_rows += len(rows)
 
     return total_rows
 

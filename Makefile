@@ -25,6 +25,9 @@ api-down:
 api-rebuild:
 	docker compose up -d --build api
 
+sync-companies:
+	uv run python -m stock_news.graph.loader
+
 airflow-test-image:
 	docker build --target test -t $(AIRFLOW_TEST_IMAGE) -f airflow/Dockerfile airflow/
 
@@ -47,4 +50,4 @@ test:
 	cd backend && \
 	DATABASE_URL="postgresql+psycopg://test:test@localhost:5433/stock_news_test" \
 	REDIS_URL="redis://localhost:6380/0" \
-	uv run pytest backend/tests/ $(ARGS)
+	uv run pytest tests/ $(ARGS)

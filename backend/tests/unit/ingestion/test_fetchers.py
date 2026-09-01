@@ -58,6 +58,7 @@ def test_fetch_edgar_filings_filters_forms(mock_get, mock_sleep):
     filings = fetch_edgar_filings(
         cik="1234",
         user_agent="Test test@test.com",
+        form_types=("8-K", "10-Q"),
     )
 
     assert len(filings) == 2

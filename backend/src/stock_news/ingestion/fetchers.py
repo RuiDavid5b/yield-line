@@ -12,19 +12,23 @@ import yfinance as yf
 
 EDGAR_SUBMISSIONS_URL = "https://data.sec.gov/submissions/CIK{cik}.json"
 EDGAR_RATE_LIMIT_SECONDS = 0.15  # under the 10 req/sec limit
-PRIORITY_FORM_TYPES = ("10-Q", "10-K", "20-F", "6-K")
+DEFAULT_FORM_TYPES = ("8-K", "10-Q", "10-K", "6-K", "20-F")
+PRIORITY_FORM_TYPES = ("10-Q", "10-K", "20-F")
 
 
 def fetch_edgar_filings(
     cik: str,
     user_agent: str,
-    form_types: tuple[str, ...] = ("8-K", "10-Q"),
+    form_types: tuple[str, ...] = DEFAULT_FORM_TYPES,
     limit: int | None = 10,
     start_date: dt.date | None = None,
     end_date: dt.date | None = None,
 ) -> list[dict[str, Any]]:
     """
-    Fetch recent filing metadata for a company from SEC EDGAR.
+    Fetch filing metadata for a company from SEC EDGAR.
+
+    PRIORITY_FORM_TYPES filings are always included.
+    Other requested filing types are limited by `limit`.
     """
     url = EDGAR_SUBMISSIONS_URL.format(cik=cik.zfill(10))
     headers = {"User-Agent": user_agent}
@@ -41,6 +45,7 @@ def fetch_edgar_filings(
 
     non_priority_count = 0
     results: list[dict[str, Any]] = []
+
     for form, filing_date_str, accession, primary_doc in zip(
         forms, dates, accessions, primary_docs
     ):
@@ -77,9 +82,6 @@ def fetch_edgar_filings(
                 "primary_doc_url": doc_url,
             }
         )
-
-        if limit is not None and len(results) >= limit:
-            break
 
     time.sleep(EDGAR_RATE_LIMIT_SECONDS)
     return results
