@@ -19,7 +19,7 @@ def _is_amendment(form: str) -> bool:
     return form.endswith("/A")
 
 
-def extract_quarterly_metric(
+def extract_metric(
     facts: dict[str, Any],
     cik: str,
     metric_name: str,

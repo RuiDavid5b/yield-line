@@ -97,6 +97,13 @@ if __name__ == "__main__":
         help="e.g. --terms 'NVIDIA Corporation' NVDA",
     )
     parser.add_argument("--limit", type=int, default=20)
+    parser.add_argument(
+        "--require-any",
+        nargs="+",
+        default=None,
+        help="If set, results must also match at least one of these terms - for "
+        "disambiguating a company term that collides with common words (e.g. 'Arm').",
+    )
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO)
@@ -109,6 +116,7 @@ if __name__ == "__main__":
             api_key=settings.currents_api_key,
             session=session,
             limit=args.limit,
+            require_any=args.require_any,
         )
 
     logger.info("News pipeline result: %s", result)

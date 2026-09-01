@@ -65,7 +65,7 @@ def get_financial_metrics(
 
 def upsert_financial_metrics(session: Session, rows: list[dict[str, Any]]) -> None:
     """
-    Insert rows produced by processing.extraction.extract_quarterly_metric,
+    Insert rows produced by processing.extraction.extract_metric,
     updating in place on conflict rather than raising or duplicating.
     """
     if not rows:
