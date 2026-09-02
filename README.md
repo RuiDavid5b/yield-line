@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.svg" width="120" alt="YieldLine logo">
+</p>
+
 ```mermaid
 flowchart LR
     subgraph Ingestion [Daily - Airflow]
