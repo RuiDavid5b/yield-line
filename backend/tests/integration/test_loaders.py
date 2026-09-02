@@ -26,6 +26,7 @@ from stock_news.storage.loaders import (
     get_stock_price_history,
     get_unexplained_price_anomalies,
     set_price_anomaly_explanation,
+    update_cross_sectional_z_scores,
     upsert_benchmark_returns,
     upsert_digest_results,
     upsert_filing_signal,
@@ -1255,6 +1256,7 @@ def _anomaly_row(**overrides):
         "date": dt.date(2026, 5, 1),
         "return_pct": 0.15,
         "z_score": 3.2,
+        "z_score_cross_sectional": None,
     }
     row.update(overrides)
     return row
@@ -1360,6 +1362,14 @@ class TestGetPriceAnomalies:
 
         assert float(rows[0]["z_score"]) == pytest.approx(4.1)
 
+    def test_returns_cross_sectional_z_score(self, session):
+        session.add(PriceAnomaly(**_anomaly_row(z_score_cross_sectional=4.7)))
+        session.flush()
+
+        rows = get_price_anomalies(session, TEST_CIK)
+
+        assert float(rows[0]["z_score_cross_sectional"]) == pytest.approx(4.7)
+
     def test_scoped_to_requested_cik_only(self, session_with_second_company):
         session = session_with_second_company
         session.add_all(
@@ -1437,6 +1447,34 @@ class TestUpsertPriceAnomalies:
             select(PriceAnomaly).where(PriceAnomaly.cik == TEST_CIK)
         ).all()
         assert stored == []
+
+    def test_upsert_anomalies_preserves_cross_sectional_z_score(self, session):
+        session.add(PriceAnomaly(**_anomaly_row(z_score_cross_sectional=4.7)))
+        session.flush()
+
+        upsert_price_anomalies(
+            session,
+            [
+                {
+                    "cik": TEST_CIK,
+                    "date": dt.date(2026, 5, 1),
+                    "return_pct": 0.12,
+                    "z_score": 4.5,
+                }
+            ],
+        )
+        session.flush()
+
+        stored = session.scalar(
+            select(PriceAnomaly).where(
+                PriceAnomaly.cik == TEST_CIK,
+                PriceAnomaly.date == dt.date(2026, 5, 1),
+            )
+        )
+
+        assert stored is not None
+        assert float(stored.z_score) == pytest.approx(4.5)
+        assert float(stored.z_score_cross_sectional) == pytest.approx(4.7)
 
 
 class TestGetUnexplainedPriceAnomalies:
@@ -1529,6 +1567,21 @@ class TestGetUnexplainedPriceAnomalies:
         assert len(rows) == 1
         assert rows[0]["cik"] == TEST_CIK
 
+    def test_returns_cross_sectional_z_score(self, session):
+        session.add(
+            PriceAnomaly(
+                **_anomaly_row(
+                    date=dt.date.today(),
+                    z_score_cross_sectional=3.8,
+                )
+            )
+        )
+        session.flush()
+
+        rows = get_unexplained_price_anomalies(session)
+
+        assert float(rows[0]["z_score_cross_sectional"]) == pytest.approx(3.8)
+
 
 class TestGetLatestAnomalies:
     def test_returns_anomalies_from_most_recent_date_only(self, session):
@@ -1595,6 +1648,73 @@ class TestGetLatestAnomalies:
         rows = get_latest_price_anomalies(session)
 
         assert rows[0]["explanation"] is None
+
+    def test_includes_cross_sectional_z_score(self, session):
+        session.add(
+            PriceAnomaly(
+                **_anomaly_row(
+                    date=dt.date.today(),
+                    z_score_cross_sectional=4.2,
+                )
+            )
+        )
+        session.flush()
+
+        rows = get_latest_price_anomalies(session)
+
+        assert float(rows[0]["z_score_cross_sectional"]) == pytest.approx(4.2)
+
+
+class TestUpdateCrossSectionalZScores:
+    def test_updates_existing_anomaly(self, session):
+        session.add(PriceAnomaly(**_anomaly_row()))
+        session.flush()
+
+        update_cross_sectional_z_scores(
+            session,
+            [
+                {
+                    "cik": TEST_CIK,
+                    "date": dt.date(2026, 5, 1),
+                    "z_score_cross_sectional": 4.7,
+                }
+            ],
+        )
+        session.flush()
+
+        stored = session.scalar(
+            select(PriceAnomaly).where(
+                PriceAnomaly.cik == TEST_CIK,
+                PriceAnomaly.date == dt.date(2026, 5, 1),
+            )
+        )
+
+        assert stored is not None
+        assert float(stored.z_score_cross_sectional) == pytest.approx(4.7)
+        assert float(stored.z_score) == pytest.approx(3.2)
+
+    def test_empty_rows_is_noop(self, session):
+        update_cross_sectional_z_scores(session, [])
+
+        stored = session.scalars(select(PriceAnomaly)).all()
+
+        assert stored == []
+
+    def test_unknown_anomaly_is_noop(self, session):
+        update_cross_sectional_z_scores(
+            session,
+            [
+                {
+                    "cik": TEST_CIK,
+                    "date": dt.date(2026, 5, 1),
+                    "z_score_cross_sectional": 4.7,
+                }
+            ],
+        )
+
+        stored = session.scalars(select(PriceAnomaly)).all()
+
+        assert stored == []
 
 
 class TestSetPriceAnomalyExplanation:

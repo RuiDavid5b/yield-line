@@ -58,6 +58,11 @@ class TestRunDigestPipeline:
         monkeypatch.setattr(
             digest_pipeline, "upsert_benchmark_returns", lambda s, rows: None
         )
+        monkeypatch.setattr(
+            digest_pipeline,
+            "update_cross_sectional_z_scores",
+            lambda s, rows: None,
+        )
         monkeypatch.setattr(digest_pipeline, "write_digest", lambda date, d: None)
 
     def test_happy_path_counts(self, monkeypatch):
@@ -178,3 +183,119 @@ class TestRunDigestPipeline:
         assert result.error is None  # not fatal
         assert result.redis_written is False
         assert any("redis_write" in w for w in result.warnings)
+
+    def test_updates_cross_sectional_z_scores(self, monkeypatch):
+        companies = [
+            {"cik": "A", "industry_segment": "foundry"},
+            {"cik": "B", "industry_segment": "foundry"},
+        ]
+
+        self._patch_common(
+            monkeypatch,
+            companies,
+            {"SOXX": 0.01, "SMH": 0.01, "SPY": 0.01},
+        )
+
+        monkeypatch.setattr(
+            digest_pipeline,
+            "compute_company_digest",
+            lambda company_returns, benchmark_returns: {
+                "companies": [
+                    {
+                        "cik": "A",
+                        "industry_segment": "foundry",
+                        "return_pct": 0.05,
+                        "peer_avg_return_pct": 0.03,
+                        "vs_peer_avg": 0.02,
+                        "vs_soxx": 0.04,
+                        "vs_smh": 0.04,
+                        "vs_spy": 0.04,
+                        "cross_sectional_z_score": 4.7,
+                        "is_cross_sectional_anomaly": True,
+                    },
+                    {
+                        "cik": "B",
+                        "industry_segment": "foundry",
+                        "return_pct": 0.01,
+                        "peer_avg_return_pct": 0.05,
+                        "vs_peer_avg": -0.04,
+                        "vs_soxx": 0.0,
+                        "vs_smh": 0.0,
+                        "vs_spy": 0.0,
+                        "cross_sectional_z_score": None,
+                        "is_cross_sectional_anomaly": False,
+                    },
+                ],
+                "benchmarks": {},
+            },
+        )
+
+        captured = []
+
+        monkeypatch.setattr(
+            digest_pipeline,
+            "update_cross_sectional_z_scores",
+            lambda session, rows: captured.extend(rows),
+        )
+
+        class FakeSession:
+            def commit(self):
+                pass
+
+            def rollback(self):
+                pass
+
+        result = digest_pipeline.run_digest_pipeline(
+            FakeSession(),
+            date=TEST_DATE,
+        )
+
+        assert result.error is None
+        assert captured == [
+            {
+                "cik": "A",
+                "date": TEST_DATE,
+                "z_score_cross_sectional": 4.7,
+            }
+        ]
+
+    def test_cross_sectional_update_failure_prevents_redis_write(self, monkeypatch):
+        companies = [{"cik": "A", "industry_segment": "foundry"}]
+
+        self._patch_common(
+            monkeypatch,
+            companies,
+            {"SOXX": 0.01, "SMH": 0.01, "SPY": 0.01},
+        )
+
+        def raise_update(session, rows):
+            raise RuntimeError("db down")
+
+        monkeypatch.setattr(
+            digest_pipeline,
+            "update_cross_sectional_z_scores",
+            raise_update,
+        )
+
+        redis_calls = []
+        monkeypatch.setattr(
+            digest_pipeline,
+            "write_digest",
+            lambda date, digest: redis_calls.append(date),
+        )
+
+        class FakeSession:
+            def commit(self):
+                pass
+
+            def rollback(self):
+                pass
+
+        result = digest_pipeline.run_digest_pipeline(
+            FakeSession(),
+            date=TEST_DATE,
+        )
+
+        assert result.error is not None
+        assert "upsert" in result.error
+        assert redis_calls == []
