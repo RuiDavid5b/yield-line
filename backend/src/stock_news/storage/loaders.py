@@ -284,6 +284,7 @@ def get_price_anomalies(
         PriceAnomaly.date,
         PriceAnomaly.return_pct,
         PriceAnomaly.z_score,
+        PriceAnomaly.z_score_cross_sectional,
         PriceAnomaly.explanation,
         PriceAnomaly.explained_at,
     ).where(PriceAnomaly.cik == cik)
@@ -315,6 +316,7 @@ def get_latest_price_anomalies(session: Session) -> list[dict[str, Any]]:
             PriceAnomaly.date,
             PriceAnomaly.return_pct,
             PriceAnomaly.z_score,
+            PriceAnomaly.z_score_cross_sectional,
             PriceAnomaly.explanation,
             PriceAnomaly.explained_at,
         ).where(PriceAnomaly.date == latest_date)
@@ -337,6 +339,7 @@ def get_unexplained_price_anomalies(
             PriceAnomaly.date,
             PriceAnomaly.return_pct,
             PriceAnomaly.z_score,
+            PriceAnomaly.z_score_cross_sectional,
         )
         .where(PriceAnomaly.explanation.is_(None), PriceAnomaly.date >= cutoff)
         .order_by(PriceAnomaly.date.desc())
@@ -493,6 +496,29 @@ def get_all_companies(session: Session) -> list[dict[str, Any]]:
         }
         for c in companies
     ]
+
+
+def update_cross_sectional_z_scores(
+    session: Session,
+    rows: list[dict[str, Any]],
+) -> None:
+    """
+    Update the cross-sectional z-score on existing price anomaly rows.
+    """
+    if not rows:
+        return
+
+    for row in rows:
+        session.execute(
+            update(PriceAnomaly)
+            .where(
+                PriceAnomaly.cik == row["cik"],
+                PriceAnomaly.date == row["date"],
+            )
+            .values(
+                z_score_cross_sectional=row["z_score_cross_sectional"],
+            )
+        )
 
 
 def upsert_digest_results(session: Session, rows: list[dict[str, Any]]) -> None:
