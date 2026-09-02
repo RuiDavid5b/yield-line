@@ -5,6 +5,7 @@ import os
 
 import pendulum
 from airflow.providers.docker.operators.docker import DockerOperator
+from airflow.operators.python import get_current_context
 from airflow.sdk import dag, task
 
 APP_IMAGE = "stock-news-app:latest"
@@ -81,9 +82,18 @@ def daily_pipeline():
     run_price_tasks >> run_digest
 
     @task
-    def filings_commands(companies: list[dict]) -> list[str]:
+    def filings_commands(companies: list[dict], logical_date) -> list[str]:
+        end_date = logical_date.date()
+        start_date = end_date - pendulum.duration(days=7)
+
         return [
-            f"stock_news.pipelines.filings --cik {c['cik']} --filing-limit 10"
+            (
+                f"stock_news.pipelines.filings "
+                f"--cik {c['cik']} "
+                f"--filing-limit 5 "
+                f"--start-date {start_date} "
+                f"--end-date {end_date}"
+            )
             for c in companies
         ]
 
