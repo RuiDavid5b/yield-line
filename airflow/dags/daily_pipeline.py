@@ -77,7 +77,6 @@ def daily_pipeline():
     run_digest = app_task(
         task_id="run_digest_pipeline",
         command="stock_news.pipelines.digest",
-        trigger_rule="all_done",
     )
     run_price_tasks >> run_digest
 
@@ -135,7 +134,7 @@ def daily_pipeline():
         pool="gemini_api",
         trigger_rule="all_done",
     )
-    [run_price_tasks, run_filings_tasks, run_news_tasks] >> run_anomaly_explanations
+    [run_digest, run_filings_tasks, run_news_tasks] >> run_anomaly_explanations
 
 
 daily_pipeline()

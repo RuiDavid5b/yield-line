@@ -31,7 +31,7 @@ def test_run_anomaly_explanation_pipeline_persists_real_explanation(
     session_with_anomaly, monkeypatch
 ):
     monkeypatch.setattr(
-        pipeline, "run_agent_query", lambda prompt: "Mocked explanation text."
+        pipeline, "run_agent_query", lambda prompt, **kwargs: "Mocked explanation text."
     )
 
     result = pipeline.run_anomaly_explanation_pipeline(session_with_anomaly)
@@ -48,7 +48,9 @@ def test_run_anomaly_explanation_pipeline_persists_real_explanation(
 def test_already_explained_anomaly_not_reprocessed(session_with_anomaly, monkeypatch):
     calls = []
     monkeypatch.setattr(
-        pipeline, "run_agent_query", lambda prompt: calls.append(prompt) or "Explained."
+        pipeline,
+        "run_agent_query",
+        lambda prompt, **kwargs: calls.append(prompt) or "Explained.",
     )
 
     pipeline.run_anomaly_explanation_pipeline(session_with_anomaly)
