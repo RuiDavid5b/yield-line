@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo.svg" width="120" alt="YieldLine logo">
+  <img src="assets/logo_extended.svg" width="120" alt="YieldLine logo">
 </p>
 
 ```mermaid
