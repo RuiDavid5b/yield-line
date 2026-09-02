@@ -11,6 +11,12 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
+def _truncate(value: str | None, max_length: int) -> str | None:
+    if value is None or len(value) <= max_length:
+        return value
+    return value[: max_length - 1] + "…"
+
+
 def _parse_published_at(published: str | None) -> dt.datetime | None:
     if not published:
         return None
@@ -43,9 +49,9 @@ def transform_news_articles(
             {
                 "cik": cik,
                 "url": url,
-                "title": article.get("title") or "",
-                "description": article.get("description"),
-                "author": article.get("author"),
+                "title": _truncate(article.get("title") or "", 500),
+                "description": _truncate(article.get("description"), 2000),
+                "author": _truncate(article.get("author"), 255),
                 "published_at": _parse_published_at(article.get("published")),
             }
         )

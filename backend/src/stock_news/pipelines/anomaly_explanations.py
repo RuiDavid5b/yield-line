@@ -81,7 +81,10 @@ def run_anomaly_explanation_pipeline(
             continue
 
         try:
-            explanation = run_agent_query(_build_prompt(anomaly, company))
+            explanation = run_agent_query(
+                _build_prompt(anomaly, company),
+                thread_id=f"anomaly-{anomaly['id']}",
+            )
             set_price_anomaly_explanation(session, anomaly["id"], explanation)
             session.commit()
             result.explained += 1
