@@ -6,8 +6,10 @@ container per company - there's no shared memory to throttle from.
 
 from __future__ import annotations
 
+import datetime as dt
 import logging
 import time
+from zoneinfo import ZoneInfo
 
 import redis
 
@@ -25,7 +27,15 @@ RPM_WINDOW_SECONDS = 60
 # 500/day documented; leave headroom for the daily digest and any manual
 # runs sharing the same key/budget.
 DEFAULT_RPD_LIMIT = 450
-RPD_WINDOW_SECONDS = 24 * 60 * 60
+GEMINI_QUOTA_TZ = ZoneInfo("America/Los_Angeles")
+
+
+def _seconds_until_midnight_pacific() -> int:
+    now_pacific = dt.datetime.now(GEMINI_QUOTA_TZ)
+    tomorrow_midnight = (now_pacific + dt.timedelta(days=1)).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+    return int((tomorrow_midnight - now_pacific).total_seconds())
 
 
 class RateLimitExceededError(Exception):
@@ -58,6 +68,33 @@ class RateLimiter:
         self._client.expire(self._key, self._window * 2)
 
 
+class DailyCounter:
+    """
+    Calendar-day-keyed counter, matching Gemini's RPD reset boundary.
+    """
+
+    def __init__(self, key_prefix: str):
+        self._client = redis.Redis.from_url(
+            str(get_settings().redis_url), decode_responses=True
+        )
+        self._key_prefix = key_prefix
+
+    def _key(self) -> str:
+        today_pacific = dt.datetime.now(GEMINI_QUOTA_TZ).date()
+        return f"{self._key_prefix}:{today_pacific.isoformat()}"
+
+    def count(self) -> int:
+        value = self._client.get(self._key())
+        return int(value) if value else 0
+
+    def increment(self) -> None:
+        key = self._key()
+        pipe = self._client.pipeline()
+        pipe.incr(key)
+        pipe.expire(key, _seconds_until_midnight_pacific())
+        pipe.execute()
+
+
 def acquire_gemini_call(
     rpm_limit: int = DEFAULT_RPM_LIMIT,
     rpd_limit: int = DEFAULT_RPD_LIMIT,
@@ -70,20 +107,19 @@ def acquire_gemini_call(
     exhausted, rather than blocking for hours.
     """
     rpm = RateLimiter("rate_limit:gemini:rpm", rpm_limit, RPM_WINDOW_SECONDS)
-    rpd = RateLimiter("rate_limit:gemini:rpd", rpd_limit, RPD_WINDOW_SECONDS)
+    rpd = DailyCounter("rate_limit:gemini:rpd")
 
-    now = time.time()
-    if rpd._count_in_window(now) >= rpd_limit:
+    if rpd.count() >= rpd_limit:
         raise RateLimitExceededError(
-            f"Daily Gemini call budget ({rpd_limit}) exhausted - remaining "
-            "filings will be picked up on the next run."
+            f"Daily Gemini call budget ({rpd_limit}) exhausted for today - "
+            "remaining filings will be picked up on the next run."
         )
 
     while True:
         now = time.time()
         if rpm._count_in_window(now) < rpm_limit:
             rpm.record(now)
-            rpd.record(now)
+            rpd.increment()
             return
         logger.info("Gemini RPM limit reached, waiting %.0fs", poll_interval)
         time.sleep(poll_interval)
