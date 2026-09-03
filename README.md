@@ -54,10 +54,10 @@ flowchart LR
             Prices --> Rolling[Rolling anomaly detection] --> PG
         end
 
-        subgraph Analytics["3. Analytics & Caching"]
-            Digest -->|"90d cache"| Redis[(Redis)]
+        subgraph Analytics["3. Digest & Caching"]
             PG -->|"today's prices"| Digest[Digest: peer avg, benchmarks, cross-sectional anomaly]
             Digest -->|"permanent record"| PG
+            Digest -->|"90d cache"| Redis[(Redis)]
             Digest --> AutoExplain[Trigger: explain anomalies]
         end
     end
