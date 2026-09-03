@@ -70,13 +70,19 @@ Python, FastAPI, LangChain / LangGraph, Airflow, PostgreSQL, Alembic, Redis, Doc
 ## Running locally
 
 1. Copy `.env.example` to `.env` and fill in the required keys and variables. Do the same for `backend/api/.env.example` and `airflow/.env.example`.
+
 2. Build and run all the necessary docker images and containers by running the following:
-```bash
-make app-image dev-rebuild && cd airflow; docker compose up -d --build; cd ..
-```
-This should start Postgres, Redis, the FastAPI backend (served by Uvicorn), and airflow.
+
+    ```bash
+    make app-image dev-rebuild && cd airflow; docker compose up -d --build; cd ..
+    ```
+
+    This should start Postgres, Redis, the FastAPI backend (served by Uvicorn), and airflow.
+
 3. If you want to add/remove/edit companies and their relations, you can do that in ` backend/src/stock_news/graph/companies_graph.yaml`. After that, run `make sync-companies` and trigger the `seed_company_graph` DAG to populate Postgres DB.
+
 4. Frontend: `cd frontend && npm install && npm run dev`.
+
 5. API docs at `http://localhost:8000/docs` once the backend is running.
 
 This will start running a daily DAG from now on. If you want to backfill to have more context and be able to use the app to its full extend right away, you can manually trigger the backfill DAG via the airflow UI. `airflow/dags/backfill_pipeline.py` has a `BACKFILL_YEARS` variable that is set to 1, but can be increased (note: the API used to get the filings' contains a minimum of 1 year of history or 1,000 filings, whichever is more. From empiric experimentation, it seems like most companies will have far more than 1 year of history, since 1,000 filings in one year is a huge amount. 5 years probably will still cover almost all companies, but even those that do not simply won't be filled). 
