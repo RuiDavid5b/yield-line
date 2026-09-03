@@ -8,12 +8,12 @@ interface AnomalyPanelProps {
   cik: string;
   start: string;
   end: string;
-  latestDigest: Digest | null;
 }
 
-export default function AnomalyPanel({ cik, start, end, latestDigest }: AnomalyPanelProps) {
+export default function AnomalyPanel({ cik, start, end }: AnomalyPanelProps) {
   const [anomalies, setAnomalies] = useState<Awaited<ReturnType<typeof api.anomalies>>>([]);
   const [index, setIndex] = useState(-1);
+  const [digestForShownDate, setDigestForShownDate] = useState<Digest | null>(null);
 
   useEffect(() => {
     api.anomalies(cik, start, end).then(setAnomalies);
@@ -25,15 +25,23 @@ export default function AnomalyPanel({ cik, start, end, latestDigest }: AnomalyP
   const current = index === -1 ? todaysAnomaly : anomalies[index];
   const isShowingToday = index === -1;
 
+  // Fetch the digest for whichever date is currently shown - not just
+  // today - so the cross-sectional flag is available when paging
+  // through history via the prev/next arrows, not only on the default view.
+  useEffect(() => {
+    if (!current) { setDigestForShownDate(null); return; }
+    api.digestForDate(current.date).then(setDigestForShownDate).catch(() => setDigestForShownDate(null));
+  }, [current?.date]);
+
+  const digestCompany = digestForShownDate?.companies.find((c) => c.cik === cik);
+  const isCrossSectional = digestCompany?.is_cross_sectional_anomaly;
+
   const canGoOlder = index < anomalies.length - 1;
   const canGoNewer = index > -1;
 
-  const digestCompany = latestDigest?.companies.find((c) => c.cik === cik);
-  const isCrossSectionalToday = isShowingToday && digestCompany?.is_cross_sectional_anomaly;
-
   const signalLabels: string[] = [];
   if (current) signalLabels.push("Unusual for this company's own history");
-  if (isCrossSectionalToday) signalLabels.push("Unusual vs. all tracked companies today");
+  if (isCrossSectional) signalLabels.push("Unusual vs. all tracked companies that day");
 
   return (
     <div>

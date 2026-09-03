@@ -41,6 +41,18 @@ export const api = {
     return data;
   },
 
+  digestForDate: async (date: string) => {
+    const { data, error } = await client.GET("/digest/{date}", {
+      params: {
+        path: { date },
+      },
+    });
+    if (error) {
+      throw new Error("Failed to fetch digest for date");
+    }
+    return data;
+  },
+
   periodReturns: async (start: string, end: string) => {
     const { data, error } = await client.GET("/companies/returns", {
       params: {
