@@ -55,10 +55,9 @@ flowchart LR
         end
 
         subgraph Analytics["3. Analytics & Caching"]
+            Digest -->|"90d cache"| Redis[(Redis)]
             PG -->|"today's prices"| Digest[Digest: peer avg, benchmarks, cross-sectional anomaly]
             Digest -->|"permanent record"| PG
-            Redis[(Redis)] ~~~ PG
-            Digest -->|"90d cache"| Redis[(Redis)]
             Digest --> AutoExplain[Trigger: explain anomalies]
         end
     end
