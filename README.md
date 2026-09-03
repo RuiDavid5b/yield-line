@@ -37,62 +37,74 @@ One Airflow DAG (`daily_pipeline`, scheduled after US market close) handles fili
 
 ```mermaid
 flowchart LR
-    subgraph Airflow["Airflow: daily_pipeline (Post-US Market Close)"]
-        direction LR
-        subgraph Ingestion["1. Ingestion"]
-            EDGAR[SEC EDGAR] --> XBRL[Financial facts]
-            EDGAR --> Sections[Filing sections]
-            YF[yfinance] --> Prices[Stock prices]
-            NewsAPI[Currents API] --> NewsData[News]
-        end
+    subgraph Airflow["Airflow: daily_pipeline (Post-US Market Close)"]
+        direction LR
+        subgraph Ingestion["1. Ingestion"]
+            EDGAR[SEC EDGAR] --> XBRL[Financial facts]
+            EDGAR --> Sections[Filing sections]
+            YF[yfinance] --> Prices[Stock prices]
+            NewsAPI[Currents API] --> NewsData[News]
+        end
 
-        subgraph Processing["2. Processing"]
-            Sections -->|"LangChain structured extraction"| PG[(Postgres)]
-            XBRL -->|"direct parse"| PG
-            Prices --> PG
-            NewsData --> PG
-            Prices --> Rolling[Rolling anomaly detection] --> PG
-        end
+        subgraph Processing["2. Processing"]
+            Sections -->|"LangChain structured extraction"| PG[(Postgres)]
+            XBRL -->|"direct parse"| PG
+            Prices --> PG
+            NewsData --> PG
+            Prices --> Rolling[Rolling anomaly detection] --> PG
+        end
 
-        subgraph Analytics["3. Analytics & Caching"]
-            PG -->|"today's prices"| Digest[Digest: peer avg, benchmarks, cross-sectional anomaly]
-            Digest -->|"permanent record"| PG
-            Digest -->|"90d cache"| Redis[(Redis)]
-            Digest --> AutoExplain[Trigger: explain anomalies]
-        end
-    end
+        subgraph Analytics["3. Analytics & Caching"]
+            PG -->|"today's prices"| Digest[Digest: peer avg, benchmarks, cross-sectional anomaly]
+            Digest -->|"permanent record"| PG
+            Digest -->|"90d cache"| Redis[(Redis)]
+            Digest --> AutoExplain[Trigger: explain anomalies]
+        end
+    end
 
-    subgraph OneOff["Manually-triggered DAGs"]
-        Seed[seed_company_graph] --> PG
-        Backfill["backfill_pipeline"] --> PG
-    end
+    subgraph OneOff["Manually-triggered DAGs"]
+        Seed[seed_company_graph] --> PG
+        Backfill["backfill_pipeline"] --> PG
+    end
 
-    CompanyGraph[["Company graph (YAML)"]]
+    CompanyGraph[["Company graph (YAML)"]]
 
-    subgraph Serving["Serving & Agents"]
-        direction TB
-        Agent{{LangGraph Agent}}
-        API[FastAPI]
-        Frontend[React UI]
-        
-        AutoExplain --> Agent
-        Agent <-->|"tool calls"| PG
-        Agent -->|"read cache"| Redis
-        Agent <-->|"tool calls"| CompanyGraph
-        Agent -->|"persist explanation"| PG
-        
-        Frontend <-->|"REST / JSON"| API
-        API <--> Agent
-        API -->|"read > 90d"| PG
-        API -->|"read digest - many times/day"| Redis
-    end
+    subgraph Serving["Serving & Agents"]
+        direction TB
+        Agent{{LangGraph Agent}}
+        API[FastAPI]
+        Frontend[React UI]
+
+        AutoExplain --> Agent
+        Agent <-->|"tool calls"| PG
+        Agent -->|"read cache"| Redis
+        Agent <-->|"tool calls"| CompanyGraph
+        Agent -->|"persist explanation"| PG
+
+        Frontend <-->|"REST / JSON"| API
+        API <--> Agent
+        API -->|"read > 90d"| PG
+        API -->|"read digest - many times/day"| Redis
+    end
+
+    %% Color Style Definitions
+    classDef dbStyle fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef anomalyStyle fill:#fff3e0,stroke:#e65100,stroke-width:2px;
+    classDef digestStyle fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px;
+    classDef inputStyle fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
+
+    %% Apply Styles
+    class PG,Redis dbStyle;
+    class Rolling,AutoExplain anomalyStyle;
+    class Digest digestStyle;
+    class EDGAR,YF,NewsAPI,CompanyGraph inputStyle;
 ```
 
 - **Ingestion & Processing** - filings are classified and parsed into structured fields (guidance, named customers/competitors, capex commentary) via LangChain + Gemini, rate-limited against the free-tier API quota. The remaining data is parsed more directly.
 - **Anomaly detection** - Two independent types of stock price anomalies are persisted, a rolling z-score against each company's own history and a same-day cross-sectional z-score against all tracked companies.
 - **Digest** - daily cross-company snapshot: each company's return vs. its industry peers and sector benchmarks (SOXX/SMH/SPY), cached in Redis with a Postgres fallback beyond the cache window.
 - **Agent** - one LangGraph agent calls tools to acess filings, news and prices in the database, and a tool to access the company graph. It's used two ways: automatically to explain newly detected anomalies, and interactively via the frontend's chat, where it also picks up whichever company is currently selected in the UI.
-- **API / Frontend** - FastAPI (OpenAPI-documented) + a minimal React UI: company list with return/anomaly highlighting, a price chart, and a chat interface into the agent.
+- **API / Frontend** - FastAPI (OpenAPI-documented) and a minimal React UI.
 
 ## Tech stack
 
