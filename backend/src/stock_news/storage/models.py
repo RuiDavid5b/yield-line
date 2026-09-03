@@ -161,6 +161,23 @@ class PriceAnomaly(Base):
     company: Mapped["Company"] = relationship()
 
 
+class AnomalyExplanation(Base):
+    __tablename__ = "anomaly_explanations"
+    __table_args__ = (
+        UniqueConstraint("cik", "date", name="uq_anomaly_explanation_date"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    cik: Mapped[str] = mapped_column(ForeignKey("companies.cik"), index=True)
+    date: Mapped[dt.date] = mapped_column(Date, index=True)
+    explanation: Mapped[str] = mapped_column()
+    explained_at: Mapped[dt.datetime] = mapped_column(
+        DateTime, server_default=func.now()
+    )
+
+    company: Mapped["Company"] = relationship()
+
+
 class NewsArticle(Base):
     __tablename__ = "news_articles"
     __table_args__ = (UniqueConstraint("cik", "url", name="uq_news_article_url"),)
