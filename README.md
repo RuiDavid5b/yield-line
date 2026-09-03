@@ -24,62 +24,84 @@ I used to check the stock market most days and repeat the same cycle: scan a han
 
 YieldLine automates that loop. It tracks a curated graph of companies (currently semiconductor/adjacent-tech - nothing about the design is specific to that sector), ingests filings, prices, and related news daily, flags statistically unusual price moves, and uses an LLM agent to explain *why*, grounded in the company's own filings, recent news, and its relationships to other tracked companies (suppliers, competitors, customers).
 
+The companies are shown in the left pane, with a fuzzy search query to filter, and the main screen shows information regarding the selected company. At the top, the drop-down menu selects a timeframe, which updates the returns of the left pane to and the stock price chart to that range. Below the price chart are 2 sections: one to view anomaly explanations and another to ask questions to the agent. More details show in [Architecture](#architecture).
+
+
+<p align="center">
+  <img src="assets/full_screen_3.png" width="800" alt="Screenshot with SNPS ticker selected">
+</p>
+
 ## Architecture
+
+One Airflow DAG (`daily_pipeline`, scheduled after US market close) handles filings, prices, news, extraction, and anomaly detection end to end, skipping anything already processed. Two additional manually-triggered DAGs handle one-time setup: seeding the company graph from YAML, and backfilling historical filings/prices for newly added companies.
 
 ```mermaid
 flowchart LR
-    subgraph Airflow["Airflow - daily_pipeline (after US market close)"]
-        subgraph Ingestion
+    subgraph Airflow["Airflow: daily_pipeline (Post-US Market Close)"]
+        direction LR
+        subgraph Ingestion["1. Ingestion"]
             EDGAR[SEC EDGAR] --> XBRL[Financial facts]
             EDGAR --> Sections[Filing sections]
             YF[yfinance] --> Prices[Stock prices]
             NewsAPI[Currents API] --> NewsData[News]
         end
 
-        Sections -->|"LangChain structured extraction"| PG[(Postgres)]
-        XBRL -->|"direct parsing, no LLM"| PG
-        Prices --> PG
-        NewsData --> PG
+        subgraph Processing["2. Processing"]
+            Sections -->|"LangChain structured extraction"| PG[(Postgres)]
+            XBRL -->|"direct parse"| PG
+            Prices --> PG
+            NewsData --> PG
+            Prices --> Rolling[Rolling anomaly detection] --> PG
+        end
 
-        Prices --> Rolling[Rolling anomaly detection]
-        Rolling --> PG
-
-        PG -->|"today's prices, all companies - computed once"| Digest[Digest: peer avg, benchmarks, cross-sectional anomaly]
-        Digest --> PG
-        Digest -->|"write once/day"| Redis[(Redis cache, 90d TTL)]
-
-        Digest --> AutoExplain[Trigger: explain new anomalies]
+        subgraph Analytics["3. Analytics & Caching"]
+            PG -->|"today's prices"| Digest[Digest: peer avg, benchmarks, cross-sectional anomaly]
+            Digest -->|"permanent record"| PG
+            Digest -->|"90d cache"| Redis[(Redis)]
+            Digest --> AutoExplain[Trigger: explain anomalies]
+        end
     end
 
     subgraph OneOff["Manually-triggered DAGs"]
         Seed[seed_company_graph] --> PG
-        Backfill["backfill_pipeline (filings + prices only)"] --> PG
+        Backfill["backfill_pipeline"] --> PG
     end
 
-    CompanyGraph[["Company graph (in-memory, from YAML)"]]
+    CompanyGraph[["Company graph (YAML)"]]
 
-    AutoExplain --> Agent{{LangGraph Agent}}
-    Agent <-->|"tool calls"| PG
-    Agent -->|"read digest - many times/day"| Redis
-    Agent <-->|"tool calls"| CompanyGraph
-    Agent -->|"persist explanation"| PG
-
-    Frontend[React UI] <-->|"REST / JSON"| API[FastAPI]
-    API <--> Agent
-    API <--> PG
-    API -->|"read digest - many times/day"| Redis
+    subgraph Serving["Serving & Agents"]
+        direction TB
+        Agent{{LangGraph Agent}}
+        API[FastAPI]
+        Frontend[React UI]
+        
+        AutoExplain --> Agent
+        Agent <-->|"tool calls"| PG
+        Agent -->|"read cache"| Redis
+        Agent <-->|"tool calls"| CompanyGraph
+        Agent -->|"persist explanation"| PG
+        
+        Frontend <-->|"REST / JSON"| API
+        API <--> Agent
+        API -->|"read > 90d"| PG
+        API -->|"read digest - many times/day"| Redis
+    end
 ```
 
-- **Ingestion & processing** - one Airflow DAG (`daily_pipeline`, scheduled after US market close) handles filings, prices, news, extraction, and anomaly detection end to end, skipping anything already processed. Two additional manually-triggered DAGs handle one-time setup: seeding the company graph from YAML, and backfilling historical filings/prices for newly added companies.
-- **Extraction** - filings are classified and parsed into structured fields (guidance, named customers/competitors, capex commentary) via LangChain + Gemini, rate-limited against the free-tier API quota.
-- **Anomaly detection** - two independent signals, both persisted for later lookup, not just same-day: a rolling z-score against each company's own history, and a same-day cross-sectional z-score against all tracked companies.
+- **Ingestion & Processing** - filings are classified and parsed into structured fields (guidance, named customers/competitors, capex commentary) via LangChain + Gemini, rate-limited against the free-tier API quota. The remaining data is parsed more directly.
+- **Anomaly detection** - Two independent types of stock price anomalies are persisted, a rolling z-score against each company's own history and a same-day cross-sectional z-score against all tracked companies.
 - **Digest** - daily cross-company snapshot: each company's return vs. its industry peers and sector benchmarks (SOXX/SMH/SPY), cached in Redis with a Postgres fallback beyond the cache window.
-- **Agent** - one LangGraph agent, tool-calling over filings, news, prices, and the company graph, used two ways: automatically to explain newly detected anomalies, and interactively via the frontend's chat, where it also picks up whichever company is currently selected in the UI.
+- **Agent** - one LangGraph agent calls tools to acess filings, news and prices in the database, and a tool to access the company graph. It's used two ways: automatically to explain newly detected anomalies, and interactively via the frontend's chat, where it also picks up whichever company is currently selected in the UI.
 - **API / Frontend** - FastAPI (OpenAPI-documented) + a minimal React UI: company list with return/anomaly highlighting, a price chart, and a chat interface into the agent.
 
 ## Tech stack
 
-Python, FastAPI, LangChain / LangGraph, Airflow, PostgreSQL, Redis, Docker, React, TypeScript, SQLAlchemy, Alembic, Pydantic, Pytest.
+**Backend:** Python · FastAPI · Uvicorn · SQLAlchemy · Alembic · Pydantic  
+**AI / Agent frameworks:** LangChain · LangGraph  
+**Data & Storage:** PostgreSQL · Redis  
+**Data Pipelines:** Apache Airflow  
+**Infrastructure & Testing:** Docker · Pytest  
+**Frontend:** React · TypeScript · Vite  
 
 ## Running locally
 
