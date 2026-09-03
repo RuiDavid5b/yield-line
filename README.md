@@ -71,18 +71,21 @@ flowchart LR
 
     subgraph Serving["Serving & Agents"]
         direction TB
-        Agent{{LangGraph Agent}}
-        API[FastAPI]
         Frontend[React UI]
+        API[FastAPI]
+        Agent{{LangGraph Agent}}
 
+        %% Force vertical hierarchy
+        Frontend <-->|"REST / JSON"| API
+        API <--> Agent
+
+        %% Subgraph-internal layout anchors
         AutoExplain --> Agent
         Agent <-->|"tool calls"| PG
         Agent -->|"read cache"| Redis
         Agent <-->|"tool calls"| CompanyGraph
         Agent -->|"persist explanation"| PG
 
-        Frontend <-->|"REST / JSON"| API
-        API <--> Agent
         API -->|"read > 90d"| PG
         API -->|"read digest - many times/day"| Redis
     end
