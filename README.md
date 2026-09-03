@@ -7,6 +7,17 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+## Contents
+
+- [What this is](#what-this-is)
+- [Architecture](#architecture)
+- [Tech stack](#tech-stack)
+- [Running locally](#running-locally)
+  - [Backfilling historical data](#backfilling-historical-data)
+  - [API testing](#api-testing)
+  - [After restarting](#after-restarting)
+- [Known limitations / open work](#known-limitations-%2F-open-work)
+
 ## What this is
 
 I used to check the stock market most days and repeat the same cycle: scan a handful of companies I care about, and whenever something moved more than expected, dig around manually to figure out why - earnings release, external events, or a competitor's earnings call.
@@ -19,13 +30,13 @@ YieldLine automates that loop. It tracks a curated graph of companies (currently
 flowchart LR
     subgraph Airflow["Airflow - daily_pipeline (after US market close)"]
         subgraph Ingestion
-            EDGAR[SEC EDGAR] --> FilingText[Filing text]
-            EDGAR --> XBRL[XBRL company facts]
-            YF[yfinance] --> Prices
+            EDGAR[SEC EDGAR] --> XBRL[Financial facts]
+            EDGAR --> Sections[Filing sections]
+            YF[yfinance] --> Prices[Stock prices]
             NewsAPI[Currents API] --> NewsData[News]
         end
 
-        FilingText -->|"LangChain extraction"| PG[(Postgres)]
+        Sections -->|"LangChain structured extraction"| PG[(Postgres)]
         XBRL -->|"direct parsing, no LLM"| PG
         Prices --> PG
         NewsData --> PG
@@ -33,9 +44,9 @@ flowchart LR
         Prices --> Rolling[Rolling anomaly detection]
         Rolling --> PG
 
-        PG --> Digest[Digest: peer avg, benchmarks, cross-sectional anomaly]
-        Digest --> Redis[(Redis cache, 90d TTL)]
+        PG -->|"today's prices, all companies - computed once"| Digest[Digest: peer avg, benchmarks, cross-sectional anomaly]
         Digest --> PG
+        Digest -->|"write once/day"| Redis[(Redis cache, 90d TTL)]
 
         Digest --> AutoExplain[Trigger: explain new anomalies]
     end
@@ -45,15 +56,18 @@ flowchart LR
         Backfill["backfill_pipeline (filings + prices only)"] --> PG
     end
 
-    AutoExplain --> Agent{{LangGraph Agent}}
-    Agent -->|"tools"| PG
-    Agent -->|"tools"| Redis
-    Agent --> PG
+    CompanyGraph[["Company graph (in-memory, from YAML)"]]
 
-    Frontend[React UI] --> API[FastAPI]
-    API -->|"user question"| Agent
-    API --> PG
-    API --> Redis
+    AutoExplain --> Agent{{LangGraph Agent}}
+    Agent <-->|"tool calls"| PG
+    Agent -->|"read digest - many times/day"| Redis
+    Agent <-->|"tool calls"| CompanyGraph
+    Agent -->|"persist explanation"| PG
+
+    Frontend[React UI] <-->|"REST / JSON"| API[FastAPI]
+    API <--> Agent
+    API <--> PG
+    API -->|"read digest - many times/day"| Redis
 ```
 
 - **Ingestion & processing** - one Airflow DAG (`daily_pipeline`, scheduled after US market close) handles filings, prices, news, extraction, and anomaly detection end to end, skipping anything already processed. Two additional manually-triggered DAGs handle one-time setup: seeding the company graph from YAML, and backfilling historical filings/prices for newly added companies.
@@ -65,13 +79,13 @@ flowchart LR
 
 ## Tech stack
 
-Python, FastAPI, LangChain / LangGraph, Airflow, PostgreSQL, Alembic, Redis, Docker, React, TypeScript, SQLAlchemy, Pydantic, Pytest.
+Python, FastAPI, LangChain / LangGraph, Airflow, PostgreSQL, Redis, Docker, React, TypeScript, SQLAlchemy, Alembic, Pydantic, Pytest.
 
 ## Running locally
 
 1. Copy `.env.example` to `.env` and fill in the required keys and variables. Do the same for `backend/api/.env.example` and `airflow/.env.example`.
 
-2. Build and run all the necessary docker images and containers by running the following:
+2. **Backend:** Build and run all the necessary docker images and containers by running the following:
 
     ```bash
     make app-image dev-rebuild && cd airflow; docker compose up -d --build; cd ..
@@ -79,17 +93,38 @@ Python, FastAPI, LangChain / LangGraph, Airflow, PostgreSQL, Alembic, Redis, Doc
 
     This should start Postgres, Redis, the FastAPI backend (served by Uvicorn), and airflow.
 
-3. If you want to add/remove/edit companies and their relations, you can do that in ` backend/src/stock_news/graph/companies_graph.yaml`. After that, run `make sync-companies` and trigger the `seed_company_graph` DAG to populate Postgres DB.
+3. If you want to add/remove/edit companies and their relations, you can do that in `backend/src/stock_news/graph/companies_graph.yaml`. After that, run `make sync-companies` and trigger the `seed_company_graph` DAG to populate Postgres DB.
 
-4. Frontend: `cd frontend && npm install && npm run dev`.
+4. **Frontend:** Install the frontend dependencies and start the Vite development server:
 
-5. API docs at `http://localhost:8000/docs` once the backend is running.
+    ```bash
+    cd frontend && npm install && npm run dev
+    ```
 
-This will start running a daily DAG from now on. If you want to backfill to have more context and be able to use the app to its full extend right away, you can manually trigger the backfill DAG via the airflow UI. `airflow/dags/backfill_pipeline.py` has a `BACKFILL_YEARS` variable that is set to 1, but can be increased (note: the API used to get the filings' contains a minimum of 1 year of history or 1,000 filings, whichever is more. From empiric experimentation, it seems like most companies will have far more than 1 year of history, since 1,000 filings in one year is a huge amount. 5 years probably will still cover almost all companies, but even those that do not simply won't be filled). 
+Once the backend is running, the FastAPI documentation is available at `http://localhost:8000/docs`.
 
-A Bruno collection (`bruno/`) is included for exercising both the app's own API and the external APIs (EDGAR, Currents News) directly.
+### Backfilling historical data
 
-After restarting you PC, run `make api-up` and `cd frontend && npm run dev` to start the Uvicorn API and Vite development servers.
+The daily DAG will run automatically from this point onwards. To have historical data available immediately and use the app with more context, manually trigger the backfill DAG through the Airflow UI.
+
+The `BACKFILL_YEARS` variable in `airflow/dags/backfill_pipeline.py` controls how many years of data are requested. It is set to `1` by default and can be increased.
+
+Note that the SEC EDGAR submissions API provides at least 1 year of filing history or 1,000 filings, whichever is greater. In practice, most companies appear to have considerably more than one year available because 1,000 filings within a single year is a large number. Five years will likely cover most companies, but companies with less available history simply will not have data for the full requested period.
+
+### API testing
+
+A Bruno API client collection is included in `bruno/` for exercising both the application's API and the external EDGAR and Currents News APIs directly.
+
+### After restarting
+
+The Docker containers do not need to be rebuilt after restarting your PC. Start the API and frontend with:
+
+```bash
+make api-up
+cd frontend && npm run dev
+```
+
+This starts the Uvicorn API and Vite development servers.
 
 ## Known limitations / open work
 
