@@ -77,7 +77,6 @@ class AnomalyOut(BaseModel):
     date: dt.date
     return_pct: float
     z_score: float
-    z_score_cross_sectional: float | None
     explanation: str | None
     explained_at: dt.datetime | None
 

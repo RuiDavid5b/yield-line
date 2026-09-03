@@ -20,7 +20,6 @@ from stock_news.storage.db import get_session_factory
 from stock_news.storage.loaders import (
     get_all_companies,
     get_stock_price_history,
-    update_cross_sectional_z_scores,
     upsert_benchmark_returns,
     upsert_digest_results,
 )
@@ -97,16 +96,6 @@ def run_digest_pipeline(
 
     digest = compute_company_digest(company_returns, benchmark_returns)
 
-    cross_sectional_rows = [
-        {
-            "cik": c["cik"],
-            "date": target_date,
-            "z_score_cross_sectional": c["cross_sectional_z_score"],
-        }
-        for c in digest["companies"]
-        if c["cross_sectional_z_score"] is not None
-    ]
-
     digest_rows = [
         {
             "cik": c["cik"],
@@ -130,10 +119,7 @@ def run_digest_pipeline(
     try:
         upsert_digest_results(session, digest_rows)
         upsert_benchmark_returns(session, benchmark_rows)
-        update_cross_sectional_z_scores(session, cross_sectional_rows)
-
         session.commit()
-
         result.digest_rows_upserted = len(digest_rows)
         result.benchmark_rows_upserted = len(benchmark_rows)
     except Exception as exc:
