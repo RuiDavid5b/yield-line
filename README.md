@@ -36,7 +36,6 @@ The companies are shown in the left pane, with a fuzzy search query to filter, a
 One Airflow DAG (`daily_pipeline`, scheduled after US market close) handles filings, prices, news, extraction, and anomaly detection end to end, skipping anything already processed. Two additional manually-triggered DAGs handle one-time setup: seeding the company graph from YAML, and backfilling historical filings/prices for newly added companies.
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': 'var(--color-canvas-subtle)', 'mainBkg': 'var(--color-canvas-default)', 'lineColor': 'var(--color-border-default)'}}}%%
 flowchart LR
     subgraph Airflow["Airflow: daily_pipeline (Post-US Market Close)"]
         direction LR
@@ -88,11 +87,11 @@ flowchart LR
         API -->|"read digest - many times/day"| Redis
     end
 
-    %% Adaptive Style Definitions using GitHub Design Tokens
-    classDef dbStyle fill:var(--color-success-subtle),stroke:var(--color-success-fg),stroke-width:2px;
-    classDef anomalyStyle fill:var(--color-attention-subtle),stroke:var(--color-attention-fg),stroke-width:2px;
-    classDef digestStyle fill:var(--color-done-subtle),stroke:var(--color-done-fg),stroke-width:2px;
-    classDef inputStyle fill:var(--color-accent-subtle),stroke:var(--color-accent-fg),stroke-width:2px;
+    %% GitHub Safe Theme-Adaptive Alpha Colors
+    classDef dbStyle fill:#2e7d3233,stroke:#4caf50,stroke-width:2px;
+    classDef anomalyStyle fill:#e6510033,stroke:#ff9800,stroke-width:2px;
+    classDef digestStyle fill:#7b1fa233,stroke:#ba68c8,stroke-width:2px;
+    classDef inputStyle fill:#01579b33,stroke:#29b6f6,stroke-width:2px;
 
     %% Apply Styles
     class PG,Redis dbStyle;
