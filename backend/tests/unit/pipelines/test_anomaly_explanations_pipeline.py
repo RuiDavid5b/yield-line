@@ -37,9 +37,7 @@ class TestRunAnomalyExplanationPipeline:
         monkeypatch.setattr(pipeline, "get_all_companies", lambda session: companies)
 
         responses = iter(agent_responses or [])
-        monkeypatch.setattr(
-            pipeline, "run_agent_query", lambda prompt, **kwargs: next(responses)
-        )
+        monkeypatch.setattr(pipeline, "run_agent_query", lambda prompt: next(responses))
 
         recorded = []
         monkeypatch.setattr(
@@ -109,7 +107,7 @@ class TestRunAnomalyExplanationPipeline:
         )
         monkeypatch.setattr(pipeline, "get_all_companies", lambda session: companies)
 
-        def flaky_agent(prompt, **kwargs):
+        def flaky_agent(prompt):
             if "SNPS" in prompt:
                 raise RuntimeError("agent call failed")
             return "Explained fine."
@@ -142,9 +140,7 @@ class TestRunAnomalyExplanationPipeline:
             lambda session, max_age_days=7: anomalies,
         )
         monkeypatch.setattr(pipeline, "get_all_companies", lambda session: companies)
-        monkeypatch.setattr(
-            pipeline, "run_agent_query", lambda prompt, **kwargs: "Explained."
-        )
+        monkeypatch.setattr(pipeline, "run_agent_query", lambda prompt: "Explained.")
 
         commits = []
 

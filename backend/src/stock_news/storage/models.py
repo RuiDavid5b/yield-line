@@ -150,10 +150,7 @@ class PriceAnomaly(Base):
     cik: Mapped[str] = mapped_column(ForeignKey("companies.cik"), index=True)
     date: Mapped[dt.date] = mapped_column(Date, index=True)
     return_pct: Mapped[float] = mapped_column(Numeric(10, 6))
-    z_score: Mapped[float | None] = mapped_column(Numeric(12, 4), nullable=True)
-    z_score_cross_sectional: Mapped[float | None] = mapped_column(
-        Numeric(12, 4), nullable=True
-    )
+    z_score: Mapped[float] = mapped_column(Numeric(12, 4))
     explanation: Mapped[str | None] = mapped_column(nullable=True)
     explained_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
 

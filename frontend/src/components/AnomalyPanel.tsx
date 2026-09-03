@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
+import type { Digest } from "../api/types";
 
 import ReactMarkdown from "react-markdown";
 
@@ -7,9 +8,10 @@ interface AnomalyPanelProps {
   cik: string;
   start: string;
   end: string;
+  latestDigest: Digest | null;
 }
 
-export default function AnomalyPanel({ cik, start, end }: AnomalyPanelProps) {
+export default function AnomalyPanel({ cik, start, end, latestDigest }: AnomalyPanelProps) {
   const [anomalies, setAnomalies] = useState<Awaited<ReturnType<typeof api.anomalies>>>([]);
   const [index, setIndex] = useState(-1);
 
@@ -26,17 +28,12 @@ export default function AnomalyPanel({ cik, start, end }: AnomalyPanelProps) {
   const canGoOlder = index < anomalies.length - 1;
   const canGoNewer = index > -1;
 
-  const isCrossSectionalAnomaly =
-    current?.z_score_cross_sectional != null &&
-    Math.abs(current.z_score_cross_sectional) >= 2.5;
+  const digestCompany = latestDigest?.companies.find((c) => c.cik === cik);
+  const isCrossSectionalToday = isShowingToday && digestCompany?.is_cross_sectional_anomaly;
 
   const signalLabels: string[] = [];
-  if (current) {
-    signalLabels.push(`Unusual for this company's own history (${current.z_score.toFixed(1)}σ)`);
-  }
-  if (isCrossSectionalAnomaly) {
-    signalLabels.push(`Unusual vs. all tracked companies (${current.z_score_cross_sectional.toFixed(1)}σ)`);
-  }
+  if (current) signalLabels.push("Unusual for this company's own history");
+  if (isCrossSectionalToday) signalLabels.push("Unusual vs. all tracked companies today");
 
   return (
     <div>
