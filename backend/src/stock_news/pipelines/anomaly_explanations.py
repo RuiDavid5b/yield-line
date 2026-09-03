@@ -53,6 +53,9 @@ def _build_prompt(anomaly: dict, company: dict) -> str:
         f"explanation of what may have contributed to the move. Do not claim "
         f"causation unless the evidence establishes it. If you find no supporting "
         f"evidence, say so explicitly rather than guessing."
+        f"Use plain text for statistical notation such as z-score, z = 3.2, and σ. "
+        f"Do not use LaTeX delimiters such as $z$. Preserve dollar signs when "
+        f"referring to monetary amounts."
     )
 
 
