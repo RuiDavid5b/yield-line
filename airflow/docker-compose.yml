@@ -129,6 +129,7 @@ services:
         mkdir -p /opt/airflow/{logs,dags,plugins}
         chown -R "${AIRFLOW_UID:-50000}:0" /opt/airflow/
         /entrypoint airflow version
+        /entrypoint airflow pools set gemini_api 1 "Gemini API rate limit - serializes tasks that invoke the LLM"
     environment:
       <<: *airflow-common-env
       _AIRFLOW_DB_MIGRATE: 'true'
