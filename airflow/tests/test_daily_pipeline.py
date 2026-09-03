@@ -43,9 +43,9 @@ class TestDailyPipelineStructure:
         digest_task = dag.get_task("run_digest_pipeline")
         assert digest_task.task_id in price_task.downstream_task_ids
 
-    def test_digest_uses_default_success_trigger_rule(self, dag):
+    def test_digest_has_all_done_trigger_rule(self, dag):
         digest_task = dag.get_task("run_digest_pipeline")
-        assert digest_task.trigger_rule == "all_success"
+        assert digest_task.trigger_rule == "all_done"
 
     def test_filings_pipeline_uses_rate_limit_pool(self, dag):
         filings_task = dag.get_task("run_filings_pipeline")
@@ -55,22 +55,15 @@ class TestDailyPipelineStructure:
         anomaly_task = dag.get_task("run_anomaly_explanations")
         assert anomaly_task.pool == "gemini_api"
 
-    def test_anomaly_explanations_runs_downstream_of_digest_filings_and_news(self, dag):
+    def test_anomaly_explanations_runs_downstream_of_price_filings_and_news(self, dag):
         anomaly_task = dag.get_task("run_anomaly_explanations")
-
         for upstream_id in (
-            "run_digest_pipeline",
+            "run_price_pipeline",
             "run_filings_pipeline",
             "run_news_pipeline",
         ):
             upstream_task = dag.get_task(upstream_id)
             assert anomaly_task.task_id in upstream_task.downstream_task_ids
-
-    def test_digest_runs_downstream_of_price_pipeline(self, dag):
-        price_task = dag.get_task("run_price_pipeline")
-        digest_task = dag.get_task("run_digest_pipeline")
-
-        assert digest_task.task_id in price_task.downstream_task_ids
 
     def test_anomaly_explanations_has_all_done_trigger_rule(self, dag):
         anomaly_task = dag.get_task("run_anomaly_explanations")

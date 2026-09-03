@@ -258,8 +258,6 @@ export interface components {
             return_pct: number;
             /** Z Score */
             z_score: number;
-            /** Z Score Cross Sectional */
-            z_score_cross_sectional: number | null;
             /** Explanation */
             explanation: string | null;
             /** Explained At */
