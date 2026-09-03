@@ -73,6 +73,9 @@ Rules you must follow:
   news commentary as the company's reported figure when the \
   corresponding figure is available from get_financial_metrics_tool \
   or get_filing_signals_tool.
+- Use plain text for statistical notation such as z-score, z = 3.2, and σ. \
+  Do not use LaTeX delimiters such as $z$. Preserve dollar signs when \
+  referring to monetary amounts.
 """
 
 
