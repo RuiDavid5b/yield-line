@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from stock_news.agent.graph import run_agent_query
 from stock_news.storage.loaders import (
     get_all_companies,
-    get_unexplained_price_anomalies,
+    get_dates_needing_explanation,
     set_price_anomaly_explanation,
 )
 
@@ -29,22 +29,30 @@ class AnomalyExplanationResult:
 
 
 def _build_prompt(anomaly: dict, company: dict) -> str:
+    signal_parts = []
+    if anomaly["rolling_z_score"] is not None:
+        signal_parts.append(
+            f"unusual for its own history (z={anomaly['rolling_z_score']:.2f})"
+        )
+    if anomaly["is_cross_sectional"]:
+        signal_parts.append("unusual relative to all tracked companies that day")
+    signals = " and ".join(signal_parts)
+
     return (
         f"On {anomaly['date']}, {company['name']} ({company['ticker']}) had an "
-        f"unusual daily return of {anomaly['return_pct']:.2%} "
-        f"(z-score {anomaly['z_score']:.2f}). Using resolve_company_tool first, "
-        f"investigate what may have contributed to this move. Prioritize "
-        f"get_financial_metrics_tool for specific reported financial figures "
-        f"such as revenue or net income when structured values are available. "
-        f"Use get_filing_signals_tool for filing-derived qualitative information "
-        f"such as guidance commentary, management commentary, operational developments, "
-        f"customer or competitor mentions, and other metrics not captured by structured "
-        f"metrics, such as revenue or capex changes in a business segment. Use "
-        f"get_news_tool primarily to fill gaps or provide additional context "
-        f"not available in the filing data, such as market reaction, analyst expectations "
-        f"and whether reported results exceeded or fell short of them, external "
-        f"events, or broader industry developments. Use graph-neighbor context when it "
-        f"provides meaningful additional evidence. "
+        f"daily return of {anomaly['return_pct']:.2%}, flagged as {signals}. "
+        f"Using resolve_company_tool first, investigate what may have contributed "
+        f"to this move. Prioritize get_financial_metrics_tool for specific reported "
+        f"financial figures such as revenue or net income when structured values are "
+        f"available. Use get_filing_signals_tool for filing-derived qualitative "
+        f"information such as guidance commentary, management commentary, operational "
+        f"developments, customer or competitor mentions, and other metrics not captured "
+        f"by structured metrics, such as revenue or capex changes in a business segment. "
+        f"Use get_news_tool primarily to fill gaps or provide additional context not "
+        f"available in the filing data, such as market reaction, analyst expectations "
+        f"and whether reported results exceeded or fell short of them, external events, "
+        f"or broader industry developments. Use graph-neighbor context when it provides "
+        f"meaningful additional evidence. "
         f"If you cite a specific financial figure that is available from "
         f"get_financial_metrics_tool, use that value rather than a news article's "
         f"paraphrase. Build the explanation primarily from filing signals and "
@@ -68,7 +76,7 @@ def run_anomaly_explanation_pipeline(
     """
     result = AnomalyExplanationResult()
 
-    anomalies = get_unexplained_price_anomalies(session, max_age_days=max_age_days)
+    anomalies = get_dates_needing_explanation(session, max_age_days=max_age_days)
     result.anomalies_seen = len(anomalies)
     if not anomalies:
         return result
@@ -80,27 +88,27 @@ def run_anomaly_explanation_pipeline(
         if company is None:
             logger.warning("Anomaly for unknown cik %s - skipping", anomaly["cik"])
             result.failed += 1
-            result.errors.append(f"{anomaly['id']}: unknown cik {anomaly['cik']}")
+            result.errors.append(f"{anomaly['cik']}/{anomaly['date']}: unknown cik")
             continue
-
         try:
             explanation = run_agent_query(
                 _build_prompt(anomaly, company),
-                thread_id=f"anomaly-{anomaly['id']}",
+                thread_id=f"anomaly-{anomaly['cik']}-{anomaly['date']}",
             )
-            set_price_anomaly_explanation(session, anomaly["id"], explanation)
+            set_price_anomaly_explanation(
+                session, anomaly["cik"], anomaly["date"], explanation
+            )
             session.commit()
             result.explained += 1
         except Exception as exc:
             session.rollback()
             logger.exception(
-                "Failed explaining anomaly id=%s (cik=%s, date=%s)",
-                anomaly["id"],
+                "Failed explaining anomaly cik=%s date=%s",
                 anomaly["cik"],
                 anomaly["date"],
             )
             result.failed += 1
-            result.errors.append(f"{anomaly['id']}: {exc}")
+            result.errors.append(f"{anomaly['cik']}/{anomaly['date']}: {exc}")
 
     return result
 
