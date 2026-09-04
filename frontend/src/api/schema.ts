@@ -258,6 +258,8 @@ export interface components {
             return_pct: number;
             /** Rolling Z Score */
             rolling_z_score: number | null;
+            /** Cross Sectional Z Score */
+            cross_sectional_z_score: number | null;
             /** Is Cross Sectional */
             is_cross_sectional: boolean;
             /** Explanation */

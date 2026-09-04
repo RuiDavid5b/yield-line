@@ -530,9 +530,11 @@ def get_anomalies_with_explanations(
                 "return_pct": row.return_pct,
                 "rolling_z_score": None,
                 "is_cross_sectional": False,
+                "cross_sectional_z_score": None,
             },
         )
         entry["is_cross_sectional"] = True
+        entry["cross_sectional_z_score"] = row.cross_sectional_z_score
 
     explanations = {
         row.date: (row.explanation, row.explained_at)
