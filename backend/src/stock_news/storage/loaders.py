@@ -7,12 +7,13 @@ from __future__ import annotations
 import datetime as dt
 from typing import Any
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select, tuple_
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
 from stock_news.processing.edgar.signals import ExtractedFilingSignal
 from stock_news.storage.models import (
+    AnomalyExplanation,
     BenchmarkReturn,
     Company,
     DigestResult,
@@ -345,17 +346,160 @@ def get_unexplained_price_anomalies(
 
 
 def set_price_anomaly_explanation(
-    session: Session, anomaly_id: int, explanation: str
+    session: Session,
+    cik: str,
+    date: dt.date,
+    explanation: str,
 ) -> None:
     """
-    Record an agent-generated explanation for one anomaly. Direct update
-    by id, not an upsert.
+    Record an explanation for one (cik, date) anomaly, regardless of
+    which detector(s) flagged it.
     """
-    session.execute(
-        update(PriceAnomaly)
-        .where(PriceAnomaly.id == anomaly_id)
-        .values(explanation=explanation, explained_at=func.now())
+    stmt = pg_insert(AnomalyExplanation).values(
+        cik=cik, date=date, explanation=explanation
     )
+    stmt = stmt.on_conflict_do_update(
+        index_elements=["cik", "date"],
+        set_={"explanation": stmt.excluded.explanation, "explained_at": func.now()},
+    )
+    session.execute(stmt)
+
+
+def get_dates_needing_explanation(
+    session: Session, max_age_days: int = 7
+) -> list[dict[str, Any]]:
+    """
+    Union of rolling anomalies (PriceAnomaly table) and cross-sectional
+    anomalies (DigestResult.is_cross_sectional_anomaly) within
+    max_age_days, excluding any (cik, date) already in
+    AnomalyExplanation. This is the explanation pipeline's actual input -
+    a cross-sectional-only anomaly has no PriceAnomaly row at all, so
+    querying PriceAnomaly alone would silently skip it.
+    """
+    cutoff = dt.date.today() - dt.timedelta(days=max_age_days)
+    explained = select(AnomalyExplanation.cik, AnomalyExplanation.date)
+
+    rolling = session.execute(
+        select(
+            PriceAnomaly.cik,
+            PriceAnomaly.date,
+            PriceAnomaly.return_pct,
+            PriceAnomaly.z_score,
+        )
+        .where(PriceAnomaly.date >= cutoff)
+        .where(~tuple_(PriceAnomaly.cik, PriceAnomaly.date).in_(explained))
+    ).all()
+
+    cross_sectional = session.execute(
+        select(
+            DigestResult.cik,
+            DigestResult.date,
+            DigestResult.return_pct,
+            DigestResult.cross_sectional_z_score,
+        )
+        .where(
+            DigestResult.date >= cutoff,
+            DigestResult.is_cross_sectional_anomaly.is_(True),
+        )
+        .where(~tuple_(DigestResult.cik, DigestResult.date).in_(explained))
+    ).all()
+
+    merged: dict[tuple[str, dt.date], dict[str, Any]] = {}
+    for cik, date, return_pct, z_score in rolling:
+        merged[(cik, date)] = {
+            "cik": cik,
+            "date": date,
+            "return_pct": return_pct,
+            "rolling_z_score": z_score,
+            "is_cross_sectional": False,
+        }
+    for cik, date, return_pct, cs_z_score in cross_sectional:
+        entry = merged.setdefault(
+            (cik, date),
+            {
+                "cik": cik,
+                "date": date,
+                "return_pct": return_pct,
+                "rolling_z_score": None,
+                "is_cross_sectional": False,
+            },
+        )
+        entry["is_cross_sectional"] = True
+        entry["cross_sectional_z_score"] = cs_z_score
+
+    return sorted(merged.values(), key=lambda r: r["date"], reverse=True)
+
+
+def get_anomalies_with_explanations(
+    session: Session,
+    cik: str,
+    start_date: dt.date | None = None,
+    end_date: dt.date | None = None,
+    limit: int | None = None,
+) -> list[dict[str, Any]]:
+    """
+    Union of rolling and cross-sectional anomalies for one company,
+    date-bounded, with explanation joined in if present.
+    """
+    rolling_stmt = select(
+        PriceAnomaly.cik,
+        PriceAnomaly.date,
+        PriceAnomaly.return_pct,
+        PriceAnomaly.z_score.label("rolling_z_score"),
+    ).where(PriceAnomaly.cik == cik)
+    cs_stmt = select(
+        DigestResult.cik,
+        DigestResult.date,
+        DigestResult.return_pct,
+        DigestResult.cross_sectional_z_score,
+    ).where(DigestResult.cik == cik, DigestResult.is_cross_sectional_anomaly.is_(True))
+
+    if start_date is not None:
+        rolling_stmt = rolling_stmt.where(PriceAnomaly.date >= start_date)
+        cs_stmt = cs_stmt.where(DigestResult.date >= start_date)
+    if end_date is not None:
+        rolling_stmt = rolling_stmt.where(PriceAnomaly.date <= end_date)
+        cs_stmt = cs_stmt.where(DigestResult.date <= end_date)
+
+    merged: dict[dt.date, dict[str, Any]] = {}
+    for row in session.execute(rolling_stmt).all():
+        merged[row.date] = {
+            "cik": cik,
+            "date": row.date,
+            "return_pct": row.return_pct,
+            "rolling_z_score": row.rolling_z_score,
+            "is_cross_sectional": False,
+        }
+    for row in session.execute(cs_stmt).all():
+        entry = merged.setdefault(
+            row.date,
+            {
+                "cik": cik,
+                "date": row.date,
+                "return_pct": row.return_pct,
+                "rolling_z_score": None,
+                "is_cross_sectional": False,
+            },
+        )
+        entry["is_cross_sectional"] = True
+
+    explanations = {
+        row.date: (row.explanation, row.explained_at)
+        for row in session.execute(
+            select(
+                AnomalyExplanation.date,
+                AnomalyExplanation.explanation,
+                AnomalyExplanation.explained_at,
+            ).where(AnomalyExplanation.cik == cik)
+        ).all()
+    }
+    for date, entry in merged.items():
+        explanation, explained_at = explanations.get(date, (None, None))
+        entry["explanation"] = explanation
+        entry["explained_at"] = explained_at
+
+    rows = sorted(merged.values(), key=lambda r: r["date"], reverse=True)
+    return rows[:limit] if limit else rows
 
 
 def get_stock_price_history(

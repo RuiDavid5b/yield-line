@@ -13,7 +13,9 @@ from sqlalchemy import select
 from stock_news.processing.edgar.signals import ExtractedFilingSignal
 from stock_news.storage.loaders import (
     get_all_companies,
+    get_anomalies_with_explanations,
     get_benchmark_returns,
+    get_dates_needing_explanation,
     get_digest_results,
     get_filing_signals,
     get_financial_metrics,
@@ -35,6 +37,7 @@ from stock_news.storage.loaders import (
     upsert_stock_prices,
 )
 from stock_news.storage.models import (
+    AnomalyExplanation,
     BenchmarkReturn,
     Company,
     DigestResult,
@@ -1149,6 +1152,255 @@ class TestGetDigestResults:
     def test_get_digest_results_empty_for_unknown_date(self, session):
         results = get_digest_results(session, dt.date(2099, 1, 1))
         assert results == []
+
+
+class TestGetDatesNeedingExplanation:
+    def test_rolling_only_anomaly_included(self, session):
+        today = dt.date.today()
+        session.add(
+            PriceAnomaly(
+                cik=TEST_CIK,
+                date=today,
+                return_pct=0.1,
+                z_score=2.8,
+            )
+        )
+        session.flush()
+
+        rows = get_dates_needing_explanation(session)
+
+        assert len(rows) == 1
+        assert rows[0]["rolling_z_score"] == pytest.approx(2.8)
+        assert rows[0]["is_cross_sectional"] is False
+
+    def test_cross_sectional_only_anomaly_included(self, session):
+        session.add(
+            DigestResult(
+                **_digest_row(
+                    date=dt.date.today(),
+                    cross_sectional_z_score=3.0,
+                    is_cross_sectional_anomaly=True,
+                )
+            )
+        )
+        session.flush()
+
+        rows = get_dates_needing_explanation(session)
+
+        assert len(rows) == 1
+        assert rows[0]["rolling_z_score"] is None
+        assert rows[0]["is_cross_sectional"] is True
+
+    def test_both_signals_merge_into_one_entry_not_two(self, session):
+        today = dt.date.today()
+
+        session.add(
+            PriceAnomaly(
+                cik=TEST_CIK,
+                date=today,
+                return_pct=0.1,
+                z_score=2.8,
+            )
+        )
+        session.add(
+            DigestResult(
+                **_digest_row(
+                    date=today,
+                    cross_sectional_z_score=3.0,
+                    is_cross_sectional_anomaly=True,
+                )
+            )
+        )
+        session.flush()
+
+        rows = get_dates_needing_explanation(session)
+
+        assert len(rows) == 1
+        assert rows[0]["rolling_z_score"] == pytest.approx(2.8)
+        assert rows[0]["is_cross_sectional"] is True
+
+    def test_already_explained_date_excluded(self, session):
+        today = dt.date.today()
+
+        session.add(
+            PriceAnomaly(
+                cik=TEST_CIK,
+                date=today,
+                return_pct=0.1,
+                z_score=2.8,
+            )
+        )
+        session.add(
+            AnomalyExplanation(
+                cik=TEST_CIK,
+                date=today,
+                explanation="Already done.",
+            )
+        )
+        session.flush()
+
+        assert get_dates_needing_explanation(session) == []
+
+    def test_excludes_dates_older_than_max_age(self, session):
+        old_date = dt.date.today() - dt.timedelta(days=10)
+
+        session.add(
+            PriceAnomaly(
+                cik=TEST_CIK,
+                date=old_date,
+                return_pct=0.1,
+                z_score=2.8,
+            )
+        )
+        session.flush()
+
+        assert (
+            get_dates_needing_explanation(
+                session,
+                max_age_days=7,
+            )
+            == []
+        )
+
+    def test_no_anomalies_returns_empty(self, session):
+        assert get_dates_needing_explanation(session) == []
+
+
+class TestSetAnomalyExplanation:
+    def test_inserts_new_explanation(self, session):
+        set_price_anomaly_explanation(
+            session,
+            TEST_CIK,
+            dt.date.today(),
+            "Coincided with a filing.",
+        )
+        session.flush()
+
+        row = session.scalars(
+            select(AnomalyExplanation).where(AnomalyExplanation.cik == TEST_CIK)
+        ).one()
+
+        assert row.explanation == "Coincided with a filing."
+
+    def test_works_with_no_prior_anomaly_row(self, session):
+        set_price_anomaly_explanation(
+            session,
+            TEST_CIK,
+            dt.date.today(),
+            "Explained anyway.",
+        )
+        session.flush()
+
+        assert session.scalars(select(PriceAnomaly)).all() == []
+        assert len(session.scalars(select(AnomalyExplanation)).all()) == 1
+
+    def test_upsert_overwrites_existing_explanation(self, session):
+        today = dt.date.today()
+
+        set_price_anomaly_explanation(
+            session,
+            TEST_CIK,
+            today,
+            "First.",
+        )
+        set_price_anomaly_explanation(
+            session,
+            TEST_CIK,
+            today,
+            "Second.",
+        )
+        session.flush()
+
+        rows = session.scalars(
+            select(AnomalyExplanation).where(AnomalyExplanation.cik == TEST_CIK)
+        ).all()
+
+        assert len(rows) == 1
+        assert rows[0].explanation == "Second."
+
+
+class TestGetAnomaliesWithExplanations:
+    def test_merges_rolling_and_cross_sectional_with_explanation(self, session):
+        today = dt.date.today()
+
+        session.add(
+            PriceAnomaly(
+                cik=TEST_CIK,
+                date=today,
+                return_pct=0.1,
+                z_score=2.8,
+            )
+        )
+        session.add(
+            DigestResult(
+                **_digest_row(
+                    date=today,
+                    cross_sectional_z_score=3.0,
+                    is_cross_sectional_anomaly=True,
+                )
+            )
+        )
+        session.add(
+            AnomalyExplanation(
+                cik=TEST_CIK,
+                date=today,
+                explanation="Guidance raise.",
+            )
+        )
+        session.flush()
+
+        rows = get_anomalies_with_explanations(
+            session,
+            TEST_CIK,
+        )
+
+        assert len(rows) == 1
+        assert rows[0]["rolling_z_score"] == pytest.approx(2.8)
+        assert rows[0]["is_cross_sectional"] is True
+        assert rows[0]["explanation"] == "Guidance raise."
+
+    def test_unexplained_anomaly_has_none_explanation(self, session):
+        today = dt.date.today()
+
+        session.add(
+            PriceAnomaly(
+                cik=TEST_CIK,
+                date=today,
+                return_pct=0.1,
+                z_score=2.8,
+            )
+        )
+        session.flush()
+
+        rows = get_anomalies_with_explanations(
+            session,
+            TEST_CIK,
+        )
+
+        assert len(rows) == 1
+        assert rows[0]["explanation"] is None
+
+    def test_date_range_and_limit_respected(self, session):
+        for i in range(3):
+            session.add(
+                PriceAnomaly(
+                    cik=TEST_CIK,
+                    date=dt.date(2026, i + 1, 1),
+                    return_pct=0.1,
+                    z_score=2.8,
+                )
+            )
+        session.flush()
+
+        rows = get_anomalies_with_explanations(
+            session,
+            TEST_CIK,
+            start_date=dt.date(2026, 2, 1),
+            limit=1,
+        )
+
+        assert len(rows) == 1
+        assert rows[0]["date"] >= dt.date(2026, 2, 1)
 
 
 def _benchmark_row(**overrides):
