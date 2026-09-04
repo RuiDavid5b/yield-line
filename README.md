@@ -77,7 +77,7 @@ flowchart LR
 
         %% Force vertical hierarchy
         Frontend <-->|"REST / JSON"| API
-        API <--> Agent
+        API <-->|"User prompt/AI response"| Agent
 
         %% Subgraph-internal layout anchors
         AutoExplain --> Agent
