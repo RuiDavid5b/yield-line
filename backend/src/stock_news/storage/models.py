@@ -151,10 +151,25 @@ class PriceAnomaly(Base):
     date: Mapped[dt.date] = mapped_column(Date, index=True)
     return_pct: Mapped[float] = mapped_column(Numeric(10, 6))
     z_score: Mapped[float] = mapped_column(Numeric(12, 4))
-    explanation: Mapped[str | None] = mapped_column(nullable=True)
-    explained_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
 
     detected_at: Mapped[dt.datetime] = mapped_column(
+        DateTime, server_default=func.now()
+    )
+
+    company: Mapped["Company"] = relationship()
+
+
+class AnomalyExplanation(Base):
+    __tablename__ = "anomaly_explanations"
+    __table_args__ = (
+        UniqueConstraint("cik", "date", name="uq_anomaly_explanation_date"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    cik: Mapped[str] = mapped_column(ForeignKey("companies.cik"), index=True)
+    date: Mapped[dt.date] = mapped_column(Date, index=True)
+    explanation: Mapped[str] = mapped_column()
+    explained_at: Mapped[dt.datetime] = mapped_column(
         DateTime, server_default=func.now()
     )
 

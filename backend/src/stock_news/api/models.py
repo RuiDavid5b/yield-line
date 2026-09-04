@@ -76,7 +76,9 @@ class AnomalyOut(BaseModel):
     cik: str
     date: dt.date
     return_pct: float
-    z_score: float
+    rolling_z_score: float | None
+    cross_sectional_z_score: float | None
+    is_cross_sectional: bool
     explanation: str | None
     explained_at: dt.datetime | None
 

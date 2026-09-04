@@ -25,13 +25,13 @@ from stock_news.storage.company_lookup import resolve_company
 from stock_news.storage.db import get_session_factory
 from stock_news.storage.loaders import (
     get_all_companies,
+    get_anomalies_with_explanations,
     get_filing_signals,
     get_financial_metrics,
     get_latest_close_prices,
     get_latest_price_anomalies,
     get_news_articles,
     get_period_returns,
-    get_price_anomalies,
     get_stock_price_history,
 )
 from stock_news.storage.queries import get_digest, get_latest_digest
@@ -136,7 +136,7 @@ def price_anomalies(
     end_date: dt.date | None = None,
     session: Session = Depends(get_session),
 ):
-    return get_price_anomalies(session, cik, start_date, end_date, limit)
+    return get_anomalies_with_explanations(session, cik, start_date, end_date, limit)
 
 
 @app.get("/anomalies/latest", response_model=list[AnomalyOut])
