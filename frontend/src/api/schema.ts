@@ -256,8 +256,10 @@ export interface components {
             date: string;
             /** Return Pct */
             return_pct: number;
-            /** Z Score */
-            z_score: number;
+            /** Rolling Z Score */
+            rolling_z_score: number | null;
+            /** Is Cross Sectional */
+            is_cross_sectional: boolean;
             /** Explanation */
             explanation: string | null;
             /** Explained At */
