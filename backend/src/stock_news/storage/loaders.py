@@ -304,23 +304,74 @@ def get_price_anomalies(
 
 def get_latest_price_anomalies(session: Session) -> list[dict[str, Any]]:
     """
-    Fetch all anomalies for the most recent date.
+    Anomalies (rolling and/or cross-sectional) for the most recent date
+    that has any, across all companies. "Most recent" is the max of
+    PriceAnomaly.date and DigestResult.date-where-cross-sectional.
     """
-    latest_date = session.scalar(select(func.max(PriceAnomaly.date)))
-    if latest_date is None:
+    latest_rolling = session.scalar(select(func.max(PriceAnomaly.date)))
+    latest_cross = session.scalar(
+        select(func.max(DigestResult.date)).where(
+            DigestResult.is_cross_sectional_anomaly.is_(True)
+        )
+    )
+    candidates = [d for d in (latest_rolling, latest_cross) if d is not None]
+    if not candidates:
         return []
+    latest_date = max(candidates)
 
-    rows = session.execute(
+    rolling = session.execute(
         select(
             PriceAnomaly.cik,
             PriceAnomaly.date,
             PriceAnomaly.return_pct,
-            PriceAnomaly.z_score,
-            PriceAnomaly.explanation,
-            PriceAnomaly.explained_at,
+            PriceAnomaly.z_score.label("rolling_z_score"),
         ).where(PriceAnomaly.date == latest_date)
     ).all()
-    return [dict(row._mapping) for row in rows]
+    cross_sectional = session.execute(
+        select(DigestResult.cik, DigestResult.date, DigestResult.return_pct).where(
+            DigestResult.date == latest_date,
+            DigestResult.is_cross_sectional_anomaly.is_(True),
+        )
+    ).all()
+
+    merged: dict[str, dict[str, Any]] = {}
+    for row in rolling:
+        merged[row.cik] = {
+            "cik": row.cik,
+            "date": row.date,
+            "return_pct": row.return_pct,
+            "rolling_z_score": row.rolling_z_score,
+            "is_cross_sectional": False,
+        }
+    for row in cross_sectional:
+        entry = merged.setdefault(
+            row.cik,
+            {
+                "cik": row.cik,
+                "date": row.date,
+                "return_pct": row.return_pct,
+                "rolling_z_score": None,
+                "is_cross_sectional": False,
+            },
+        )
+        entry["is_cross_sectional"] = True
+
+    explanations = {
+        r.cik: (r.explanation, r.explained_at)
+        for r in session.execute(
+            select(
+                AnomalyExplanation.cik,
+                AnomalyExplanation.explanation,
+                AnomalyExplanation.explained_at,
+            ).where(AnomalyExplanation.date == latest_date)
+        ).all()
+    }
+    for cik, entry in merged.items():
+        explanation, explained_at = explanations.get(cik, (None, None))
+        entry["explanation"] = explanation
+        entry["explained_at"] = explained_at
+
+    return list(merged.values())
 
 
 def get_unexplained_price_anomalies(

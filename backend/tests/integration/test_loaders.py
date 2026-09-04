@@ -24,9 +24,7 @@ from stock_news.storage.loaders import (
     get_news_articles,
     get_period_return,
     get_period_returns,
-    get_price_anomalies,
     get_stock_price_history,
-    get_unexplained_price_anomalies,
     set_price_anomaly_explanation,
     upsert_benchmark_returns,
     upsert_digest_results,
@@ -1170,7 +1168,7 @@ class TestGetDatesNeedingExplanation:
         rows = get_dates_needing_explanation(session)
 
         assert len(rows) == 1
-        assert rows[0]["rolling_z_score"] == pytest.approx(2.8)
+        assert float(rows[0]["rolling_z_score"]) == pytest.approx(2.8)
         assert rows[0]["is_cross_sectional"] is False
 
     def test_cross_sectional_only_anomaly_included(self, session):
@@ -1216,7 +1214,7 @@ class TestGetDatesNeedingExplanation:
         rows = get_dates_needing_explanation(session)
 
         assert len(rows) == 1
-        assert rows[0]["rolling_z_score"] == pytest.approx(2.8)
+        assert float(rows[0]["rolling_z_score"]) == pytest.approx(2.8)
         assert rows[0]["is_cross_sectional"] is True
 
     def test_already_explained_date_excluded(self, session):
@@ -1355,7 +1353,7 @@ class TestGetAnomaliesWithExplanations:
         )
 
         assert len(rows) == 1
-        assert rows[0]["rolling_z_score"] == pytest.approx(2.8)
+        assert float(rows[0]["rolling_z_score"]) == pytest.approx(2.8)
         assert rows[0]["is_cross_sectional"] is True
         assert rows[0]["explanation"] == "Guidance raise."
 
@@ -1512,123 +1510,6 @@ def _anomaly_row(**overrides):
     return row
 
 
-class TestGetPriceAnomalies:
-    def test_returns_rows_as_dicts(self, session):
-        session.add(PriceAnomaly(**_anomaly_row()))
-        session.flush()
-
-        rows = get_price_anomalies(session, TEST_CIK)
-
-        assert len(rows) == 1
-        assert all(isinstance(r, dict) for r in rows)
-        assert float(rows[0]["return_pct"]) == pytest.approx(0.15)
-
-    def test_empty_for_unknown_cik(self, session):
-        assert get_price_anomalies(session, TEST_CIK) == []
-
-    def test_ordered_most_recent_first(self, session):
-        session.add_all(
-            [
-                PriceAnomaly(**_anomaly_row(date=dt.date(2026, 1, 15))),
-                PriceAnomaly(**_anomaly_row(date=dt.date(2026, 5, 1))),
-                PriceAnomaly(**_anomaly_row(date=dt.date(2026, 3, 1))),
-            ]
-        )
-        session.flush()
-
-        rows = get_price_anomalies(session, TEST_CIK)
-
-        assert [r["date"] for r in rows] == sorted(
-            (r["date"] for r in rows), reverse=True
-        )
-        assert rows[0]["date"] == dt.date(2026, 5, 1)
-
-    def test_start_date_excludes_earlier_anomalies(self, session):
-        session.add_all(
-            [
-                PriceAnomaly(**_anomaly_row(date=dt.date(2026, 1, 1))),
-                PriceAnomaly(**_anomaly_row(date=dt.date(2026, 6, 1))),
-            ]
-        )
-        session.flush()
-
-        rows = get_price_anomalies(session, TEST_CIK, start_date=dt.date(2026, 3, 1))
-
-        assert len(rows) == 1
-        assert rows[0]["date"] == dt.date(2026, 6, 1)
-
-    def test_end_date_excludes_later_anomalies(self, session):
-        session.add_all(
-            [
-                PriceAnomaly(**_anomaly_row(date=dt.date(2026, 1, 1))),
-                PriceAnomaly(**_anomaly_row(date=dt.date(2026, 6, 1))),
-            ]
-        )
-        session.flush()
-
-        rows = get_price_anomalies(session, TEST_CIK, end_date=dt.date(2026, 3, 1))
-
-        assert len(rows) == 1
-        assert rows[0]["date"] == dt.date(2026, 1, 1)
-
-    def test_start_and_end_date_bound_a_range(self, session):
-        session.add_all(
-            [
-                PriceAnomaly(**_anomaly_row(date=dt.date(2026, 1, 1))),
-                PriceAnomaly(**_anomaly_row(date=dt.date(2026, 3, 15))),
-                PriceAnomaly(**_anomaly_row(date=dt.date(2026, 6, 1))),
-            ]
-        )
-        session.flush()
-
-        rows = get_price_anomalies(
-            session,
-            TEST_CIK,
-            start_date=dt.date(2026, 2, 1),
-            end_date=dt.date(2026, 4, 1),
-        )
-
-        assert len(rows) == 1
-        assert rows[0]["date"] == dt.date(2026, 3, 15)
-
-    def test_limit_caps_result_count(self, session):
-        session.add_all(
-            [
-                PriceAnomaly(**_anomaly_row(date=dt.date(2026, i, 1)))
-                for i in range(1, 4)
-            ]
-        )
-        session.flush()
-
-        rows = get_price_anomalies(session, TEST_CIK, limit=2)
-
-        assert len(rows) == 2
-
-    def test_returns_z_score(self, session):
-        session.add(PriceAnomaly(**_anomaly_row(z_score=4.1)))
-        session.flush()
-
-        rows = get_price_anomalies(session, TEST_CIK)
-
-        assert float(rows[0]["z_score"]) == pytest.approx(4.1)
-
-    def test_scoped_to_requested_cik_only(self, session_with_second_company):
-        session = session_with_second_company
-        session.add_all(
-            [
-                PriceAnomaly(**_anomaly_row(cik=TEST_CIK)),
-                PriceAnomaly(
-                    **_anomaly_row(cik=SECONDARY_CIK, date=dt.date(2026, 5, 1))
-                ),
-            ]
-        )
-        session.flush()
-
-        rows = get_price_anomalies(session, TEST_CIK)
-
-        assert all(r["cik"] == TEST_CIK for r in rows)
-
-
 class TestUpsertPriceAnomalies:
     def test_upsert_anomalies_inserts_new_row(self, session):
         upsert_price_anomalies(
@@ -1691,190 +1572,56 @@ class TestUpsertPriceAnomalies:
         assert stored == []
 
 
-class TestGetUnexplainedPriceAnomalies:
-    def test_returns_anomaly_with_no_explanation(self, session):
+class TestGetLatestPriceAnomalies:
+    def test_rolling_only_anomaly_on_latest_date(self, session):
         session.add(PriceAnomaly(**_anomaly_row(date=dt.date.today())))
         session.flush()
-
-        rows = get_unexplained_price_anomalies(session)
-
+        rows = get_latest_price_anomalies(session)
         assert len(rows) == 1
-        assert rows[0]["cik"] == TEST_CIK
+        assert float(rows[0]["rolling_z_score"]) == pytest.approx(3.2)
+        assert rows[0]["is_cross_sectional"] is False
 
-    def test_excludes_already_explained_anomaly(self, session):
+    def test_cross_sectional_only_anomaly_surfaces(self, session):
         session.add(
-            PriceAnomaly(
-                **_anomaly_row(date=dt.date.today()),
-                explanation="Already explained.",
-                explained_at=dt.datetime.now(),
+            DigestResult(
+                **_digest_row(date=dt.date.today(), is_cross_sectional_anomaly=True)
             )
         )
         session.flush()
-
-        assert get_unexplained_price_anomalies(session) == []
-
-    def test_excludes_anomaly_older_than_max_age_days(self, session):
-        old_date = dt.date.today() - dt.timedelta(days=10)
-        session.add(PriceAnomaly(**_anomaly_row(date=old_date)))
-        session.flush()
-
-        rows = get_unexplained_price_anomalies(session, max_age_days=7)
-
-        assert rows == []
-
-    def test_includes_anomaly_within_max_age_days(self, session):
-        recent_date = dt.date.today() - dt.timedelta(days=5)
-        session.add(PriceAnomaly(**_anomaly_row(date=recent_date)))
-        session.flush()
-
-        rows = get_unexplained_price_anomalies(session, max_age_days=7)
-
-        assert len(rows) == 1
-
-    def test_boundary_date_exactly_at_cutoff_is_included(self, session):
-        boundary_date = dt.date.today() - dt.timedelta(days=7)
-        session.add(PriceAnomaly(**_anomaly_row(date=boundary_date)))
-        session.flush()
-
-        rows = get_unexplained_price_anomalies(session, max_age_days=7)
-
-        assert len(rows) == 1
-
-    def test_ordered_most_recent_first(self, session):
-        session.add_all(
-            [
-                PriceAnomaly(
-                    **_anomaly_row(
-                        date=dt.date.today() - dt.timedelta(days=1),
-                        return_pct=0.10,
-                        z_score=2.6,
-                    )
-                ),
-                PriceAnomaly(
-                    **_anomaly_row(date=dt.date.today(), return_pct=0.20, z_score=3.5)
-                ),
-            ]
-        )
-        session.flush()
-
-        rows = get_unexplained_price_anomalies(session)
-
-        assert rows[0]["date"] == dt.date.today()
-
-    def test_empty_when_no_anomalies_exist(self, session):
-        assert get_unexplained_price_anomalies(session) == []
-
-    def test_default_max_age_is_seven_days(self, session_with_second_company):
-        session = session_with_second_company
-        just_inside = dt.date.today() - dt.timedelta(days=7)
-        just_outside = dt.date.today() - dt.timedelta(days=8)
-        session.add_all(
-            [
-                PriceAnomaly(**_anomaly_row(cik=TEST_CIK, date=just_inside)),
-                PriceAnomaly(**_anomaly_row(cik=SECONDARY_CIK, date=just_outside)),
-            ]
-        )
-        session.flush()
-
-        rows = get_unexplained_price_anomalies(session)
-
-        assert len(rows) == 1
-        assert rows[0]["cik"] == TEST_CIK
-
-
-class TestGetLatestAnomalies:
-    def test_returns_anomalies_from_most_recent_date_only(self, session):
-        older_date = dt.date.today() - dt.timedelta(days=5)
-        newer_date = dt.date.today() - dt.timedelta(days=1)
-        session.add_all(
-            [
-                PriceAnomaly(
-                    cik=TEST_CIK, date=older_date, return_pct=0.10, z_score=2.6
-                ),
-                PriceAnomaly(
-                    cik=TEST_CIK, date=newer_date, return_pct=0.15, z_score=3.1
-                ),
-            ]
-        )
-        session.flush()
-
         rows = get_latest_price_anomalies(session)
-
         assert len(rows) == 1
-        assert rows[0]["date"] == newer_date
+        assert rows[0]["rolling_z_score"] is None
+        assert rows[0]["is_cross_sectional"] is True
 
-    def test_returns_all_companies_on_the_latest_date(self, session):
-        latest = dt.date.today()
+    def test_only_most_recent_date_returned(self, session):
+        older = dt.date.today() - dt.timedelta(days=5)
+        newer = dt.date.today() - dt.timedelta(days=1)
         session.add_all(
             [
-                PriceAnomaly(cik=TEST_CIK, date=latest, return_pct=0.10, z_score=2.6),
+                PriceAnomaly(**_anomaly_row(date=older)),
+                PriceAnomaly(**_anomaly_row(date=newer)),
             ]
         )
         session.flush()
-
         rows = get_latest_price_anomalies(session)
+        assert len(rows) == 1
+        assert rows[0]["date"] == newer
 
-        assert all(r["date"] == latest for r in rows)
-
-    def test_empty_table_returns_empty_list(self, session):
+    def test_empty_when_nothing_flagged(self, session):
         assert get_latest_price_anomalies(session) == []
 
-    def test_includes_explanation_fields(self, session):
+    def test_includes_explanation_when_present(self, session):
+        today = dt.date.today()
+        session.add(PriceAnomaly(**_anomaly_row(date=today)))
         session.add(
-            PriceAnomaly(
-                cik=TEST_CIK,
-                date=dt.date.today(),
-                return_pct=0.10,
-                z_score=2.6,
-                explanation="Coincided with a guidance raise.",
-                explained_at=dt.datetime.now(),
-            )
+            AnomalyExplanation(cik=TEST_CIK, date=today, explanation="Guidance raise.")
         )
         session.flush()
-
         rows = get_latest_price_anomalies(session)
+        assert rows[0]["explanation"] == "Guidance raise."
 
-        assert rows[0]["explanation"] == "Coincided with a guidance raise."
-
-    def test_unexplained_anomaly_has_none_explanation(self, session):
-        session.add(
-            PriceAnomaly(
-                cik=TEST_CIK, date=dt.date.today(), return_pct=0.10, z_score=2.6
-            )
-        )
+    def test_unexplained_has_none_explanation(self, session):
+        session.add(PriceAnomaly(**_anomaly_row(date=dt.date.today())))
         session.flush()
-
         rows = get_latest_price_anomalies(session)
-
         assert rows[0]["explanation"] is None
-
-
-class TestSetPriceAnomalyExplanation:
-    def test_sets_explanation_and_explained_at(self, session):
-        anomaly = PriceAnomaly(**_anomaly_row(date=dt.date.today()))
-        session.add(anomaly)
-        session.flush()
-
-        set_price_anomaly_explanation(
-            session, anomaly.id, "This coincided with a guidance raise."
-        )
-        session.flush()
-        session.refresh(anomaly)
-
-        assert anomaly.explanation == "This coincided with a guidance raise."
-        assert anomaly.explained_at is not None
-
-    def test_explained_anomaly_no_longer_returned_by_get_unexplained(self, session):
-        anomaly = PriceAnomaly(**_anomaly_row(date=dt.date.today()))
-        session.add(anomaly)
-        session.flush()
-
-        set_price_anomaly_explanation(session, anomaly.id, "Explained.")
-        session.flush()
-
-        assert get_unexplained_price_anomalies(session) == []
-
-    def test_unknown_anomaly_id_is_a_silent_noop(self, session):
-        set_price_anomaly_explanation(
-            session, anomaly_id=999999, explanation="Nothing to update."
-        )
