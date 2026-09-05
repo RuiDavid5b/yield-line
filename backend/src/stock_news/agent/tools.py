@@ -14,10 +14,10 @@ from stock_news.graph.queries import get_neighbors, load_graph
 from stock_news.storage.company_lookup import resolve_company
 from stock_news.storage.db import get_session_factory
 from stock_news.storage.loaders import (
+    get_anomalies_with_explanations,
     get_filing_signals,
     get_financial_metrics,
     get_news_articles,
-    get_price_anomalies,
 )
 from stock_news.storage.queries import get_digest
 
@@ -97,14 +97,17 @@ def get_anomalies_tool(
     cik: str, start_date: dt.date | None, end_date: dt.date | None, limit: int | None
 ) -> list[dict]:
     """
-    Get detected price anomalies (statistically unusual daily returns)
-    for a company, most recent first. Use to check whether/when a
-    company had an unusual price move - the starting point for "why did
-    X move" questions, before pulling filings/news/graph context to
-    explain it.
+    Get detected price anomalies for a company, most recent first -
+    both anomalies unusual for the company's own history (rolling
+    z-score) and anomalies unusual relative to all tracked companies on
+    the same day (cross-sectional z-score). A single date can have
+    either, both, or neither. Includes any existing explanation. Use to
+    check whether/when a company had an unusual price move.
     """
     with _session_factory() as session:
-        return get_price_anomalies(session, cik, start_date, end_date, limit)
+        return get_anomalies_with_explanations(
+            session, cik, start_date, end_date, limit
+        )
 
 
 class FinancialMetricsArgs(BaseModel):
