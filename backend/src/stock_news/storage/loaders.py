@@ -269,39 +269,6 @@ def upsert_price_anomalies(session: Session, rows: list[dict[str, Any]]) -> None
     session.execute(stmt)
 
 
-def get_price_anomalies(
-    session: Session,
-    cik: str,
-    start_date: dt.date | None = None,
-    end_date: dt.date | None = None,
-    limit: int | None = None,
-) -> list[dict[str, Any]]:
-    """
-    Fetch detected anomalies for a company, optionally bounded by date
-    range, most recent first.
-    """
-    stmt = select(
-        PriceAnomaly.cik,
-        PriceAnomaly.date,
-        PriceAnomaly.return_pct,
-        PriceAnomaly.z_score,
-        PriceAnomaly.explanation,
-        PriceAnomaly.explained_at,
-    ).where(PriceAnomaly.cik == cik)
-
-    if start_date is not None:
-        stmt = stmt.where(PriceAnomaly.date >= start_date)
-    if end_date is not None:
-        stmt = stmt.where(PriceAnomaly.date <= end_date)
-
-    stmt = stmt.order_by(PriceAnomaly.date.desc())
-    if limit is not None:
-        stmt = stmt.limit(limit)
-
-    rows = session.execute(stmt).all()
-    return [dict(row._mapping) for row in rows]
-
-
 def get_latest_price_anomalies(session: Session) -> list[dict[str, Any]]:
     """
     Anomalies (rolling and/or cross-sectional) for the most recent date
@@ -372,28 +339,6 @@ def get_latest_price_anomalies(session: Session) -> list[dict[str, Any]]:
         entry["explained_at"] = explained_at
 
     return list(merged.values())
-
-
-def get_unexplained_price_anomalies(
-    session: Session, max_age_days: int = 7
-) -> list[dict[str, Any]]:
-    """
-    Fetch all anomalies with no explanation yet, across all companies -
-    what run_digest_pipeline's agent-wiring step should process each run.
-    """
-    cutoff = dt.date.today() - dt.timedelta(days=max_age_days)
-    rows = session.execute(
-        select(
-            PriceAnomaly.id,
-            PriceAnomaly.cik,
-            PriceAnomaly.date,
-            PriceAnomaly.return_pct,
-            PriceAnomaly.z_score,
-        )
-        .where(PriceAnomaly.explanation.is_(None), PriceAnomaly.date >= cutoff)
-        .order_by(PriceAnomaly.date.desc())
-    ).all()
-    return [dict(row._mapping) for row in rows]
 
 
 def set_price_anomaly_explanation(
