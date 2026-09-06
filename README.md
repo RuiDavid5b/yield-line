@@ -35,9 +35,9 @@ The companies are shown in the left pane, with a fuzzy search query to filter, a
 
 | Screenshot | Video |
 | --- | --- |
-| <img src="assets/feat1.png" width="400"> | <img src="assets/feat1.gif" width="400"> |
-| <img src="assets/feat2_1.png" width="400"><br><img src="assets/feat2_2.png" width="400"> | <img src="assets/feat2.gif" width="400"> |
-| <img src="assets/feat3.png" width="400"> | <img src="assets/feat3.gif" width="400"> |
+| <img src="assets/feat1.png" width="390"> | <img src="assets/feat1.gif" width="390"> |
+| <img src="assets/feat2_1.png" width="390"><br><img src="assets/feat2_2.png" width="390"> | <img src="assets/feat2.gif" width="390"> |
+| <img src="assets/feat3.png" width="390"> | <img src="assets/feat3.gif" width="390"> |
 
 ## Architecture
 
