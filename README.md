@@ -10,6 +10,7 @@
 ## Contents
 
 - [What this is](#what-this-is)
+- [Features](#features)
 - [Architecture](#architecture)
 - [Tech stack](#tech-stack)
 - [Running locally](#running-locally)
@@ -24,12 +25,19 @@ I used to check the stock market most days and repeat the same cycle: scan a han
 
 YieldLine automates that loop. It tracks a curated graph of companies (currently semiconductor/adjacent-tech - nothing about the design is specific to that sector), ingests filings, prices, and related news daily, flags statistically unusual price moves, and uses an LLM agent to explain *why*, grounded in the company's own filings, recent news, and its relationships to other tracked companies (suppliers, competitors, customers).
 
-The companies are shown in the left pane, with a fuzzy search query to filter, and the main screen shows information regarding the selected company. At the top, the drop-down menu selects a timeframe, which updates the returns of the left pane to and the stock price chart to that range. Below the price chart are 2 sections: one to view anomaly explanations and another to ask questions to the agent. More details show in [Architecture](#architecture).
-
+The companies are shown in the left pane, with a fuzzy search query to filter, and the main screen shows information regarding the selected company. At the top, the drop-down menu selects a timeframe, which updates the returns of the left pane to and the stock price chart to that range. Below the price chart are 2 sections: one to view anomaly explanations and another to ask questions to the agent. More details show in [Features](#features).
 
 <p align="center">
-  <img src="assets/full_screen_3.png" width="800" alt="Screenshot with SNPS ticker selected">
+  <img src="assets/full_screen.png" width="800" alt="Screenshot with SNPS ticker selected">
 </p>
+
+## Features
+
+| Screenshot | Video |
+| --- | --- |
+| ![Feature 1](assets/feat1.png) | ![Feature 1](assets/feat1.gif) |
+| ![Feature 2](assets/feat2_1.png)<br>![Feature 2](assets/feat2_2.png) | ![Feature 2](assets/feat2.gif) |
+| ![Feature 3](assets/feat3.png) | ![Feature 3](assets/feat3.gif) |
 
 ## Architecture
 
