@@ -33,7 +33,7 @@ The companies are shown in the left pane, with a fuzzy search query to filter, a
 
 ## Features
 
-**Anomaly highlighting and explanations** - companies with an unusual price move are flagged directly in the list, selecting one shows the agent-generated explanation, tagged by which of the 2 detectors triggered (price anomaly according to their own-history and/or compared to all other tracked companies in the app - cross-sectional). Another timeframe can be selected, in this case 1D was changed to 1M, so the returns on the company list are updated to that period and the stock price chart is also updated to show that period.
+**Anomaly highlighting and explanations** - companies with an unusual price move are flagged directly in the list with a red highlight (price drop) or green highlight (price hike). Selecting one shows the agent-generated explanation, tagged by which of the 2 detectors triggered (price anomaly according to their own-history and/or compared to all other tracked companies in the app - cross-sectional). Another timeframe can be selected, in this case 1D was changed to 1M, so the returns on the company list are updated to that period and the stock price chart is also updated to show that period.
 
 | Screenshot | Video |
 | --- | --- |
