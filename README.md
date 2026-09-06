@@ -33,10 +33,22 @@ The companies are shown in the left pane, with a fuzzy search query to filter, a
 
 ## Features
 
+**Anomaly highlighting and explanations** - companies with an unusual price move are flagged directly in the list; selecting one and switching timeframes shows the agent-generated explanation, tagged by which detector(s) triggered (own-history or cross-sectional).
+
 | Screenshot | Video |
 | --- | --- |
 | <img src="assets/feat1.png" width="390"> | <img src="assets/feat1.gif" width="390"> |
+
+**Agent chat with automatic company context** - asking a comparative question with a company selected, the agent resolves it, identifies its competitor via the company graph, and pulls financial data for both sides before answering - no need to name the competitor explicitly.
+
+| Screenshot | Video |
+| --- | --- |
 | <img src="assets/feat2_1.png" width="390"><br><img src="assets/feat2_2.png" width="390"> | <img src="assets/feat2.gif" width="390"> |
+
+**Fuzzy company search and anomaly history** - searching a misspelled ticker still resolves correctly; once a company is selected, older anomalies remain browsable, each labeled with which signal(s) flagged it that day.
+
+| Screenshot | Video |
+| --- | --- |
 | <img src="assets/feat3.png" width="390"> | <img src="assets/feat3.gif" width="390"> |
 
 ## Architecture
