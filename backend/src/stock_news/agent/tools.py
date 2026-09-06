@@ -51,7 +51,12 @@ def resolve_company_tool(query: str, limit: int) -> list[dict]:
 
 
 class CompanyDateRangeArgs(BaseModel):
-    cik: str = Field(description="Company CIK, e.g. '0001045810' for NVIDIA")
+    ciks: list[str] = Field(
+        description=(
+            "Company CIKs to fetch, from resolve_company_tool. Pass all "
+            "companies involved in the question in one call."
+        )
+    )
     start_date: dt.date | None = Field(
         default=None, description="Earliest date to include (inclusive)"
     )
@@ -59,14 +64,17 @@ class CompanyDateRangeArgs(BaseModel):
         default=None, description="Latest date to include (inclusive)"
     )
     limit: int | None = Field(
-        default=10, description="Max number of results, most recent first"
+        default=10, description="Max results per company, most recent first"
     )
 
 
 @tool(args_schema=CompanyDateRangeArgs)
 def get_filing_signals_tool(
-    cik: str, start_date: dt.date | None, end_date: dt.date | None, limit: int | None
-) -> list[dict]:
+    ciks: list[str],
+    start_date: dt.date | None,
+    end_date: dt.date | None,
+    limit: int | None,
+) -> dict[str, list[dict]]:
     """
     Get extracted filing signals (guidance commentary, segment commentary,
     executive quotes, named customers/competitors) for a company, most
@@ -74,13 +82,19 @@ def get_filing_signals_tool(
     or said in SEC filings, e.g. guidance changes over recent quarters.
     """
     with _session_factory() as session:
-        return get_filing_signals(session, cik, start_date, end_date, limit)
+        return {
+            cik: get_filing_signals(session, cik, start_date, end_date, limit)
+            for cik in ciks
+        }
 
 
 @tool(args_schema=CompanyDateRangeArgs)
 def get_news_tool(
-    cik: str, start_date: dt.date | None, end_date: dt.date | None, limit: int | None
-) -> list[dict]:
+    ciks: list[str],
+    start_date: dt.date | None,
+    end_date: dt.date | None,
+    limit: int | None,
+) -> dict[str, list[dict]]:
     """
     Get recent news articles mentioning a company, most recent first.
     Use for external commentary/coverage, distinct from the company's
@@ -89,13 +103,19 @@ def get_news_tool(
     with _session_factory() as session:
         start_dt = dt.datetime.combine(start_date, dt.time.min) if start_date else None
         end_dt = dt.datetime.combine(end_date, dt.time.max) if end_date else None
-        return get_news_articles(session, cik, start_dt, end_dt, limit)
+        return {
+            cik: get_news_articles(session, cik, start_dt, end_dt, limit)
+            for cik in ciks
+        }
 
 
 @tool(args_schema=CompanyDateRangeArgs)
 def get_anomalies_tool(
-    cik: str, start_date: dt.date | None, end_date: dt.date | None, limit: int | None
-) -> list[dict]:
+    ciks: list[str],
+    start_date: dt.date | None,
+    end_date: dt.date | None,
+    limit: int | None,
+) -> dict[str, list[dict]]:
     """
     Get detected price anomalies for a company, most recent first -
     both anomalies unusual for the company's own history (rolling
@@ -105,19 +125,27 @@ def get_anomalies_tool(
     check whether/when a company had an unusual price move.
     """
     with _session_factory() as session:
-        return get_anomalies_with_explanations(
-            session, cik, start_date, end_date, limit
-        )
+        return {
+            cik: get_anomalies_with_explanations(
+                session, cik, start_date, end_date, limit
+            )
+            for cik in ciks
+        }
 
 
 class FinancialMetricsArgs(BaseModel):
-    cik: str = Field(description="Company CIK, from resolve_company_tool")
+    ciks: list[str] = Field(
+        description=(
+            "Company CIKs to fetch, from resolve_company_tool. Pass all "
+            "companies involved in the question in one call."
+        )
+    )
     tag: str | None = Field(
         default=None,
         description=(
-            "XBRL tag name (e.g. 'CapitalExpenditures', 'Revenues', 'NetIncomeLoss'). "
-            "Omit to see all reported metrics for the company first - useful to "
-            "discover what tags are actually available before narrowing."
+            "XBRL tag name (e.g. 'CapitalExpenditures', 'Revenues', 'NetIncomeLoss'), "
+            "applied to every requested company. Omit to see all reported metrics "
+            "for each company first."
         ),
     )
     start_date: dt.date | None = Field(
@@ -127,24 +155,27 @@ class FinancialMetricsArgs(BaseModel):
         default=None, description="Latest period_end to include (inclusive)"
     )
     limit: int | None = Field(
-        default=12, description="Max number of results, most recent period first"
+        default=12, description="Max results per company, most recent period first"
     )
 
 
 @tool(args_schema=FinancialMetricsArgs)
 def get_financial_metrics_tool(
-    cik: str,
+    ciks: list[str],
     tag: str | None,
     start_date: dt.date | None,
     end_date: dt.date | None,
     limit: int | None,
-) -> list[dict]:
+) -> dict[str, list[dict]]:
     """
     Get reported financial metrics (structured XBRL data) for a company,
     most recent period first.
     """
     with _session_factory() as session:
-        return get_financial_metrics(session, cik, tag, start_date, end_date, limit)
+        return {
+            cik: get_financial_metrics(session, cik, tag, start_date, end_date, limit)
+            for cik in ciks
+        }
 
 
 class DigestArgs(BaseModel):
