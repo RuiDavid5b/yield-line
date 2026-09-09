@@ -193,3 +193,9 @@ Tracked as open issues:
 - **6-K classification** - not yet implemented (foreign private issuers' interim filings).
 - **FX conversion** - non-USD reported financials aren't yet normalized to USD for cross-company comparison.
 - **News dedup precision** - cross-outlet duplicate articles and company-relevance matching could be tighter.
+
+## Disclaimer
+
+Company names and logos are used solely to identify the companies represented in the application and remain the property of their respective owners. YieldLine is not affiliated with or endorsed by any company displayed.
+
+YieldLine is provided for informational and educational purposes only and does not constitute financial or investment advice.
