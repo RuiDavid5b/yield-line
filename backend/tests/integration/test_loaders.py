@@ -1625,3 +1625,72 @@ class TestGetLatestPriceAnomalies:
         session.flush()
         rows = get_latest_price_anomalies(session)
         assert rows[0]["explanation"] is None
+
+
+class TestRollingOnlyAnomalyShape:
+    """
+    A rolling anomaly with no corresponding cross-sectional flag must
+    still produce a complete dict (cross_sectional_z_score=None), not an
+    incomplete one that fails Pydantic validation at the API layer.
+    """
+
+    def test_get_anomalies_with_explanations_rolling_only(self, session):
+        session.add(
+            PriceAnomaly(
+                cik=TEST_CIK, date=dt.date.today(), return_pct=0.10, z_score=3.0
+            )
+        )
+        session.flush()
+
+        rows = get_anomalies_with_explanations(session, TEST_CIK)
+
+        assert len(rows) == 1
+        assert rows[0]["is_cross_sectional"] is False
+        assert "cross_sectional_z_score" in rows[0]
+        assert rows[0]["cross_sectional_z_score"] is None
+
+    def test_get_latest_anomalies_rolling_only(self, session):
+        session.add(
+            PriceAnomaly(
+                cik=TEST_CIK, date=dt.date.today(), return_pct=0.10, z_score=3.0
+            )
+        )
+        session.flush()
+
+        rows = get_latest_price_anomalies(session)
+
+        assert len(rows) == 1
+        assert "cross_sectional_z_score" in rows[0]
+        assert rows[0]["cross_sectional_z_score"] is None
+
+    def test_get_latest_anomalies_cross_sectional_value_populated(self, session):
+        session.add(
+            DigestResult(
+                cik=TEST_CIK,
+                date=dt.date.today(),
+                return_pct=0.05,
+                cross_sectional_z_score=3.4,
+                is_cross_sectional_anomaly=True,
+            )
+        )
+        session.flush()
+
+        rows = get_latest_price_anomalies(session)
+
+        assert len(rows) == 1
+        assert float(rows[0]["cross_sectional_z_score"]) == pytest.approx(3.4)
+        assert rows[0]["rolling_z_score"] is None
+
+    def test_get_dates_needing_explanation_rolling_only(self, session):
+        session.add(
+            PriceAnomaly(
+                cik=TEST_CIK, date=dt.date.today(), return_pct=0.10, z_score=3.0
+            )
+        )
+        session.flush()
+
+        rows = get_dates_needing_explanation(session)
+
+        assert len(rows) == 1
+        assert "cross_sectional_z_score" in rows[0]
+        assert rows[0]["cross_sectional_z_score"] is None

@@ -295,7 +295,12 @@ def get_latest_price_anomalies(session: Session) -> list[dict[str, Any]]:
         ).where(PriceAnomaly.date == latest_date)
     ).all()
     cross_sectional = session.execute(
-        select(DigestResult.cik, DigestResult.date, DigestResult.return_pct).where(
+        select(
+            DigestResult.cik,
+            DigestResult.date,
+            DigestResult.return_pct,
+            DigestResult.cross_sectional_z_score,
+        ).where(
             DigestResult.date == latest_date,
             DigestResult.is_cross_sectional_anomaly.is_(True),
         )
@@ -309,6 +314,7 @@ def get_latest_price_anomalies(session: Session) -> list[dict[str, Any]]:
             "return_pct": row.return_pct,
             "rolling_z_score": row.rolling_z_score,
             "is_cross_sectional": False,
+            "cross_sectional_z_score": None,
         }
     for row in cross_sectional:
         entry = merged.setdefault(
@@ -319,9 +325,11 @@ def get_latest_price_anomalies(session: Session) -> list[dict[str, Any]]:
                 "return_pct": row.return_pct,
                 "rolling_z_score": None,
                 "is_cross_sectional": False,
+                "cross_sectional_z_score": None,
             },
         )
         entry["is_cross_sectional"] = True
+        entry["cross_sectional_z_score"] = row.cross_sectional_z_score
 
     explanations = {
         r.cik: (r.explanation, r.explained_at)
@@ -408,6 +416,7 @@ def get_dates_needing_explanation(
             "return_pct": return_pct,
             "rolling_z_score": z_score,
             "is_cross_sectional": False,
+            "cross_sectional_z_score": None,
         }
     for cik, date, return_pct, cs_z_score in cross_sectional:
         entry = merged.setdefault(
@@ -465,6 +474,7 @@ def get_anomalies_with_explanations(
             "return_pct": row.return_pct,
             "rolling_z_score": row.rolling_z_score,
             "is_cross_sectional": False,
+            "cross_sectional_z_score": None,
         }
     for row in session.execute(cs_stmt).all():
         entry = merged.setdefault(
