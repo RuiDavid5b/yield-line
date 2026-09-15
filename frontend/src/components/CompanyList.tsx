@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { type Company, type Anomaly, type Digest } from "../api/types";
+import { type Company, type Anomaly } from "../api/types";
 import { api } from "../api/client";
 
 interface CompanyListProps {
@@ -7,7 +7,6 @@ interface CompanyListProps {
   returns: Record<string, number | null>;
   latestPrices: Record<string, number | null>;
   latestAnomalies: Anomaly[];
-  latestDigest: Digest | null;
   selectedCik: string | undefined;
   onSelect: (company: Company) => void;
 }
@@ -17,7 +16,6 @@ export default function CompanyList({
   returns,
   latestPrices,
   latestAnomalies,
-  latestDigest,
   selectedCik,
   onSelect,
 }: CompanyListProps) {
@@ -47,19 +45,18 @@ export default function CompanyList({
       entry.reasons.push(reason);
       map.set(cik, entry);
     };
-  
+
     for (const anomaly of latestAnomalies) {
-      addReason(anomaly.cik, `Rolling anomaly on ${anomaly.date} (z=${anomaly.z_score.toFixed(2)})`, anomaly.return_pct);
-    }
-  
-    for (const company of latestDigest?.companies ?? []) {
-      if (company.is_cross_sectional_anomaly && company.return_pct != null) {
-        addReason(company.cik, `Unusual vs. all tracked companies on ${latestDigest?.date}`, company.return_pct);
+      if (anomaly.rolling_z_score != null) {
+        addReason(anomaly.cik, `Rolling anomaly on ${anomaly.date} (z=${anomaly.rolling_z_score.toFixed(2)})`, anomaly.return_pct);
+      }
+      if (anomaly.is_cross_sectional) {
+        addReason(anomaly.cik, `Unusual vs. all tracked companies on ${anomaly.date}`, anomaly.return_pct);
       }
     }
   
     return map;
-  }, [latestAnomalies, latestDigest]);
+  }, [latestAnomalies]);
 
   const visible = filteredCiks
     ? companies.filter((company) => filteredCiks.has(company.cik))
