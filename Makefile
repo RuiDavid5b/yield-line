@@ -1,6 +1,17 @@
 APP_IMAGE := stock-news-app:latest
 AIRFLOW_TEST_IMAGE := stock-news-airflow-test
 
+include .env
+export
+
+setup:
+	echo "DOCKER_GID=$$(stat -c '%g' /var/run/docker.sock)" >> airflow/.env
+	make dev-rebuild app-image
+	cd backend && uv run alembic upgrade head && cd ..
+	make sync-companies
+	cd airflow && docker compose up -d --build && cd ..
+	cd frontend && npm install && cd ..
+
 app-image:
 	docker build -t $(APP_IMAGE) ./backend
 
