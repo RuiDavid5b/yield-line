@@ -193,7 +193,7 @@ The daily DAG will run automatically from this point onwards. To have historical
 
 The `BACKFILL_YEARS` variable in `airflow/dags/backfill_pipeline.py` controls how many years of data are requested. It is set to `1` by default and can be increased.
 
-Note that the SEC EDGAR submissions API provides at least 1 year of filing history or 1,000 filings, whichever is greater. In practice, most companies appear to have considerably more than one year available because 1,000 filings within a single year is a large number. Five years will likely cover most companies, but companies with less available history simply will not have data for the full requested period.
+Note that the [SEC EDGAR submissions API](https://www.sec.gov/search-filings/edgar-application-programming-interfaces) provides at least 1 year of filing history or 1,000 filings, whichever is greater. In practice, most companies appear to have considerably more than one year available because 1,000 filings within a single year is a large number. Five years will likely cover most companies, but companies with less available history simply will not have data for the full requested period.
 
 ### API testing
 
