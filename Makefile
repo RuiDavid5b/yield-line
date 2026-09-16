@@ -26,7 +26,7 @@ api-rebuild:
 	docker compose up -d --build api
 
 sync-companies:
-	uv run python -m stock_news.graph.loader
+	cd backend && uv run python -m stock_news.graph.loader
 
 airflow-test-image:
 	docker build --target test -t $(AIRFLOW_TEST_IMAGE) -f airflow/Dockerfile airflow/
