@@ -14,9 +14,10 @@
 - [Architecture](#architecture)
 - [Tech stack](#tech-stack)
 - [Running locally](#running-locally)
+  - [Starting the app](#starting-the-app)
+  - [Editing the company graph](#editing-the-company-graph)
   - [Backfilling historical data](#backfilling-historical-data)
   - [API testing](#api-testing)
-  - [After restarting](#after-restarting)
 - [Known limitations / open work](#known-limitations-%2F-open-work)
 
 ## What this is
@@ -142,23 +143,49 @@ flowchart LR
 
 1. Copy `.env.example` to `.env` and fill in the required keys and variables. Do the same for `backend/api/.env.example` and `airflow/.env.example`.
 
-2. **Backend:** Build and run all the necessary docker images and containers by running the following:
+2. **Quick start:** run `make setup` to do everything below in one go - start Postgres/Redis, build the app and API images, run database migrations, seed the company graph, start Airflow, and install frontend dependencies. If that works, skip to [Starting the app](#starting-the-app).
+
+3. **Backend:** Build and run all the necessary docker images and containers by running the following:
 
     ```bash
     make app-image dev-rebuild && cd airflow; docker compose up -d --build; cd ..
     ```
 
-    This should start Postgres, Redis, the FastAPI backend (served by Uvicorn), and airflow.
+    This should start Postgres, Redis, the FastAPI backend (served by Uvicorn), and Airflow.
 
-3. If you want to add/remove/edit companies and their relations, you can do that in `backend/src/stock_news/graph/companies_graph.yaml`. After that, run `make sync-companies` and trigger the `seed_company_graph` DAG to populate Postgres DB.
-
-4. **Frontend:** Install the frontend dependencies and start the Vite development server:
+    Before the backend can serve requests, apply database migrations:
 
     ```bash
-    cd frontend && npm install && npm run dev
+    cd backend && uv run alembic upgrade head && cd ..
     ```
 
-Once the backend is running, the FastAPI documentation is available at `http://localhost:8000/docs`.
+4. **Seed the company graph** - required once against a fresh database, since nothing else populates it. Seed it either way:
+
+   - `make sync-companies` - fastest, runs directly against your local environment.
+   - Trigger the `seed_company_graph` DAG from the Airflow UI - same underlying operation, but runs as a container and is visible in Airflow's run history/logs.
+
+    Both are idempotent (safe to re-run) and do the exact same upsert.
+
+5. **Frontend:** install dependencies:
+
+    ```bash
+    cd frontend && npm install && cd ..
+    ```
+
+### Starting the app
+
+Once everything above has been set up at least once, use this to start (or restart) the app - no rebuild needed unless dependencies or Docker images have changed:
+
+```bash
+make api-up
+cd frontend && npm run dev
+```
+
+This starts the Uvicorn API and Vite development server. Once running, the FastAPI documentation is available at `http://localhost:8000/docs`.
+
+### Editing the company graph
+
+To add, remove, or edit tracked companies and their relationships, edit `backend/src/stock_news/graph/companies_graph.yaml`, then re-seed with either `make sync-companies` or the `seed_company_graph` DAG (see step 4 above) - this needs to be re-run to apply the YAML changes and populate the Postgres DB.
 
 ### Backfilling historical data
 
@@ -171,17 +198,6 @@ Note that the SEC EDGAR submissions API provides at least 1 year of filing histo
 ### API testing
 
 A Bruno API client collection is included in `bruno/` for exercising both the application's API and the external EDGAR and Currents News APIs directly.
-
-### After restarting
-
-The Docker containers do not need to be rebuilt after restarting your PC. Start the API and frontend with:
-
-```bash
-make api-up
-cd frontend && npm run dev
-```
-
-This starts the Uvicorn API and Vite development servers.
 
 ## Known limitations / open work
 
