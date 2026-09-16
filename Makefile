@@ -5,6 +5,7 @@ include .env
 export
 
 setup:
+	sed -i '/^DOCKER_GID=/d' airflow/.env
 	echo "DOCKER_GID=$$(stat -c '%g' /var/run/docker.sock)" >> airflow/.env
 	make dev-rebuild app-image
 	cd backend && uv run alembic upgrade head && cd ..
