@@ -1709,63 +1709,6 @@ wheels = [
 ]
 
 [[package]]
-name = "stock-news"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "alembic" },
-    { name = "beautifulsoup4" },
-    { name = "fastapi", extra = ["standard"] },
-    { name = "langchain-google-genai" },
-    { name = "langgraph" },
-    { name = "lxml" },
-    { name = "networkx" },
-    { name = "pandas" },
-    { name = "pendulum" },
-    { name = "psycopg", extra = ["binary"] },
-    { name = "pydantic" },
-    { name = "pydantic-settings" },
-    { name = "redis", extra = ["hiredis"] },
-    { name = "sqlalchemy" },
-    { name = "uvicorn" },
-    { name = "yfinance" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "flake8" },
-    { name = "pre-commit" },
-    { name = "pytest" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "alembic", specifier = ">=1.18.5" },
-    { name = "beautifulsoup4", specifier = ">=4.15.0" },
-    { name = "fastapi", extras = ["standard"], specifier = ">=0.141.1" },
-    { name = "langchain-google-genai", specifier = ">=4.3.2" },
-    { name = "langgraph", specifier = ">=1.2.11" },
-    { name = "lxml", specifier = ">=6.1.1" },
-    { name = "networkx", specifier = ">=3.6.1" },
-    { name = "pandas", specifier = ">=3.0.5" },
-    { name = "pendulum", specifier = ">=3.2.0" },
-    { name = "psycopg", extras = ["binary"], specifier = ">=3.3.4" },
-    { name = "pydantic", specifier = ">=2.13.4" },
-    { name = "pydantic-settings", specifier = ">=2.14.2" },
-    { name = "redis", extras = ["hiredis"], specifier = ">=8.1.0" },
-    { name = "sqlalchemy", specifier = ">=2.0.51" },
-    { name = "uvicorn", specifier = ">=0.52.4" },
-    { name = "yfinance", specifier = ">=1.5.2" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "flake8", specifier = ">=7.3.0" },
-    { name = "pre-commit", specifier = ">=4.6.1" },
-    { name = "pytest", specifier = ">=9.1.1" },
-]
-
-[[package]]
 name = "tenacity"
 version = "9.1.4"
 source = { registry = "https://pypi.org/simple" }
@@ -2084,6 +2027,63 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/88/25/66da4c0063e7ca96f145861b6194b2b5244b488b997112869929422dc178/yfinance-1.5.2.tar.gz", hash = "sha256:5935d457fc62cf2f7e9bf1b2d019a8fec8fb0072f58a095eb53740b70a6a06ed", size = 167938 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d6/77/9549bf914e0de5b5ca15086cd3f31bf35d5a1e6bfb793196eb9c4c41baff/yfinance-1.5.2-py2.py3-none-any.whl", hash = "sha256:197fc03485c246547a5a9184956c60150ea33b6f740d877e02a97f123d5cd2b9", size = 144062 },
+]
+
+[[package]]
+name = "yield-line"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "alembic" },
+    { name = "beautifulsoup4" },
+    { name = "fastapi", extra = ["standard"] },
+    { name = "langchain-google-genai" },
+    { name = "langgraph" },
+    { name = "lxml" },
+    { name = "networkx" },
+    { name = "pandas" },
+    { name = "pendulum" },
+    { name = "psycopg", extra = ["binary"] },
+    { name = "pydantic" },
+    { name = "pydantic-settings" },
+    { name = "redis", extra = ["hiredis"] },
+    { name = "sqlalchemy" },
+    { name = "uvicorn" },
+    { name = "yfinance" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "flake8" },
+    { name = "pre-commit" },
+    { name = "pytest" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "alembic", specifier = ">=1.18.5" },
+    { name = "beautifulsoup4", specifier = ">=4.15.0" },
+    { name = "fastapi", extras = ["standard"], specifier = ">=0.141.1" },
+    { name = "langchain-google-genai", specifier = ">=4.3.2" },
+    { name = "langgraph", specifier = ">=1.2.11" },
+    { name = "lxml", specifier = ">=6.1.1" },
+    { name = "networkx", specifier = ">=3.6.1" },
+    { name = "pandas", specifier = ">=3.0.5" },
+    { name = "pendulum", specifier = ">=3.2.0" },
+    { name = "psycopg", extras = ["binary"], specifier = ">=3.3.4" },
+    { name = "pydantic", specifier = ">=2.13.4" },
+    { name = "pydantic-settings", specifier = ">=2.14.2" },
+    { name = "redis", extras = ["hiredis"], specifier = ">=8.1.0" },
+    { name = "sqlalchemy", specifier = ">=2.0.51" },
+    { name = "uvicorn", specifier = ">=0.52.4" },
+    { name = "yfinance", specifier = ">=1.5.2" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "flake8", specifier = ">=7.3.0" },
+    { name = "pre-commit", specifier = ">=4.6.1" },
+    { name = "pytest", specifier = ">=9.1.1" },
 ]
 
 [[package]]
