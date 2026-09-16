@@ -1,6 +1,18 @@
 APP_IMAGE := stock-news-app:latest
 AIRFLOW_TEST_IMAGE := stock-news-airflow-test
 
+include .env
+export
+
+setup:
+	sed -i '/^DOCKER_GID=/d' airflow/.env
+	echo "DOCKER_GID=$$(stat -c '%g' /var/run/docker.sock)" >> airflow/.env
+	make dev-rebuild app-image
+	cd backend && uv run alembic upgrade head && cd ..
+	make sync-companies
+	cd airflow && docker compose up -d --build && cd ..
+	cd frontend && npm install && cd ..
+
 app-image:
 	docker build -t $(APP_IMAGE) ./backend
 
@@ -26,7 +38,7 @@ api-rebuild:
 	docker compose up -d --build api
 
 sync-companies:
-	uv run python -m stock_news.graph.loader
+	cd backend && uv run python -m stock_news.graph.loader
 
 airflow-test-image:
 	docker build --target test -t $(AIRFLOW_TEST_IMAGE) -f airflow/Dockerfile airflow/
