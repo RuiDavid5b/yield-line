@@ -4,18 +4,19 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthContext";
 
-type LoginLocationState = {
-  message?: string;
+type VerifyLocationState = {
+  email?: string;
 };
 
-export default function LoginPage() {
-  const { login } = useAuth();
+export default function VerifyPage() {
+  const { verify } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const state = location.state as LoginLocationState | null;
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const state = location.state as VerifyLocationState | null;
+
+  const [email, setEmail] = useState(state?.email ?? "");
+  const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -26,17 +27,18 @@ export default function LoginPage() {
     setSubmitting(true);
 
     try {
-      await login(email, password);
+      await verify(email, code);
 
-      const destination =
-        location.state?.from?.pathname || "/";
-
-      navigate(destination, { replace: true });
+      navigate("/login", {
+        state: {
+          message: "Your email has been verified. You can now log in.",
+        },
+      });
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
-          : "Login failed",
+          : "Verification failed",
       );
     } finally {
       setSubmitting(false);
@@ -46,25 +48,19 @@ export default function LoginPage() {
   return (
     <main className="auth-page">
       <section className="auth-card">
-        <h1>Log in</h1>
+        <h1>Verify your email</h1>
 
         <p className="auth-description">
-          Log in to your YieldLine account.
+          Enter the verification code sent to your email address.
         </p>
 
-        {state?.message && (
-          <p className="auth-success" role="status">
-            {state.message}
-          </p>
-        )}
-
         <form onSubmit={handleSubmit} className="auth-form">
-          <label htmlFor="email">
+          <label htmlFor="verify-email">
             Email
           </label>
 
           <input
-            id="email"
+            id="verify-email"
             name="email"
             type="email"
             value={email}
@@ -74,17 +70,18 @@ export default function LoginPage() {
             disabled={submitting}
           />
 
-          <label htmlFor="password">
-            Password
+          <label htmlFor="verification-code">
+            Verification code
           </label>
 
           <input
-            id="password"
-            name="password"
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            autoComplete="current-password"
+            id="verification-code"
+            name="code"
+            type="text"
+            value={code}
+            onChange={(event) => setCode(event.target.value)}
+            inputMode="numeric"
+            autoComplete="one-time-code"
             required
             disabled={submitting}
           />
@@ -100,14 +97,14 @@ export default function LoginPage() {
             className="auth-submit"
             disabled={submitting}
           >
-            {submitting ? "Logging in..." : "Log in"}
+            {submitting ? "Verifying..." : "Verify email"}
           </button>
         </form>
 
         <p className="auth-footer">
-          Don't have an account?{" "}
-          <Link to="/register">
-            Register
+          Already verified?{" "}
+          <Link to="/login">
+            Log in
           </Link>
         </p>
       </section>
