@@ -1,12 +1,3 @@
-"""
-Auth endpoints: register -> verify -> login -> me -> logout. Login and
-register don't require require_csrf - there's no prior session to
-forge a request against (an attacker tricking a victim into registering
-or logging in as the attacker's own account isn't a CSRF-exploitable
-outcome). Every state-changing route that uses an EXISTING session
-(logout, and later BYOK settings, agent/ask) requires it.
-"""
-
 from __future__ import annotations
 
 import jwt
@@ -20,7 +11,11 @@ from stock_news.auth.cognito_client import (
     initiate_auth,
     sign_up,
 )
-from stock_news.auth.dependencies import SESSION_COOKIE_NAME, get_current_session
+from stock_news.auth.dependencies import (
+    SESSION_COOKIE_NAME,
+    get_current_session,
+    require_csrf,
+)
 from stock_news.auth.session import create_session, delete_session
 from stock_news.auth.token_verification import verify_id_token
 from stock_news.storage.db import get_session_factory
@@ -140,6 +135,7 @@ def me(session: dict = Depends(get_current_session)):
     "/logout",
     response_model=MessageResponse,
     status_code=status.HTTP_200_OK,
+    dependencies=[Depends(require_csrf)],
 )
 def logout(response: Response, session: dict = Depends(get_current_session)):
     try:
