@@ -1,117 +1,31 @@
-import { useEffect, useState } from "react";
-import { api } from "./api/client";
-import { dateRangeFor, chartRangeFor, type Timeframe } from "./lib/timeframes";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
 
-import CompanyList from "./components/CompanyList";
-import TimeframeSelect from "./components/TimeframeSelect";
-import PriceChart from "./components/PriceChart";
-import AnomalyPanel from "./components/AnomalyPanel";
-import AgentChat from "./components/AgentChat";
+import Navbar from "./components/Navbar";
+import DashboardPage from "./pages/DashboardPage";
 
 export default function App() {
-  const [companies, setCompanies] = useState<
-    NonNullable<Awaited<ReturnType<typeof api.listCompanies>>>
-  >([]);
-
-  const [latestAnomalies, setLatestAnomalies] = useState<
-    NonNullable<Awaited<ReturnType<typeof api.latestAnomalies>>>
-  >([]);
-
-  const [latestDigest, setLatestDigest] = useState<
-    Awaited<ReturnType<typeof api.latestDigest>> | null
-  >(null);
-
-  const [latestPrices, setLatestPrices] = useState<
-    Record<string, number | null>
-  >({});
-
-  const [timeframe, setTimeframe] =
-    useState<Timeframe>("1D");
-
-  const [returns, setReturns] = useState<
-    Record<string, number | null>
-  >({});
-
-  const [selected, setSelected] =
-    useState<(typeof companies)[number] | null>(null);
-
-  const [prices, setPrices] = useState<
-    NonNullable<Awaited<ReturnType<typeof api.prices>>>
-  >([]);
-
-  useEffect(() => {
-    api.listCompanies().then(setCompanies);
-    api.latestAnomalies().then(setLatestAnomalies);
-    api.latestDigest().then(setLatestDigest).catch(() => {});
-    api.latestPrices().then(setLatestPrices);
-  }, []);
-
-  useEffect(() => {
-    if (timeframe === "1D") {
-      if (!latestDigest) return;
-      const digestReturns = Object.fromEntries(
-        latestDigest.companies.map((c) => [c.cik, c.return_pct])
-      );
-      setReturns(digestReturns);
-      return;
-    }
-  
-    const { start, end } = dateRangeFor(timeframe);
-    api.periodReturns(start, end).then((data) => {
-      console.log("periodReturns response:", data);
-      setReturns(data.returns);
-    });
-  }, [timeframe, companies.length, latestDigest]);
-
-  useEffect(() => {
-    if (!selected) return;
-    const { start, end } = chartRangeFor(timeframe);
-    api.prices(selected.cik, start, end).then(setPrices);
-  }, [selected, timeframe]);
-
-  const { start, end } = dateRangeFor(timeframe);
-
   return (
-    <div className="layout">
-      <CompanyList
-        companies={companies}
-        returns={returns}
-        latestPrices={latestPrices}
-        latestAnomalies={latestAnomalies}
-        latestDigest={latestDigest}
-        selectedCik={selected?.cik}
-        onSelect={setSelected}
-      />
+    <BrowserRouter>
+      <Navbar />
 
-      <div className="main">
-        <TimeframeSelect
-          value={timeframe}
-          onChange={setTimeframe}
+      <Routes>
+        <Route path="/" element={<DashboardPage />} />
+
+        <Route
+          path="/login"
+          element={<div>Login page coming next</div>}
         />
 
-        {selected ? (
-          <>
-            <h2>
-              {selected.name} ({selected.ticker})
-            </h2>
+        <Route
+          path="/register"
+          element={<div>Register page coming next</div>}
+        />
 
-            <PriceChart prices={prices} />
-
-            <AnomalyPanel
-              cik={selected.cik}
-              start={start}
-              end={end}
-              latestDigest={latestDigest}
-            />
-          </>
-        ) : (
-          <p style={{ color: "var(--text-dim)" }}>
-            Select a company to see its chart and anomalies.
-          </p>
-        )}
-
-        <AgentChat selectedCompany={selected} />
-      </div>
-    </div>
+        <Route
+          path="/verify"
+          element={<div>Verify page coming next</div>}
+        />
+      </Routes>
+    </BrowserRouter>
   );
 }
