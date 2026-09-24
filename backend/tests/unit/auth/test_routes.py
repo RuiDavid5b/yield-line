@@ -2,10 +2,13 @@
 Unit tests for auth routes.
 """
 
+import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from stock_news.api.main import app
 from stock_news.auth import routes as auth_routes
+from stock_news.auth.dependencies import require_csrf
 
 client = TestClient(app)
 
@@ -113,3 +116,46 @@ class TestMeAndProtectedRoutes:
     def test_agent_ask_without_session_returns_401(self):
         response = client.post("/agent/ask", json={"question": "hi", "thread_id": "t1"})
         assert response.status_code == 401
+
+
+@pytest.fixture
+def session():
+    return {"session_id": "session-123"}
+
+
+class TestRequireCsrf:
+    def test_missing_header_returns_403(self, session, monkeypatch):
+        monkeypatch.setattr(
+            "stock_news.auth.dependencies.validate_csrf",
+            lambda session_id, token: False,
+        )
+
+        with pytest.raises(HTTPException) as exc_info:
+            require_csrf(session=session, x_csrf_token=None)
+
+        assert exc_info.value.status_code == 403
+
+    def test_wrong_token_returns_403(self, session, monkeypatch):
+        monkeypatch.setattr(
+            "stock_news.auth.dependencies.validate_csrf",
+            lambda session_id, token: False,
+        )
+
+        with pytest.raises(HTTPException) as exc_info:
+            require_csrf(session=session, x_csrf_token="wrong-token")
+
+        assert exc_info.value.status_code == 403
+
+    def test_correct_token_passes(self, session, monkeypatch):
+        monkeypatch.setattr(
+            "stock_news.auth.dependencies.validate_csrf",
+            lambda session_id, token: True,
+        )
+
+        assert (
+            require_csrf(
+                session=session,
+                x_csrf_token="csrf-abc",
+            )
+            is None
+        )
