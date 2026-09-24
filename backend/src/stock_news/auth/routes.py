@@ -61,6 +61,10 @@ class MeResponse(BaseModel):
     email: str
 
 
+class CsrfResponse(BaseModel):
+    csrf_token: str
+
+
 @router.post(
     "/register",
     response_model=MessageResponse,
@@ -145,3 +149,11 @@ def logout(response: Response, session: dict = Depends(get_current_session)):
     delete_session(session["session_id"])
     response.delete_cookie(SESSION_COOKIE_NAME)
     return {"message": "Logged out."}
+
+
+@router.get(
+    "/csrf",
+    response_model=CsrfResponse,
+)
+def csrf(session: dict = Depends(get_current_session)):
+    return {"csrf_token": session["csrf_token"]}

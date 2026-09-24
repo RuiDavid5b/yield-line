@@ -46,7 +46,7 @@ app.add_middleware(
     allow_origins=["http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["Content-Type", "X-CSRF-Token"],
 )
 app.include_router(auth_router)
 
