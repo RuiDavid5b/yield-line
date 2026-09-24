@@ -2,6 +2,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 
 import Navbar from "./components/Navbar";
 import DashboardPage from "./pages/DashboardPage";
+import LoginPage from "./pages/LoginPage";
 
 export default function App() {
   return (
@@ -13,7 +14,7 @@ export default function App() {
 
         <Route
           path="/login"
-          element={<div>Login page coming next</div>}
+          element={<LoginPage />}
         />
 
         <Route
