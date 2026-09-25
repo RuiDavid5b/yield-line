@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  lint:
+  backend-lint:
     runs-on: ubuntu-latest
 
     defaults:
@@ -24,8 +24,54 @@ jobs:
         run: uv sync --all-groups
       - name: Run Flake8
         run: uv run flake8 src tests
+
+  frontend-lint:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Oxlint
+        run: npm run lint
+
+      - name: Typecheck and build
+        run: npm run build
+
+  terraform:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
+
+      - name: Terraform format check
+        run: terraform fmt -check -recursive infra
+
+      - name: Terraform init
+        working-directory: infra/staging
+        run: terraform init -backend=false
+
+      - name: Terraform validate
+        working-directory: infra/staging
+        run: terraform validate
+
   tests:
-    needs: lint
+    needs: backend-lint
     runs-on: ubuntu-latest
 
     defaults:
@@ -84,7 +130,7 @@ jobs:
         run: uv run pytest tests/ -v
 
   airflow-dag-tests:
-    needs: lint
+    needs: backend-lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
