@@ -83,6 +83,11 @@ export default function RegisterPage() {
             disabled={submitting}
           />
 
+          <p className="auth-hint">
+            Must be at least 8 characters and contain at least one
+            uppercase letter, one lowercase letter, and one number.
+          </p>
+
           <label htmlFor="register-confirm-password">
             Confirm password
           </label>
