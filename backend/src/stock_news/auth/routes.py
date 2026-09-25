@@ -4,6 +4,7 @@ import jwt
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel, EmailStr
 
+from stock_news.api.models import ApiKeyStatusOut, SetApiKeyBody
 from stock_news.auth.cognito_client import (
     CognitoError,
     confirm_sign_up,
@@ -11,6 +12,7 @@ from stock_news.auth.cognito_client import (
     initiate_auth,
     sign_up,
 )
+from stock_news.auth.crypto import encrypt_api_key
 from stock_news.auth.dependencies import (
     SESSION_COOKIE_NAME,
     get_current_session,
@@ -19,7 +21,12 @@ from stock_news.auth.dependencies import (
 from stock_news.auth.session import create_session, delete_session
 from stock_news.auth.token_verification import verify_id_token
 from stock_news.storage.db import get_session_factory
-from stock_news.storage.loaders import get_or_create_user
+from stock_news.storage.loaders import (
+    clear_user_api_key,
+    get_or_create_user,
+    get_user_api_key_encrypted,
+    set_user_api_key,
+)
 
 _session_factory = get_session_factory()
 
@@ -129,6 +136,74 @@ def login(body: LoginBody, response: Response):
 )
 def me(session: dict = Depends(get_current_session)):
     return {"email": session["email"]}
+
+
+@router.put(
+    "/me/api-key", status_code=status.HTTP_200_OK, dependencies=[Depends(require_csrf)]
+)
+def set_api_key(
+    body: SetApiKeyBody,
+    session: dict = Depends(get_current_session),
+):
+    with _session_factory() as db_session:
+        user = get_or_create_user(
+            db_session,
+            session["user_sub"],
+            session["email"],
+        )
+
+        encrypted = encrypt_api_key(body.api_key)
+
+        set_user_api_key(
+            db_session,
+            user["id"],
+            body.provider,
+            body.model,
+            encrypted,
+        )
+
+        db_session.commit()
+
+    return {"message": "API key saved."}
+
+
+@router.delete(
+    "/me/api-key", status_code=status.HTTP_200_OK, dependencies=[Depends(require_csrf)]
+)
+def delete_api_key(session: dict = Depends(get_current_session)):
+    with _session_factory() as db_session:
+        user = get_or_create_user(db_session, session["user_sub"], session["email"])
+        clear_user_api_key(db_session, user["id"])
+        db_session.commit()
+    return {"message": "API key removed."}
+
+
+@router.get("/me/api-key", response_model=ApiKeyStatusOut)
+def get_api_key_status(session: dict = Depends(get_current_session)):
+    with _session_factory() as db_session:
+        user = get_or_create_user(
+            db_session,
+            session["user_sub"],
+            session["email"],
+        )
+
+        stored = get_user_api_key_encrypted(
+            db_session,
+            user["id"],
+        )
+
+    if stored is None:
+        return {
+            "provider": None,
+            "model": None,
+            "has_key": False,
+        }
+
+    return {
+        "provider": stored["llm_provider"],
+        "model": stored["llm_model"],
+        "has_key": True,
+    }
 
 
 @router.post(

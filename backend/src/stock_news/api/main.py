@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import datetime as dt
+import logging
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
 from stock_news.agent.graph import run_agent_query
+from stock_news.agent.providers import UnsupportedProviderError, build_chat_model
 from stock_news.api.models import (
     AgentAnswerOut,
     AgentQuery,
@@ -21,6 +23,7 @@ from stock_news.api.models import (
     ResolvedCompanyOut,
     StockPriceOut,
 )
+from stock_news.auth.crypto import decrypt_api_key
 from stock_news.auth.dependencies import get_current_session, require_csrf
 from stock_news.auth.routes import router as auth_router
 from stock_news.storage.company_lookup import resolve_company
@@ -33,10 +36,14 @@ from stock_news.storage.loaders import (
     get_latest_close_prices,
     get_latest_price_anomalies,
     get_news_articles,
+    get_or_create_user,
     get_period_returns,
     get_stock_price_history,
+    get_user_api_key_encrypted,
 )
 from stock_news.storage.queries import get_digest, get_latest_digest
+
+logger = logging.getLogger(__name__)
 
 session_factory = get_session_factory()
 
@@ -151,7 +158,50 @@ def latest_price_anomalies(session: Session = Depends(get_session)):
 @app.post(
     "/agent/ask", response_model=AgentAnswerOut, dependencies=[Depends(require_csrf)]
 )
-def ask_agent(body: AgentQuery, session: dict = Depends(get_current_session)):
-    return {
-        "answer": run_agent_query(body.question, body.thread_id, body.selected_company)
-    }
+def ask_agent(
+    body: AgentQuery,
+    auth_session: dict = Depends(get_current_session),
+    session: Session = Depends(get_session),
+):
+    user = get_or_create_user(session, auth_session["user_sub"], auth_session["email"])
+    stored_key = get_user_api_key_encrypted(session, user["id"])
+
+    if stored_key is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No API key set - add one in settings before using chat.",
+        )
+
+    scoped_thread_id = f"user-{user['id']}:{body.thread_id}"
+
+    try:
+        plaintext_key = decrypt_api_key(stored_key["encrypted_api_key"])
+        llm = build_chat_model(
+            stored_key["llm_provider"], stored_key["llm_model"], plaintext_key
+        )
+        answer = run_agent_query(
+            body.question,
+            thread_id=scoped_thread_id,
+            selected_company=body.selected_company,
+            llm=llm,
+            rate_limit_gemini=False,
+        )
+    except UnsupportedProviderError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unsupported provider configured.",
+        )
+    except Exception:
+        logger.exception(
+            "Agent call failed for user_id=%s provider=%s model=%s",
+            user["id"],
+            stored_key["llm_provider"],
+            stored_key["llm_model"],
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Your API key didn't work - check it's valid and try again.",
+        )
+
+    return {"answer": answer}
