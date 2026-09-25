@@ -5,6 +5,7 @@ SQLAlchemy table definitions.
 from __future__ import annotations
 
 import datetime as dt
+from enum import StrEnum
 
 from sqlalchemy import (
     BigInteger,
@@ -13,11 +14,18 @@ from sqlalchemy import (
     ForeignKey,
     Numeric,
     String,
+    Text,
     UniqueConstraint,
     func,
 )
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+
+class LLMProvider(StrEnum):
+    OPENAI = "openai"
+    ANTHROPIC = "anthropic"
+    GEMINI = "gemini"
 
 
 class Base(DeclarativeBase):
@@ -238,3 +246,7 @@ class User(Base):
     cognito_sub: Mapped[str] = mapped_column(String(36), index=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, server_default=func.now())
+
+    llm_provider: Mapped[LLMProvider | None] = mapped_column(String(20), nullable=True)
+    llm_model: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    encrypted_api_key: Mapped[str | None] = mapped_column(Text, nullable=True)
