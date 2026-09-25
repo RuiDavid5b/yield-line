@@ -45,6 +45,7 @@ APP_ENV = {
         "AWS_REGION",
         "COGNITO_CLIENT_ID",
         "COGNITO_USER_POOL_ID",
+        "BYOK_KMS_KEY_ALIAS",
     )
     if k in os.environ
 }

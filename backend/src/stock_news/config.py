@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     # Cognito
     cognito_client_id: str
     cognito_user_pool_id: str
+    # KMS
+    byok_kms_key_alias: str
 
     # External APIs
     edgar_user_agent: str
