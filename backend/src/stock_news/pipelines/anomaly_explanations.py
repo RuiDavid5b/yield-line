@@ -8,9 +8,11 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 
+from langchain_google_genai import ChatGoogleGenerativeAI
 from sqlalchemy.orm import Session
 
 from stock_news.agent.graph import run_agent_query
+from stock_news.config import get_settings
 from stock_news.storage.loaders import (
     get_all_companies,
     get_dates_needing_explanation,
@@ -74,6 +76,7 @@ def run_anomaly_explanation_pipeline(
     Explain every unexplained anomaly within max_age_days, one agent
     query each.
     """
+    settings = get_settings()
     result = AnomalyExplanationResult()
 
     anomalies = get_dates_needing_explanation(session, max_age_days=max_age_days)
@@ -91,9 +94,16 @@ def run_anomaly_explanation_pipeline(
             result.errors.append(f"{anomaly['cik']}/{anomaly['date']}: unknown cik")
             continue
         try:
+            internal_llm = ChatGoogleGenerativeAI(
+                model="gemini-3.5-flash-lite",
+                api_key=settings.google_api_key,
+            )
+
             explanation = run_agent_query(
                 _build_prompt(anomaly, company),
                 thread_id=f"anomaly-{anomaly['cik']}-{anomaly['date']}",
+                llm=internal_llm,
+                rate_limit_gemini=True,
             )
             set_price_anomaly_explanation(
                 session, anomaly["cik"], anomaly["date"], explanation
