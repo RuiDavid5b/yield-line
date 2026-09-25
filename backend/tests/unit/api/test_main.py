@@ -7,12 +7,23 @@ from fastapi.testclient import TestClient
 
 import stock_news.api.main as api_main
 from stock_news.api.main import app, get_session
+from stock_news.auth.dependencies import get_current_session, require_csrf
 
 
 @pytest.fixture
 def client():
     app.dependency_overrides[get_session] = lambda: None
+    app.dependency_overrides[get_current_session] = lambda: {
+        "session_id": "test-session",
+        "user_sub": "test-user",
+        "email": "test@example.com",
+        "access_token": "test-access-token",
+        "csrf_token": "test-csrf-token",
+    }
+    app.dependency_overrides[require_csrf] = lambda: None
+
     yield TestClient(app)
+
     app.dependency_overrides.clear()
 
 

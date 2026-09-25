@@ -2,9 +2,60 @@ import createClient from "openapi-fetch";
 import type { paths } from "./schema";
 import type { Company } from "./types";
 
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
+let csrfToken: string | null = null;
+
+export function setCsrfToken(token: string | null) {
+  csrfToken = token;
+}
+
 const client = createClient<paths>({
-  baseUrl: import.meta.env.VITE_API_URL || "http://localhost:8000",
+  baseUrl: API_URL,
+  credentials: "include",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  fetch: async (request) => {
+    const method = request.method.toUpperCase();
+
+    if (
+      csrfToken &&
+      ["POST", "PUT", "PATCH", "DELETE"].includes(method)
+    ) {
+      request.headers.set("X-CSRF-Token", csrfToken);
+    }
+
+    return fetch(request);
+  },
 });
+
+function errorMessage(
+  detail: unknown,
+  fallback: string,
+): string {
+  if (typeof detail === "string") {
+    return detail;
+  }
+
+  if (Array.isArray(detail)) {
+    const messages = detail
+      .filter(
+        (item): item is { msg: string } =>
+          typeof item === "object" &&
+          item !== null &&
+          "msg" in item &&
+          typeof item.msg === "string",
+      )
+      .map((item) => item.msg);
+
+    if (messages.length > 0) {
+      return messages.join(", ");
+    }
+  }
+
+  return fallback;
+}
 
 export const api = {
   listCompanies: async () => {
@@ -139,6 +190,95 @@ export const api = {
     if (error) {
       throw new Error("Failed to ask agent");
     }
+    return data;
+  },
+
+  register: async (email: string, password: string) => {
+    const { data, error } = await client.POST("/auth/register", {
+      body: {
+        email,
+        password,
+      },
+    });
+
+    if (error) {
+      throw new Error(
+        errorMessage(error.detail, "Registration failed"),
+      );
+    }
+
+    return data;
+  },
+
+  verify: async (email: string, code: string) => {
+    const { data, error } = await client.POST("/auth/verify", {
+      body: {
+        email,
+        code,
+      },
+    });
+
+    if (error) {
+      throw new Error(
+        errorMessage(error.detail, "Verification failed"),
+      );
+    }
+
+    return data;
+  },
+
+  login: async (email: string, password: string) => {
+    const { data, error } = await client.POST("/auth/login", {
+      body: {
+        email,
+        password,
+      },
+    });
+
+    if (error) {
+      throw new Error(
+        errorMessage(error.detail, "Login failed"),
+      );
+    }
+
+    setCsrfToken(data.csrf_token);
+
+    return data;
+  },
+
+  me: async () => {
+    const { data, error } = await client.GET("/auth/me");
+
+    if (error) {
+      throw new Error("Not authenticated");
+    }
+
+    return data;
+  },
+
+  csrf: async () => {
+    const { data, error } = await client.GET("/auth/csrf");
+
+    if (error) {
+      throw new Error("Failed to get CSRF token");
+    }
+
+    setCsrfToken(data.csrf_token);
+
+    return data;
+  },
+
+  logout: async () => {
+    const { data, error } = await client.POST("/auth/logout");
+
+    if (error) {
+      throw new Error(
+        errorMessage(error.detail, "Logout failed"),
+      );
+    }
+
+    setCsrfToken(null);
+
     return data;
   },
 };

@@ -22,6 +22,7 @@ from stock_news.storage.models import (
     NewsArticle,
     PriceAnomaly,
     StockPrice,
+    User,
 )
 
 
@@ -748,3 +749,21 @@ def get_benchmark_returns(session: Session, date: dt.date) -> dict[str, float | 
         ticker: (float(return_pct) if return_pct is not None else None)
         for ticker, return_pct in rows
     }
+
+
+def get_or_create_user(
+    session: Session, cognito_sub: str, email: str
+) -> dict[str, Any]:
+    """
+    Look up the local User row for a Cognito sub, creating it on first
+    login if it doesn't exist yet. Called from the login route - Cognito
+    is the source of truth for whether an account exists at all.
+    """
+    stmt = pg_insert(User).values(cognito_sub=cognito_sub, email=email)
+    stmt = stmt.on_conflict_do_update(
+        index_elements=["cognito_sub"],
+        set_={"email": stmt.excluded.email},  # keep email in sync if changed in Cognito
+    )
+    stmt = stmt.returning(User.id, User.cognito_sub, User.email, User.created_at)
+    row = session.execute(stmt).one()
+    return dict(row._mapping)

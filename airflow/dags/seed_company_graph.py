@@ -24,6 +24,9 @@ APP_ENV = {
         "EDGAR_USER_AGENT",
         "CURRENTS_API_KEY",
         "GOOGLE_API_KEY",
+        "AWS_REGION",
+        "COGNITO_CLIENT_ID",
+        "COGNITO_USER_POOL_ID",
     )
     if k in os.environ
 }

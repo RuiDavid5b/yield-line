@@ -1,4 +1,4 @@
-import { TIMEFRAMES, type Timeframe } from "../lib/timeframes";
+import { TIMEFRAMES, type Timeframe, dateRangeFor } from "../lib/timeframes";
 
 interface Props {
   value: Timeframe;

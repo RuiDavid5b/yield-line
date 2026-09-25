@@ -228,3 +228,13 @@ class BenchmarkReturn(Base):
     ticker: Mapped[str] = mapped_column(String(10), index=True)  # SOXX/SMH/SPY
     date: Mapped[dt.date] = mapped_column(Date, index=True)
     return_pct: Mapped[float | None] = mapped_column(Numeric(10, 6), nullable=True)
+
+
+class User(Base):
+    __tablename__ = "users"
+    __table_args__ = (UniqueConstraint("cognito_sub", name="uq_user_cognito_sub"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    cognito_sub: Mapped[str] = mapped_column(String(36), index=True)
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, server_default=func.now())

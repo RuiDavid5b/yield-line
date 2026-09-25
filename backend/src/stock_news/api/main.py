@@ -21,6 +21,8 @@ from stock_news.api.models import (
     ResolvedCompanyOut,
     StockPriceOut,
 )
+from stock_news.auth.dependencies import get_current_session, require_csrf
+from stock_news.auth.routes import router as auth_router
 from stock_news.storage.company_lookup import resolve_company
 from stock_news.storage.db import get_session_factory
 from stock_news.storage.loaders import (
@@ -42,9 +44,11 @@ app = FastAPI(title="stock-news API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["Content-Type", "X-CSRF-Token"],
 )
+app.include_router(auth_router)
 
 
 def get_session():
@@ -144,8 +148,10 @@ def latest_price_anomalies(session: Session = Depends(get_session)):
     return get_latest_price_anomalies(session)
 
 
-@app.post("/agent/ask", response_model=AgentAnswerOut)
-def ask_agent(body: AgentQuery):
+@app.post(
+    "/agent/ask", response_model=AgentAnswerOut, dependencies=[Depends(require_csrf)]
+)
+def ask_agent(body: AgentQuery, session: dict = Depends(get_current_session)):
     return {
         "answer": run_agent_query(body.question, body.thread_id, body.selected_company)
     }
