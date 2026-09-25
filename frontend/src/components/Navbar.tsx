@@ -45,7 +45,6 @@ export default function Navbar() {
       await logout();
       navigate("/login");
     } catch {
-      // AuthContext clears the local user state even if the request fails.
       navigate("/login");
     }
   }
