@@ -12,6 +12,7 @@ from sqlalchemy import select
 
 from stock_news.processing.edgar.signals import ExtractedFilingSignal
 from stock_news.storage.loaders import (
+    clear_user_api_key,
     get_all_companies,
     get_anomalies_with_explanations,
     get_benchmark_returns,
@@ -25,7 +26,9 @@ from stock_news.storage.loaders import (
     get_period_return,
     get_period_returns,
     get_stock_price_history,
+    get_user_api_key_encrypted,
     set_price_anomaly_explanation,
+    set_user_api_key,
     upsert_benchmark_returns,
     upsert_digest_results,
     upsert_filing_signal,
@@ -41,9 +44,11 @@ from stock_news.storage.models import (
     DigestResult,
     FilingSignal,
     FinancialMetric,
+    LLMProvider,
     NewsArticle,
     PriceAnomaly,
     StockPrice,
+    User,
 )
 
 TEST_CIK = "9999999999"
@@ -1694,3 +1699,29 @@ class TestRollingOnlyAnomalyShape:
         assert len(rows) == 1
         assert "cross_sectional_z_score" in rows[0]
         assert rows[0]["cross_sectional_z_score"] is None
+
+
+def test_set_get_clear_user_api_key(session):
+    user = User(cognito_sub="sub-1", email="a@example.com")
+    session.add(user)
+    session.flush()
+
+    assert get_user_api_key_encrypted(session, user.id) is None
+
+    set_user_api_key(
+        session,
+        user.id,
+        LLMProvider.ANTHROPIC,
+        "claude-sonnet-4-6",
+        "fake-ciphertext-b64",
+    )
+
+    result = get_user_api_key_encrypted(session, user.id)
+
+    assert result["llm_provider"] == LLMProvider.ANTHROPIC
+    assert result["llm_model"] == "claude-sonnet-4-6"
+    assert result["encrypted_api_key"] == "fake-ciphertext-b64"
+
+    clear_user_api_key(session, user.id)
+
+    assert get_user_api_key_encrypted(session, user.id) is None

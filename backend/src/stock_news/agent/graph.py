@@ -12,7 +12,9 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import Annotated, TypedDict
 
+from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import BaseMessage, SystemMessage
+from langchain_core.runnables import RunnableConfig
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
@@ -20,7 +22,6 @@ from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 
 from stock_news.agent.tools import ALL_TOOLS
-from stock_news.config import get_settings
 from stock_news.storage.rate_limiter import acquire_gemini_call
 
 SYSTEM_PROMPT = """\
@@ -84,18 +85,29 @@ class AgentState(TypedDict):
     selected_company: dict | None
 
 
-def _build_llm():
-    settings = get_settings()
-    return ChatGoogleGenerativeAI(
-        model="gemini-3.5-flash-lite", api_key=settings.google_api_key
-    ).bind_tools(ALL_TOOLS)
+def _agent_node(
+    state: AgentState,
+    config: RunnableConfig,
+) -> dict:
+    configurable = config.get("configurable", {})
 
+    llm = configurable.get("llm")
+    if not isinstance(llm, BaseChatModel):
+        raise RuntimeError("No valid LLM configured for agent")
 
-def _agent_node(state: AgentState) -> dict:
-    acquire_gemini_call()
-    llm = _build_llm()
+    # Only rate-limit Gemini specifically for internal use - the shared Gemini
+    # budget is for the system's own usage (anomaly explanation), a user's own
+    # key has its own separate quota, uncoordinated with acquire_gemini_call.
+    rate_limit_gemini = configurable.get(
+        "rate_limit_gemini",
+        False,
+    )
+
+    if rate_limit_gemini and isinstance(llm, ChatGoogleGenerativeAI):
+        acquire_gemini_call()
 
     system_messages = [SystemMessage(content=SYSTEM_PROMPT)]
+
     selected_company = state.get("selected_company")
     if selected_company:
         c = selected_company
@@ -111,7 +123,8 @@ def _agent_node(state: AgentState) -> dict:
             )
         )
 
-    response = llm.invoke([*system_messages, *state["messages"]])
+    response = llm.bind_tools(ALL_TOOLS).invoke([*system_messages, *state["messages"]])
+
     return {"messages": [response]}
 
 
@@ -147,7 +160,12 @@ def get_agent():
 
 
 def run_agent_query(
-    prompt: str, thread_id: str, selected_company: dict | None = None
+    prompt: str,
+    thread_id: str,
+    selected_company: dict | None = None,
+    *,
+    llm: BaseChatModel,
+    rate_limit_gemini: bool = False,
 ) -> str:
     """
     Run one turn of a conversation. thread_id identifies the conversation
@@ -157,12 +175,23 @@ def run_agent_query(
     conversation doesn't rewrite prior turns.
     """
     result = get_agent().invoke(
-        {"messages": [("user", prompt)], "selected_company": selected_company},
-        config={"configurable": {"thread_id": thread_id}},
+        {
+            "messages": [("user", prompt)],
+            "selected_company": selected_company,
+        },
+        config={
+            "configurable": {
+                "thread_id": thread_id,
+                "llm": llm,
+                "rate_limit_gemini": rate_limit_gemini,
+            }
+        },
     )
     content = result["messages"][-1].content
+
     if isinstance(content, str):
         return content
+
     if isinstance(content, list):
         text_parts = [
             block.get("text", "")
@@ -170,4 +199,5 @@ def run_agent_query(
             if isinstance(block, dict) and block.get("type") == "text"
         ]
         return "".join(text_parts)
+
     return str(content)

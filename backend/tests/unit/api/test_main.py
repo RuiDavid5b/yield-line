@@ -6,8 +6,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 import stock_news.api.main as api_main
+from stock_news.agent import providers
 from stock_news.api.main import app, get_session
 from stock_news.auth.dependencies import get_current_session, require_csrf
+from stock_news.storage.models import LLMProvider
 
 
 @pytest.fixture
@@ -92,11 +94,34 @@ class TestDigestForDate:
 
 class TestAskAgent:
     def test_returns_answer(self, client, monkeypatch):
+        app.dependency_overrides[get_current_session] = lambda: {
+            "user_sub": "sub-1",
+            "email": "a@example.com",
+        }
+        app.dependency_overrides[get_session] = lambda: object()
+
+        monkeypatch.setattr(
+            api_main, "get_or_create_user", lambda session, sub, email: {"id": 1}
+        )
+        monkeypatch.setattr(
+            api_main,
+            "get_user_api_key_encrypted",
+            lambda session, user_id: {
+                "llm_provider": "anthropic",
+                "llm_model": "claude-sonnet-4-6",
+                "encrypted_api_key": "ciphertext",
+            },
+        )
+        monkeypatch.setattr(api_main, "decrypt_api_key", lambda ciphertext: "sk-fake")
+        monkeypatch.setattr(
+            api_main, "build_chat_model", lambda provider, model, key: object()
+        )
         monkeypatch.setattr(
             api_main,
             "run_agent_query",
-            lambda question, thread_id, selected_company: "Synopsys reported...",
+            lambda question, thread_id, selected_company, llm, rate_limit_gemini: "Synopsys reported...",
         )
+
         response = client.post(
             "/agent/ask",
             json={
@@ -105,9 +130,69 @@ class TestAskAgent:
                 "selected_company": None,
             },
         )
+
         assert response.status_code == 200
         assert response.json()["answer"] == "Synopsys reported..."
 
+        app.dependency_overrides.clear()
+
     def test_missing_question_returns_422(self, client):
         response = client.post("/agent/ask", json={"thread_id": "test-thread-1"})
+        print(response.status_code, response.json())
         assert response.status_code == 422
+
+    def test_thread_id_is_scoped_by_user_id(self, client, monkeypatch):
+        app.dependency_overrides[get_current_session] = lambda: {
+            "user_sub": "sub-1",
+            "email": "a@example.com",
+        }
+        app.dependency_overrides[get_session] = lambda: object()
+
+        captured = {}
+        monkeypatch.setattr(
+            api_main, "get_or_create_user", lambda session, sub, email: {"id": 42}
+        )
+        monkeypatch.setattr(
+            api_main,
+            "get_user_api_key_encrypted",
+            lambda session, user_id: {
+                "llm_provider": "anthropic",
+                "llm_model": "claude-sonnet-4-6",
+                "encrypted_api_key": "x",
+            },
+        )
+        monkeypatch.setattr(api_main, "decrypt_api_key", lambda x: "sk-fake")
+        monkeypatch.setattr(
+            api_main, "build_chat_model", lambda provider, model, key: object()
+        )
+
+        def fake_run_agent_query(
+            question, thread_id, selected_company, llm, rate_limit_gemini
+        ):
+            captured["thread_id"] = thread_id
+            return "answer"
+
+        monkeypatch.setattr(api_main, "run_agent_query", fake_run_agent_query)
+
+        response = client.post(
+            "/agent/ask",
+            json={"question": "hi", "thread_id": "abc", "selected_company": None},
+        )
+
+        assert response.status_code == 200
+        assert captured["thread_id"] == "user-42:abc"
+
+        app.dependency_overrides.clear()
+
+    def test_build_chat_model_passes_model_through_for_each_provider(self, monkeypatch):
+        captured = {}
+
+        class FakeChatAnthropic:
+            def __init__(self, model, api_key):
+                captured["anthropic"] = model
+
+        monkeypatch.setattr("langchain_anthropic.ChatAnthropic", FakeChatAnthropic)
+        providers.build_chat_model(
+            LLMProvider.ANTHROPIC, "claude-sonnet-4-6", "sk-fake"
+        )
+        assert captured["anthropic"] == "claude-sonnet-4-6"

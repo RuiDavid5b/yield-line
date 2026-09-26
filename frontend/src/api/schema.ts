@@ -72,6 +72,25 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/me/api-key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Api Key Status */
+        get: operations["get_api_key_status_auth_me_api_key_get"];
+        /** Set Api Key */
+        put: operations["set_api_key_auth_me_api_key_put"];
+        post?: never;
+        /** Delete Api Key */
+        delete: operations["delete_api_key_auth_me_api_key_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/logout": {
         parameters: {
             query?: never;
@@ -369,6 +388,14 @@ export interface components {
             /** Explained At */
             explained_at: string | null;
         };
+        /** ApiKeyStatusOut */
+        ApiKeyStatusOut: {
+            provider: components["schemas"]["LLMProvider"] | null;
+            /** Model */
+            model: string | null;
+            /** Has Key */
+            has_key: boolean;
+        };
         /** CompanyOut */
         CompanyOut: {
             /** Cik */
@@ -491,6 +518,11 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /**
+         * LLMProvider
+         * @enum {string}
+         */
+        LLMProvider: "openai" | "anthropic" | "gemini";
         /** LatestPricesOut */
         LatestPricesOut: {
             [key: string]: number | null;
@@ -565,6 +597,14 @@ export interface components {
             news_disambiguation: string[];
             /** Match Confidence */
             match_confidence: number;
+        };
+        /** SetApiKeyBody */
+        SetApiKeyBody: {
+            provider: components["schemas"]["LLMProvider"];
+            /** Model */
+            model: string;
+            /** Api Key */
+            api_key: string;
         };
         /** StockPriceOut */
         StockPriceOut: {
@@ -748,10 +788,113 @@ export interface operations {
             };
         };
     };
-    logout_auth_logout_post: {
+    get_api_key_status_auth_me_api_key_get: {
         parameters: {
             query?: never;
             header?: never;
+            path?: never;
+            cookie?: {
+                session_id?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiKeyStatusOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_api_key_auth_me_api_key_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-csrf-token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                session_id?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetApiKeyBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_api_key_auth_me_api_key_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-csrf-token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                session_id?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    logout_auth_logout_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-csrf-token"?: string | null;
+            };
             path?: never;
             cookie?: {
                 session_id?: string | null;

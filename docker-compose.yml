@@ -32,6 +32,8 @@ services:
       - backend/api/.env
     networks:
       - stock_news_net
+    volumes:
+      - ~/.aws:/root/.aws
  
 volumes:
   postgres_data:

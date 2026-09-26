@@ -6,7 +6,9 @@ from __future__ import annotations
 
 import datetime as dt
 
-from pydantic import BaseModel, RootModel
+from pydantic import BaseModel, Field, RootModel
+
+from stock_news.storage.models import LLMProvider
 
 
 class CompanyOut(BaseModel):
@@ -115,3 +117,15 @@ class AgentQuery(BaseModel):
 
 class AgentAnswerOut(BaseModel):
     answer: str
+
+
+class SetApiKeyBody(BaseModel):
+    provider: LLMProvider
+    model: str = Field(min_length=1, max_length=100)
+    api_key: str = Field(min_length=1)
+
+
+class ApiKeyStatusOut(BaseModel):
+    provider: LLMProvider | None
+    model: str | None
+    has_key: bool

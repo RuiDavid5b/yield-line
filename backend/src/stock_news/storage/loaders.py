@@ -7,7 +7,7 @@ from __future__ import annotations
 import datetime as dt
 from typing import Any
 
-from sqlalchemy import func, select, tuple_
+from sqlalchemy import func, select, tuple_, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
@@ -24,6 +24,8 @@ from stock_news.storage.models import (
     StockPrice,
     User,
 )
+
+from .models import LLMProvider
 
 
 def get_financial_metrics(
@@ -766,4 +768,52 @@ def get_or_create_user(
     )
     stmt = stmt.returning(User.id, User.cognito_sub, User.email, User.created_at)
     row = session.execute(stmt).one()
+    return dict(row._mapping)
+
+
+def set_user_api_key(
+    session: Session,
+    user_id: int,
+    provider: LLMProvider,
+    model: str,
+    encrypted_key: str,
+) -> None:
+    session.execute(
+        update(User)
+        .where(User.id == user_id)
+        .values(
+            llm_provider=provider,
+            llm_model=model,
+            encrypted_api_key=encrypted_key,
+        )
+    )
+
+
+def clear_user_api_key(session: Session, user_id: int) -> None:
+    session.execute(
+        update(User)
+        .where(User.id == user_id)
+        .values(
+            llm_provider=None,
+            llm_model=None,
+            encrypted_api_key=None,
+        )
+    )
+
+
+def get_user_api_key_encrypted(
+    session: Session,
+    user_id: int,
+) -> dict[str, Any] | None:
+    row = session.execute(
+        select(
+            User.llm_provider,
+            User.llm_model,
+            User.encrypted_api_key,
+        ).where(User.id == user_id)
+    ).first()
+
+    if row is None or row.encrypted_api_key is None:
+        return None
+
     return dict(row._mapping)

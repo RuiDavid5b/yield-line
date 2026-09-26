@@ -5,7 +5,7 @@ import { useAuth } from "../auth/AuthContext";
 import logo from "../assets/logo_extended.svg";
 
 export default function Navbar() {
-  const { user, logout } = useAuth();
+  const { user, logout, apiKeyStatus } = useAuth();
   const navigate = useNavigate();
 
   const [menuOpen, setMenuOpen] = useState(false);
@@ -49,6 +49,8 @@ export default function Navbar() {
     }
   }
 
+  const needsApiKey = apiKeyStatus !== null && !apiKeyStatus.has_key;
+
   return (
     <header className="navbar">
       <Link to="/" className="navbar-brand">
@@ -69,6 +71,7 @@ export default function Navbar() {
               <span className="profile-avatar" aria-hidden="true">
                 {user.email.charAt(0).toUpperCase()}
               </span>
+              {needsApiKey && <span className="settings-badge" aria-hidden="true" />}
             </button>
 
             {menuOpen && (
@@ -78,6 +81,22 @@ export default function Navbar() {
                 </div>
 
                 <div className="profile-divider" />
+
+                <Link
+                  to="/settings"
+                  className="profile-menu-item"
+                  role="menuitem"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Settings
+                  {needsApiKey && (
+                    <span
+                      className="settings-badge"
+                      title="Add an API key to use chat"
+                      aria-label="API key required"
+                    />
+                  )}
+                </Link>
 
                 <button
                   type="button"
