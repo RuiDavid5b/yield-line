@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { api } from "../api/client";
-
+import { useAuth } from "../auth/AuthContext";
 import { type Company } from "../api/types";
-
 import ReactMarkdown from "react-markdown";
 
 interface Message {
@@ -17,12 +17,30 @@ interface AgentChatProps {
 const threadId = crypto.randomUUID();
 
 export default function AgentChat({ selectedCompany }: AgentChatProps) {
+  const { apiKeyStatus } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showKeyNotice, setShowKeyNotice] = useState(false);
+  const groupRef = useRef<HTMLDivElement>(null);
+
+  const hasApiKey = apiKeyStatus?.has_key ?? false;
+
+  function handleInputInteraction() {
+    if (!hasApiKey) setShowKeyNotice(true);
+  }
+
+  function handleGroupBlur(e: React.FocusEvent<HTMLDivElement>) {
+    // Only hide if focus is moving OUTSIDE the whole input+notice group -
+    // relatedTarget is the element gaining focus (or null if focus left
+    // the document/went to something non-focusable, e.g. a plain click).
+    if (!groupRef.current?.contains(e.relatedTarget as Node | null)) {
+      setShowKeyNotice(false);
+    }
+  }
 
   async function send() {
-    if (!input.trim()) return;
+    if (!input.trim() || !hasApiKey) return;
 
     const question = input;
 
@@ -61,20 +79,30 @@ export default function AgentChat({ selectedCompany }: AgentChatProps) {
           {loading && <div className="chat-msg agent">Thinking…</div>}
         </div>
 
-        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-          <input
-            style={{ flex: 1 }}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") send();
-            }}
-            placeholder={selectedCompany ? `Ask about ${selectedCompany.name}...` : "Ask anything..."}
-          />
+        <div ref={groupRef} onBlur={handleGroupBlur}>
+          {showKeyNotice && !hasApiKey && (
+            <div className="chat-key-notice">
+              Chat needs an API key. <Link to="/settings">Add one in Settings</Link> to get started (must be signed in).
+            </div>
+          )}
 
-          <button onClick={send} disabled={loading}>
-            Send
-          </button>
+          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+            <input
+              style={{ flex: 1 }}
+              value={input}
+              readOnly={!hasApiKey}
+              onFocus={handleInputInteraction}
+              onClick={handleInputInteraction}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") send();
+              }}
+              placeholder={selectedCompany ? `Ask about ${selectedCompany.name}...` : "Ask anything..."}
+            />
+            <button onClick={hasApiKey ? send : handleInputInteraction} disabled={loading}>
+              Send
+            </button>
+          </div>
         </div>
       </div>
     </div>
