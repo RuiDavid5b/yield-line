@@ -4,6 +4,9 @@ import type { Company } from "./types";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
+export type LLMProvider =
+  paths["/auth/me/api-key"]["put"]["requestBody"]["content"]["application/json"]["provider"];
+
 let csrfToken: string | null = null;
 
 export function setCsrfToken(token: string | null) {
@@ -279,6 +282,26 @@ export const api = {
 
     setCsrfToken(null);
 
+    return data;
+  },
+
+  getApiKeyStatus: async () => {
+    const { data, error } = await client.GET("/auth/me/api-key");
+    if (error) throw new Error("Failed to fetch API key status");
+    return data;
+  },
+  
+  setApiKey: async (provider: LLMProvider, model: string, apiKey: string) => {
+    const { data, error } = await client.PUT("/auth/me/api-key", {
+      body: { provider, model, api_key: apiKey },
+    });
+    if (error) throw new Error(errorMessage(error.detail, "Failed to save API key"));
+    return data;
+  },
+  
+  deleteApiKey: async () => {
+    const { data, error } = await client.DELETE("/auth/me/api-key");
+    if (error) throw new Error(errorMessage(error.detail, "Failed to remove API key"));
     return data;
   },
 };
