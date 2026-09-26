@@ -106,6 +106,7 @@ jobs:
       DATABASE_URL: postgresql+psycopg://test_user:test_password@localhost:5432/test_db
       REDIS_URL: redis://localhost:6379/0
       EDGAR_USER_AGENT: ${{ secrets.EDGAR_USER_AGENT }}
+      GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
       AWS_REGION: eu-west-2
       COGNITO_CLIENT_ID: test-cognito-client-id
       COGNITO_USER_POOL_ID: test-cognito-user-pool-id
