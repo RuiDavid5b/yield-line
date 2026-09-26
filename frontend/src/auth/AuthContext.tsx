@@ -12,22 +12,38 @@ type User = {
   email: string;
 };
 
+type ApiKeyStatus = {
+  provider: string | null;
+  model: string | null;
+  has_key: boolean;
+};
+
 type AuthContextValue = {
   user: User | null;
   loading: boolean;
+  apiKeyStatus: ApiKeyStatus | null;
+  refreshApiKeyStatus: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
   verify: (email: string, code: string) => Promise<void>;
   logout: () => Promise<void>;
 };
 
-const AuthContext = createContext<AuthContextValue | undefined>(
-  undefined,
-);
+const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [apiKeyStatus, setApiKeyStatus] = useState<ApiKeyStatus | null>(null);
+
+  async function refreshApiKeyStatus() {
+    try {
+      const status = await api.getApiKeyStatus();
+      setApiKeyStatus(status);
+    } catch {
+      setApiKeyStatus(null);
+    }
+  }
 
   useEffect(() => {
     async function restoreSession() {
@@ -35,10 +51,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const currentUser = await api.me();
         setUser(currentUser);
 
-        await api.csrf();
+        const { csrf_token } = await api.csrf();
+        setCsrfToken(csrf_token);
+
+        await refreshApiKeyStatus();
       } catch {
         setUser(null);
         setCsrfToken(null);
+        setApiKeyStatus(null);
       } finally {
         setLoading(false);
       }
@@ -49,10 +69,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function login(email: string, password: string) {
     const result = await api.login(email, password);
-
-    setUser({
-      email: result.email,
-    });
+    setUser({ email: result.email });
+    setCsrfToken(result.csrf_token);
+    await refreshApiKeyStatus();
   }
 
   async function register(email: string, password: string) {
@@ -69,6 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setUser(null);
       setCsrfToken(null);
+      setApiKeyStatus(null);
     }
   }
 
@@ -77,6 +97,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         loading,
+        apiKeyStatus,
+        refreshApiKeyStatus,
         login,
         register,
         verify,
@@ -92,9 +114,7 @@ export function useAuth() {
   const context = useContext(AuthContext);
 
   if (!context) {
-    throw new Error(
-      "useAuth must be used within an AuthProvider",
-    );
+    throw new Error("useAuth must be used within an AuthProvider");
   }
 
   return context;
