@@ -109,6 +109,7 @@ jobs:
       AWS_REGION: eu-west-2
       COGNITO_CLIENT_ID: test-cognito-client-id
       COGNITO_USER_POOL_ID: test-cognito-user-pool-id
+      BYOK_KMS_KEY_ALIAS: alias/yieldline-staging-byok
 
     steps:
       - uses: actions/checkout@v4
