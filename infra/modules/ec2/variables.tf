@@ -1,3 +1,7 @@
+variable "availability_zone" {
+  type = string
+}
+
 variable "environment" {
   type = string
 }
@@ -14,5 +18,5 @@ variable "instance_type" {
 
 variable "data_volume_size_gb" {
   type    = number
-  default = 10
+  default = 8
 }
