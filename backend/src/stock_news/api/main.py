@@ -26,6 +26,7 @@ from stock_news.api.models import (
 from stock_news.auth.crypto import decrypt_api_key
 from stock_news.auth.dependencies import get_current_session, require_csrf
 from stock_news.auth.routes import router as auth_router
+from stock_news.config import get_settings
 from stock_news.storage.company_lookup import resolve_company
 from stock_news.storage.db import get_session_factory
 from stock_news.storage.loaders import (
@@ -50,7 +51,7 @@ session_factory = get_session_factory()
 app = FastAPI(title="stock-news API")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=[get_settings().frontend_origin],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["Content-Type", "X-CSRF-Token"],

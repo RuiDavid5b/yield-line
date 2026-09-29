@@ -1,0 +1,9 @@
+app.{$PUBLIC_IP}.sslip.io {
+    root * /srv/frontend
+    file_server
+    try_files {path} /index.html
+}
+
+api.{$PUBLIC_IP}.sslip.io {
+    reverse_proxy api:8000
+}

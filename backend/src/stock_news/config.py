@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     redis_url: RedisDsn
     aws_region: str
 
+    cookie_domain: str | None = None
+    frontend_origin: str = "http://localhost:5173"
+
     # Cognito
     cognito_client_id: str
     cognito_user_pool_id: str
