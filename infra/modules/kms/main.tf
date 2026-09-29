@@ -9,7 +9,7 @@ resource "aws_kms_alias" "byok" {
   target_key_id = aws_kms_key.byok.key_id
 }
 
-resource "aws_iam_policy" "backend_kms_access" {
+resource "aws_iam_policy" "byok_kms_access" {
   name = "yieldline-${var.environment}-byok-kms-access"
 
   policy = jsonencode({
