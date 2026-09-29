@@ -1,14 +1,17 @@
 module "cognito" {
-  source = "../modules/cognito"
-
-  environment   = var.environment
-  callback_urls = var.callback_urls
-  logout_urls   = var.logout_urls
+  source      = "../modules/cognito"
+  environment = var.environment
 }
 
 module "kms" {
-  source = "../modules/kms"
+  source            = "../modules/kms"
+  environment       = var.environment
+  backend_role_name = module.ec2.role_name
+}
 
-  environment = var.environment
-  #backend_role_name = module.ecs.backend_task_role_name
+module "ec2" {
+  source            = "../modules/ec2"
+  environment       = var.environment
+  ssh_ingress_cidr  = var.ssh_ingress_cidr
+  availability_zone = var.availability_zone
 }
