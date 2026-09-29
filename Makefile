@@ -37,6 +37,21 @@ api-down:
 api-rebuild:
 	docker compose up -d --build api
 
+staging-up:
+	docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d
+
+staging-down:
+	docker compose -f docker-compose.yml -f docker-compose.staging.yml down
+
+staging-build:
+	docker compose -f docker-compose.yml -f docker-compose.staging.yml build
+
+staging-rebuild:
+	docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d --build
+
+staging-logs:
+	docker compose -f docker-compose.yml -f docker-compose.staging.yml logs -f
+
 sync-companies:
 	cd backend && uv run python -m stock_news.graph.loader
 
