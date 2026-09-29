@@ -15,3 +15,8 @@ module "ec2" {
   ssh_ingress_cidr  = var.ssh_ingress_cidr
   availability_zone = var.availability_zone
 }
+
+module "ecr" {
+  source      = "../modules/ecr"
+  environment = var.environment
+}
