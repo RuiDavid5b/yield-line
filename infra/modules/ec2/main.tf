@@ -20,12 +20,17 @@ data "aws_ami" "al2023_arm" {
 
   filter {
     name   = "name"
-    values = ["al2023-ami-*-kernel-default-arm64"]
+    values = ["al2023-ami-*-kernel-6.18-arm64"]
   }
 
   filter {
     name   = "architecture"
     values = ["arm64"]
+  }
+
+  filter {
+    name   = "state"
+    values = ["available"]
   }
 }
 
