@@ -15,3 +15,8 @@ variable "ssh_ingress_cidr" {
   description = "Your own IP, as a /32 CIDR"
   type        = string
 }
+
+variable "edgar_user_agent" {
+  type      = string
+  sensitive = true
+}

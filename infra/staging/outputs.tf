@@ -17,3 +17,11 @@ output "byok_kms_key_arn" {
 output "byok_kms_key_alias" {
   value = module.kms.key_alias
 }
+
+output "instance_id" {
+  value = module.ec2.instance_id
+}
+
+output "public_ip" {
+  value = module.ec2.public_ip
+}
