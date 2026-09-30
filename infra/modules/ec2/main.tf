@@ -172,3 +172,20 @@ resource "aws_volume_attachment" "data" {
   instance_id                    = aws_instance.app.id
   stop_instance_before_detaching = true
 }
+
+resource "aws_iam_role_policy" "frontend_bucket_read" {
+  name = "yieldline-${var.environment}-frontend-bucket-read"
+  role = aws_iam_role.instance.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = ["s3:GetObject", "s3:ListBucket"]
+      Resource = [
+        "arn:aws:s3:::${var.frontend_bucket_name}",
+        "arn:aws:s3:::${var.frontend_bucket_name}/*",
+      ]
+    }]
+  })
+}

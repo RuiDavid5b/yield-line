@@ -20,3 +20,7 @@ variable "data_volume_size_gb" {
   type    = number
   default = 8
 }
+
+variable "frontend_bucket_name" {
+  type = string
+}
