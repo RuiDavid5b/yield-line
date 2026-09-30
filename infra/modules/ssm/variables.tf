@@ -2,16 +2,6 @@ variable "environment" {
   type = string
 }
 
-variable "database_url" {
-  type      = string
-  sensitive = true
-}
-
-variable "redis_url" {
-  type      = string
-  sensitive = true
-}
-
 variable "cookie_domain" {
   type = string
 }
@@ -33,15 +23,6 @@ variable "byok_kms_key_alias" {
 }
 
 variable "edgar_user_agent" {
-  type = string
-}
-
-variable "google_api_key" {
-  type      = string
-  sensitive = true
-}
-
-variable "currents_api_key" {
   type      = string
   sensitive = true
 }
