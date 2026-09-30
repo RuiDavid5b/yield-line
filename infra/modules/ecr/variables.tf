@@ -3,9 +3,9 @@ variable "environment" {
 }
 
 variable "repository_names" {
-  description = "One repository per Dockerfile - the pipeline image and the API image are built separately"
+  description = "One repository per deployable Docker image"
   type        = list(string)
-  default     = ["app", "api"]
+  default     = ["backend", "api", "frontend", "airflow"]
 }
 
 variable "max_image_count" {
