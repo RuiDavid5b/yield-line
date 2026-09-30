@@ -6,10 +6,20 @@ services:
     ports: !reset []
 
   api:
+    image: ${ECR_REGISTRY}/yieldline-${ENVIRONMENT}-api:${IMAGE_TAG}
     ports: !reset []
     expose:
       - "8000"
     volumes: !reset []
+
+  frontend:
+    image: ${ECR_REGISTRY}/yieldline-${ENVIRONMENT}-frontend:${IMAGE_TAG}
+    expose:
+      - "80"
+    networks:
+      - stock_news_net
+    depends_on:
+      - api
 
   caddy:
     image: caddy:2.11.4-alpine
@@ -20,11 +30,13 @@ services:
       PUBLIC_IP: ${PUBLIC_IP}
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - ./frontend/dist:/srv/frontend:ro
       - caddy_data:/data
       - caddy_config:/config
     networks:
       - stock_news_net
+    depends_on:
+      - frontend
+      - api
 
 volumes:
   caddy_data:

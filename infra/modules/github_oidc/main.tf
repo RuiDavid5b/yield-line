@@ -60,20 +60,3 @@ resource "aws_iam_role_policy" "ssm_send_command" {
     }]
   })
 }
-
-resource "aws_iam_role_policy" "frontend_bucket_write" {
-  name = "yieldline-${var.environment}-frontend-bucket-write"
-  role = aws_iam_role.github_actions.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect = "Allow"
-      Action = ["s3:PutObject", "s3:DeleteObject", "s3:ListBucket"]
-      Resource = [
-        "arn:aws:s3:::${var.frontend_bucket_name}",
-        "arn:aws:s3:::${var.frontend_bucket_name}/*",
-      ]
-    }]
-  })
-}

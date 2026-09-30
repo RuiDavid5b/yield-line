@@ -21,6 +21,6 @@ variable "data_volume_size_gb" {
   default = 8
 }
 
-variable "frontend_bucket_name" {
+variable "app_secret_arn" {
   type = string
 }

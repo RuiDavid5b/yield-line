@@ -59,7 +59,7 @@ resource "aws_vpc_security_group_ingress_rule" "https" {
 
 resource "aws_vpc_security_group_ingress_rule" "http" {
   security_group_id = aws_security_group.app.id
-  description       = "HTTP - required for Let's Encrypt's HTTP-01 challenge via Caddy"
+  description       = "HTTP - required for Lets Encrypt HTTP-01 challenge via Caddy"
   cidr_ipv4         = "0.0.0.0/0"
   from_port         = 80
   to_port           = 80
@@ -106,6 +106,22 @@ resource "aws_iam_role_policy" "ssm_read" {
       Effect   = "Allow"
       Action   = ["ssm:GetParametersByPath", "ssm:GetParameter", "ssm:GetParameters"]
       Resource = "arn:aws:ssm:*:*:parameter/stock-news/*"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "secrets_read" {
+  name = "yieldline-${var.environment}-secrets-read"
+  role = aws_iam_role.instance.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "secretsmanager:GetSecretValue"
+      ]
+      Resource = var.app_secret_arn
     }]
   })
 }
@@ -171,21 +187,4 @@ resource "aws_volume_attachment" "data" {
   volume_id                      = aws_ebs_volume.data.id
   instance_id                    = aws_instance.app.id
   stop_instance_before_detaching = true
-}
-
-resource "aws_iam_role_policy" "frontend_bucket_read" {
-  name = "yieldline-${var.environment}-frontend-bucket-read"
-  role = aws_iam_role.instance.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect = "Allow"
-      Action = ["s3:GetObject", "s3:ListBucket"]
-      Resource = [
-        "arn:aws:s3:::${var.frontend_bucket_name}",
-        "arn:aws:s3:::${var.frontend_bucket_name}/*",
-      ]
-    }]
-  })
 }
