@@ -1,0 +1,40 @@
+services:
+  airflow-apiserver:
+    image: ${ECR_REGISTRY}/yieldline-${ENVIRONMENT}-airflow:${IMAGE_TAG}
+    build: !reset null
+    ports: !reset []
+    expose:
+      - "8080"
+    environment:
+      APP_IMAGE: ${ECR_REGISTRY}/yieldline-${ENVIRONMENT}-backend:${IMAGE_TAG}
+
+  airflow-scheduler:
+    image: ${ECR_REGISTRY}/yieldline-${ENVIRONMENT}-airflow:${IMAGE_TAG}
+    build: !reset null
+    environment:
+      APP_IMAGE: ${ECR_REGISTRY}/yieldline-${ENVIRONMENT}-backend:${IMAGE_TAG}
+
+  airflow-dag-processor:
+    image: ${ECR_REGISTRY}/yieldline-${ENVIRONMENT}-airflow:${IMAGE_TAG}
+    build: !reset null
+    environment:
+      APP_IMAGE: ${ECR_REGISTRY}/yieldline-${ENVIRONMENT}-backend:${IMAGE_TAG}
+
+  airflow-triggerer:
+    image: ${ECR_REGISTRY}/yieldline-${ENVIRONMENT}-airflow:${IMAGE_TAG}
+    build: !reset null
+    environment:
+      APP_IMAGE: ${ECR_REGISTRY}/yieldline-${ENVIRONMENT}-backend:${IMAGE_TAG}
+
+  airflow-init:
+    image: ${ECR_REGISTRY}/yieldline-${ENVIRONMENT}-airflow:${IMAGE_TAG}
+    build: !reset null
+    environment:
+      APP_IMAGE: ${ECR_REGISTRY}/yieldline-${ENVIRONMENT}-backend:${IMAGE_TAG}
+
+  airflow-postgres:
+    volumes:
+      - /data/airflow-postgres:/var/lib/postgresql/data
+
+volumes:
+  airflow-postgres-data: !reset []
