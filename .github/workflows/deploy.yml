@@ -1,0 +1,109 @@
+name: Build and deploy
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: eu-west-2
+  ECR_BACKEND_REPOSITORY: yieldline-staging-backend
+  ECR_API_REPOSITORY: yieldline-staging-api
+  ECR_FRONTEND_REPOSITORY: yieldline-staging-frontend
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    outputs:
+      image_tag: ${{ steps.vars.outputs.sha }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: vars
+        run: echo "sha=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: aws-actions/amazon-ecr-login@v2
+        id: ecr-login
+
+      - name: Build and push backend image
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          IMAGE_TAG: ${{ steps.vars.outputs.sha }}
+        run: |
+          docker build \
+            -t "$REGISTRY/$ECR_BACKEND_REPOSITORY:$IMAGE_TAG" \
+            -t "$REGISTRY/$ECR_BACKEND_REPOSITORY:latest" \
+            -f backend/Dockerfile .
+
+          docker push "$REGISTRY/$ECR_BACKEND_REPOSITORY:$IMAGE_TAG"
+          docker push "$REGISTRY/$ECR_BACKEND_REPOSITORY:latest"
+
+      - name: Build and push API image
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          IMAGE_TAG: ${{ steps.vars.outputs.sha }}
+        run: |
+          docker build \
+            -t "$REGISTRY/$ECR_API_REPOSITORY:$IMAGE_TAG" \
+            -t "$REGISTRY/$ECR_API_REPOSITORY:latest" \
+            -f backend/api/Dockerfile .
+
+          docker push "$REGISTRY/$ECR_API_REPOSITORY:$IMAGE_TAG"
+          docker push "$REGISTRY/$ECR_API_REPOSITORY:latest"
+
+      - name: Build and push frontend image
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          IMAGE_TAG: ${{ steps.vars.outputs.sha }}
+        run: |
+          docker build \
+            -t "$REGISTRY/$ECR_FRONTEND_REPOSITORY:$IMAGE_TAG" \
+            -t "$REGISTRY/$ECR_FRONTEND_REPOSITORY:latest" \
+            ./frontend
+
+          docker push "$REGISTRY/$ECR_FRONTEND_REPOSITORY:$IMAGE_TAG"
+          docker push "$REGISTRY/$ECR_FRONTEND_REPOSITORY:latest"
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Trigger deploy on instance
+        env:
+          IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
+        run: |
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
+            --document-name "AWS-RunShellScript" \
+            --parameters "commands=[
+              \"cd /opt/yieldline\",
+              \"export IMAGE_TAG=${IMAGE_TAG}\",
+              \"docker compose pull\",
+              \"docker compose up -d --remove-orphans\"
+            ]" \
+            --query "Command.CommandId" \
+            --output text)
+
+          echo "SSM command: $COMMAND_ID"
+
+          aws ssm wait command-executed \
+            --command-id "$COMMAND_ID" \
+            --instance-id "${{ secrets.EC2_INSTANCE_ID }}"
+
+          echo "Deployment completed successfully"
