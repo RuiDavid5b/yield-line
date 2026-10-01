@@ -17,7 +17,7 @@ services:
     ports: !reset []
     expose:
       - "8000"
-    env_file: !reset
+    env_file: !override
       - /run/yieldline/app.env
     volumes: !reset []
 
