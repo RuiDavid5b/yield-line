@@ -139,6 +139,13 @@ resource "aws_instance" "app" {
   vpc_security_group_ids = [aws_security_group.app.id]
   iam_instance_profile   = aws_iam_instance_profile.instance.name
 
+  user_data = <<-EOF
+  #!/bin/bash
+  set -eux
+  
+  systemctl enable --now amazon-ssm-agent
+  EOF
+
   root_block_device {
     volume_size = 8
     volume_type = "gp3"

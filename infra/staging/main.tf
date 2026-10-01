@@ -37,3 +37,9 @@ module "secrets" {
   source      = "../modules/secrets"
   environment = var.environment
 }
+
+module "github_oidc" {
+  source              = "../modules/github_oidc"
+  environment         = var.environment
+  ecr_repository_arns = module.ecr.repository_arns
+}

@@ -25,3 +25,7 @@ output "instance_id" {
 output "public_ip" {
   value = module.ec2.public_ip
 }
+
+output "github_actions_role_arn" {
+  value = module.github_oidc.role_arn
+}
