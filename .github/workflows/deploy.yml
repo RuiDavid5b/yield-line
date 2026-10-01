@@ -36,6 +36,22 @@ jobs:
         run: |
           echo "sha=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
 
+      - name: Show OIDC claims
+        env:
+          ID_TOKEN_URL: ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}
+          ID_TOKEN_TOKEN: ${{ env.ACTIONS_ID_TOKEN_REQUEST_TOKEN }}
+        run: |
+          TOKEN_JSON=$(curl -sS \
+            -H "Authorization: bearer $ID_TOKEN_TOKEN" \
+            "$ID_TOKEN_URL&audience=sts.amazonaws.com")
+
+          ID_TOKEN=$(echo "$TOKEN_JSON" | jq -r '.value')
+
+          echo "$ID_TOKEN" \
+            | cut -d '.' -f 2 \
+            | base64 -d 2>/dev/null \
+            | jq .
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
