@@ -36,46 +36,6 @@ jobs:
         run: |
           echo "sha=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
 
-      - name: Inspect OIDC claims
-        uses: actions/github-script@v7
-        env:
-          ACTIONS_ID_TOKEN_REQUEST_URL: ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}
-          ACTIONS_ID_TOKEN_REQUEST_TOKEN: ${{ env.ACTIONS_ID_TOKEN_REQUEST_TOKEN }}
-        with:
-          script: |
-            const url = process.env.ACTIONS_ID_TOKEN_REQUEST_URL;
-            const token = process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN;
-
-            const response = await fetch(
-              `${url}&audience=sts.amazonaws.com`,
-              {
-                headers: {
-                  Authorization: `bearer ${token}`,
-                },
-              }
-            );
-
-            if (!response.ok) {
-              throw new Error(`OIDC request failed: ${response.status}`);
-            }
-
-            const data = await response.json();
-
-            const jwt = data.value;
-            const payload = JSON.parse(
-              Buffer.from(jwt.split('.')[1], 'base64url').toString()
-            );
-
-            console.log(JSON.stringify({
-              iss: payload.iss,
-              sub: payload.sub,
-              aud: payload.aud,
-              repository: payload.repository,
-              event_name: payload.event_name,
-              ref: payload.ref,
-              workflow_ref: payload.workflow_ref
-            }, null, 2));
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -96,8 +56,8 @@ jobs:
       - name: Build and push backend image
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: backend/Dockerfile
+          context: ./backend
+          file: ./backend/Dockerfile
           platforms: linux/arm64
           push: true
           tags: |
