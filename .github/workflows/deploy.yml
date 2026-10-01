@@ -3,6 +3,9 @@ name: Build and deploy
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
   id-token: write
@@ -104,10 +107,8 @@ jobs:
             ${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_AIRFLOW_REPOSITORY }}:${{ steps.vars.outputs.sha }}
             ${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_AIRFLOW_REPOSITORY }}:latest
 
-  # ==================================================================
-  # DEPLOY
-  # ==================================================================
   deploy:
+    if: github.event_name == 'workflow_dispatch'
     needs: build-and-push
     runs-on: ubuntu-latest
 
