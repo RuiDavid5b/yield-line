@@ -10,28 +10,21 @@ fi
 AWS_REGION="${AWS_REGION:-eu-west-2}"
 SECRET_ID="yieldline/staging/app-secrets"
 SSM_PREFIX="/stock-news/staging"
-ENV_FILE="/run/yieldline/app.env"
 
-mkdir -p /run/yieldline
+RUNTIME_DIR="/run/yieldline"
+APP_ENV_FILE="${RUNTIME_DIR}/app.env"
+POSTGRES_ENV_FILE="${RUNTIME_DIR}/postgres.env"
 
-SECRET_JSON="$(
-    aws secretsmanager get-secret-value \
-        --region "$AWS_REGION" \
-        --secret-id "$SECRET_ID" \
-        --query 'SecretString' \
-        --output text
-)"
-
-if ! jq -e 'type == "object"' >/dev/null <<<"$SECRET_JSON"; then
-    echo "Secrets Manager returned invalid secret JSON." >&2
-    exit 1
-fi
+mkdir -p "$RUNTIME_DIR"
+chmod 700 "$RUNTIME_DIR"
 
 get_secret() {
     local key="$1"
     local value
 
-    value="$(jq -r --arg key "$key" '.[$key] // empty' <<<"$SECRET_JSON")"
+    value="$(
+        jq -r --arg key "$key" '.[$key] // empty' <<< "$SECRET_JSON"
+    )"
 
     if [[ -z "$value" ]]; then
         echo "Missing required secret: $key" >&2
@@ -61,22 +54,100 @@ get_parameter() {
     printf '%s' "$value"
 }
 
+echo "Loading application secret..."
+
+SECRET_JSON="$(
+    aws secretsmanager get-secret-value \
+        --region "$AWS_REGION" \
+        --secret-id "$SECRET_ID" \
+        --query 'SecretString' \
+        --output text
+)"
+
+if ! jq -e 'type == "object"' >/dev/null <<< "$SECRET_JSON"; then
+    echo "Secrets Manager returned invalid secret JSON." >&2
+    exit 1
+fi
+
 DATABASE_URL="$(get_secret DATABASE_URL)"
 REDIS_URL="$(get_secret REDIS_URL)"
 CURRENTS_API_KEY="$(get_secret CURRENTS_API_KEY)"
 GOOGLE_API_KEY="$(get_secret GOOGLE_API_KEY)"
 
-COGNITO_CLIENT_ID="$(get_parameter "$SSM_PREFIX/cognito_client_id")"
-COGNITO_USER_POOL_ID="$(get_parameter "$SSM_PREFIX/cognito_user_pool_id")"
-BYOK_KMS_KEY_ALIAS="$(get_parameter "$SSM_PREFIX/byok_kms_key_alias")"
-EDGAR_USER_AGENT="$(get_parameter "$SSM_PREFIX/edgar_user_agent")"
+echo "Loading SSM parameters..."
+
+COGNITO_CLIENT_ID="$(
+    get_parameter "$SSM_PREFIX/cognito_client_id"
+)"
+
+COGNITO_USER_POOL_ID="$(
+    get_parameter "$SSM_PREFIX/cognito_user_pool_id"
+)"
+
+BYOK_KMS_KEY_ALIAS="$(
+    get_parameter "$SSM_PREFIX/byok_kms_key_alias"
+)"
+
+EDGAR_USER_AGENT="$(
+    get_parameter "$SSM_PREFIX/edgar_user_agent"
+)"
+
+echo "Extracting PostgreSQL configuration..."
+
+python3 - "$DATABASE_URL" "$POSTGRES_ENV_FILE" <<'PY'
+import os
+import sys
+from urllib.parse import urlparse
+
+database_url = sys.argv[1]
+output_file = sys.argv[2]
+
+parsed = urlparse(database_url)
+
+if parsed.scheme not in {"postgresql", "postgres"}:
+    raise SystemExit("DATABASE_URL is not a PostgreSQL URL")
+
+if not parsed.username:
+    raise SystemExit("DATABASE_URL has no username")
+
+if parsed.password is None:
+    raise SystemExit("DATABASE_URL has no password")
+
+database = parsed.path.lstrip("/")
+
+if not database:
+    raise SystemExit("DATABASE_URL has no database name")
+
+
+def env_value(value: str) -> str:
+    """
+    Produce a Docker Compose env_file value using double quotes.
+    """
+    value = value.replace("\\", "\\\\")
+    value = value.replace('"', '\\"')
+    value = value.replace("\n", "\\n")
+    return f'"{value}"'
+
+
+tmp_file = output_file + ".tmp"
+
+with open(tmp_file, "w") as f:
+    f.write(f"POSTGRES_USER={env_value(parsed.username)}\n")
+    f.write(f"POSTGRES_PASSWORD={env_value(parsed.password)}\n")
+    f.write(f"POSTGRES_DB={env_value(database)}\n")
+
+os.chown(tmp_file, 0, 0)
+os.chmod(tmp_file, 0o600)
+os.replace(tmp_file, output_file)
+PY
+
+echo "Writing application runtime environment..."
 
 umask 077
 
-tmp="$(mktemp /run/yieldline/app.env.XXXXXX)"
-trap 'rm -f "$tmp"' EXIT
+APP_TMP="${APP_ENV_FILE}.tmp"
 
-cat > "$tmp" <<EOF
+cat > "$APP_TMP" <<EOF
 DATABASE_URL=$DATABASE_URL
 REDIS_URL=$REDIS_URL
 CURRENTS_API_KEY=$CURRENTS_API_KEY
@@ -88,10 +159,8 @@ BYOK_KMS_KEY_ALIAS=$BYOK_KMS_KEY_ALIAS
 EDGAR_USER_AGENT=$EDGAR_USER_AGENT
 EOF
 
-chown root:root "$tmp"
-chmod 600 "$tmp"
-mv "$tmp" "$ENV_FILE"
+chown root:root "$APP_TMP"
+chmod 600 "$APP_TMP"
+mv "$APP_TMP" "$APP_ENV_FILE"
 
-trap - EXIT
-
-echo "Runtime environment written successfully."
+echo "Runtime configuration loaded successfully."
