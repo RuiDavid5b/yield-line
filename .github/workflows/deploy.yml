@@ -3,8 +3,7 @@ name: Build and deploy
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
+
   workflow_dispatch:
 
 permissions:
@@ -37,7 +36,7 @@ jobs:
           echo "sha=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
@@ -49,10 +48,6 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      # ------------------------------------------------------------
-      # Backend image
-      # Used by Airflow DockerOperator tasks
-      # ------------------------------------------------------------
       - name: Build and push backend image
         uses: docker/build-push-action@v6
         with:
@@ -64,9 +59,6 @@ jobs:
             ${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_BACKEND_REPOSITORY }}:${{ steps.vars.outputs.sha }}
             ${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_BACKEND_REPOSITORY }}:latest
 
-      # ------------------------------------------------------------
-      # API image
-      # ------------------------------------------------------------
       - name: Build and push API image
         uses: docker/build-push-action@v6
         with:
@@ -78,9 +70,6 @@ jobs:
             ${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_API_REPOSITORY }}:${{ steps.vars.outputs.sha }}
             ${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_API_REPOSITORY }}:latest
 
-      # ------------------------------------------------------------
-      # Frontend image
-      # ------------------------------------------------------------
       - name: Build and push frontend image
         uses: docker/build-push-action@v6
         with:
@@ -92,9 +81,6 @@ jobs:
             ${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_FRONTEND_REPOSITORY }}:${{ steps.vars.outputs.sha }}
             ${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_FRONTEND_REPOSITORY }}:latest
 
-      # ------------------------------------------------------------
-      # Airflow image
-      # ------------------------------------------------------------
       - name: Build and push Airflow image
         uses: docker/build-push-action@v6
         with:
@@ -108,7 +94,7 @@ jobs:
             ${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_AIRFLOW_REPOSITORY }}:latest
 
   deploy:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
     needs: build-and-push
     runs-on: ubuntu-latest
 
@@ -123,6 +109,7 @@ jobs:
         env:
           IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
           INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
+          GITHUB_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
 
@@ -132,23 +119,37 @@ jobs:
             --comment "Deploy YieldLine ${IMAGE_TAG}" \
             --parameters 'commands=[
               "set -euo pipefail",
+
               "cd /opt/yieldline",
-              "git fetch origin main",
-              "git reset --hard origin/main",
+
+              "git fetch origin '"$GITHUB_SHA"'",
+              "git reset --hard '"$GITHUB_SHA"'",
+
               "export AWS_REGION='"$AWS_REGION"'",
               "export ENVIRONMENT='"$ENVIRONMENT"'",
               "export IMAGE_TAG='"$IMAGE_TAG"'",
+
               "AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)",
               "export ECR_REGISTRY=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com",
+
               "TOKEN=$(curl -sS -X PUT http://169.254.169.254/latest/api/token -H \"X-aws-ec2-metadata-token-ttl-seconds: 21600\")",
               "PUBLIC_IP=$(curl -sS -H \"X-aws-ec2-metadata-token: $TOKEN\" http://169.254.169.254/latest/meta-data/public-ipv4)",
               "export PUBLIC_IP=$(printf \"%s\" \"$PUBLIC_IP\" | tr \".\" \"-\")",
-              "aws ecr get-login-password --region \"$AWS_REGION\" | docker login --username AWS --password-stdin \"$ECR_REGISTRY\"",
+
               "sudo /opt/yieldline/deploy/load-runtime-env.sh",
+
+              "echo \"DOCKER_GID=$(stat -c \"%g\" /var/run/docker.sock)\" | sudo tee /opt/yieldline/airflow/.env >/dev/null",
+              "sudo chown root:root /opt/yieldline/airflow/.env",
+              "sudo chmod 600 /opt/yieldline/airflow/.env",
+
+              "aws ecr get-login-password --region \"$AWS_REGION\" | docker login --username AWS --password-stdin \"$ECR_REGISTRY\"",
+
               "docker compose -f docker-compose.yml -f docker-compose.staging.yml pull",
               "docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d --remove-orphans",
+
               "docker compose -f airflow/docker-compose.yml -f airflow/docker-compose.staging.yml pull",
               "docker compose -f airflow/docker-compose.yml -f airflow/docker-compose.staging.yml up -d --remove-orphans",
+
               "docker image prune -af --filter \"until=24h\""
             ]' \
             --query "Command.CommandId" \
