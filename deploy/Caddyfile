@@ -1,7 +1,5 @@
 app.{$PUBLIC_IP}.sslip.io {
-    root * /srv/frontend
-    file_server
-    try_files {path} /index.html
+    reverse_proxy frontend:80
 }
 
 api.{$PUBLIC_IP}.sslip.io {
