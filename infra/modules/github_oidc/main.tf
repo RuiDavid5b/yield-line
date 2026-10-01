@@ -27,7 +27,7 @@ resource "aws_iam_role" "github_actions" {
         }
 
         StringLike = {
-          "token.actions.githubusercontent.com:sub" = "repo:RuiDavid5b/yield-line:*"
+          "token.actions.githubusercontent.com:sub" = "repo:RuiDavid5b/yield-line:pull_request"
         }
       }
     }]
