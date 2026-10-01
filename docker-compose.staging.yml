@@ -1,6 +1,7 @@
 services:
   postgres:
     ports: !reset []
+    environment: !reset {}
     env_file:
       - /run/yieldline/postgres.env
     volumes:
