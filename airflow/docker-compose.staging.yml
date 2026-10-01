@@ -5,30 +5,40 @@ services:
     ports: !reset []
     expose:
       - "8080"
+    env_file:
+      - /run/yieldline/app.env
     environment:
       APP_IMAGE: ${ECR_REGISTRY}/yieldline-${ENVIRONMENT}-backend:${IMAGE_TAG}
 
   airflow-scheduler:
     image: ${ECR_REGISTRY}/yieldline-${ENVIRONMENT}-airflow:${IMAGE_TAG}
     build: !reset null
+    env_file:
+      - /run/yieldline/app.env
     environment:
       APP_IMAGE: ${ECR_REGISTRY}/yieldline-${ENVIRONMENT}-backend:${IMAGE_TAG}
 
   airflow-dag-processor:
     image: ${ECR_REGISTRY}/yieldline-${ENVIRONMENT}-airflow:${IMAGE_TAG}
     build: !reset null
+    env_file:
+      - /run/yieldline/app.env
     environment:
       APP_IMAGE: ${ECR_REGISTRY}/yieldline-${ENVIRONMENT}-backend:${IMAGE_TAG}
 
   airflow-triggerer:
     image: ${ECR_REGISTRY}/yieldline-${ENVIRONMENT}-airflow:${IMAGE_TAG}
     build: !reset null
+    env_file:
+      - /run/yieldline/app.env
     environment:
       APP_IMAGE: ${ECR_REGISTRY}/yieldline-${ENVIRONMENT}-backend:${IMAGE_TAG}
 
   airflow-init:
     image: ${ECR_REGISTRY}/yieldline-${ENVIRONMENT}-airflow:${IMAGE_TAG}
     build: !reset null
+    env_file:
+      - /run/yieldline/app.env
     environment:
       APP_IMAGE: ${ECR_REGISTRY}/yieldline-${ENVIRONMENT}-backend:${IMAGE_TAG}
 
