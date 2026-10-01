@@ -24,7 +24,13 @@ resource "aws_iam_role" "github_actions" {
       Condition = {
         StringEquals = {
           "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
-          "token.actions.githubusercontent.com:sub" = "repo:RuiDavid5b/yield-line:pull_request"
+        }
+
+        StringLike = {
+          "token.actions.githubusercontent.com:sub" = [
+            "repo:RuiDavid5b@147104500/yield-line@1310312310:pull_request",
+            "repo:RuiDavid5b@147104500/yield-line@1310312310:ref:refs/heads/*"
+          ]
         }
       }
     }]
