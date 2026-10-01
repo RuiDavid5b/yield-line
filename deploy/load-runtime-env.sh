@@ -97,14 +97,14 @@ echo "Extracting PostgreSQL configuration..."
 python3 - "$DATABASE_URL" "$POSTGRES_ENV_FILE" <<'PY'
 import os
 import sys
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 database_url = sys.argv[1]
 output_file = sys.argv[2]
 
 parsed = urlparse(database_url)
 
-if parsed.scheme not in {"postgresql", "postgres"}:
+if parsed.scheme.split("+", 1)[0] not in {"postgresql", "postgres"}:
     raise SystemExit("DATABASE_URL is not a PostgreSQL URL")
 
 if not parsed.username:
@@ -113,16 +113,15 @@ if not parsed.username:
 if parsed.password is None:
     raise SystemExit("DATABASE_URL has no password")
 
-database = parsed.path.lstrip("/")
+username = unquote(parsed.username)
+password = unquote(parsed.password)
+database = unquote(parsed.path.lstrip("/"))
 
 if not database:
     raise SystemExit("DATABASE_URL has no database name")
 
 
 def env_value(value: str) -> str:
-    """
-    Produce a Docker Compose env_file value using double quotes.
-    """
     value = value.replace("\\", "\\\\")
     value = value.replace('"', '\\"')
     value = value.replace("\n", "\\n")
@@ -132,8 +131,8 @@ def env_value(value: str) -> str:
 tmp_file = output_file + ".tmp"
 
 with open(tmp_file, "w") as f:
-    f.write(f"POSTGRES_USER={env_value(parsed.username)}\n")
-    f.write(f"POSTGRES_PASSWORD={env_value(parsed.password)}\n")
+    f.write(f"POSTGRES_USER={env_value(username)}\n")
+    f.write(f"POSTGRES_PASSWORD={env_value(password)}\n")
     f.write(f"POSTGRES_DB={env_value(database)}\n")
 
 os.chown(tmp_file, 0, 0)
