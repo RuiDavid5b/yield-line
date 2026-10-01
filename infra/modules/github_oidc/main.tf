@@ -52,8 +52,12 @@ resource "aws_iam_role_policy" "ecr_push" {
       {
         Effect = "Allow"
         Action = [
-          "ecr:BatchCheckLayerAvailability", "ecr:PutImage",
-          "ecr:InitiateLayerUpload", "ecr:UploadLayerPart", "ecr:CompleteLayerUpload",
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:BatchGetImage",
+          "ecr:PutImage",
+          "ecr:InitiateLayerUpload",
+          "ecr:UploadLayerPart",
+          "ecr:CompleteLayerUpload"
         ]
         Resource = var.ecr_repository_arns
       }
