@@ -13,7 +13,7 @@ services:
   airflow-scheduler:
     image: ${ECR_REGISTRY}/yieldline-${ENVIRONMENT}-airflow:${IMAGE_TAG}
     build: !reset null
-    env_file:
+    env_file: !reset
       - /run/yieldline/app.env
     environment:
       APP_IMAGE: ${ECR_REGISTRY}/yieldline-${ENVIRONMENT}-backend:${IMAGE_TAG}
