@@ -13,7 +13,7 @@ variable "ssh_ingress_cidr" {
 
 variable "instance_type" {
   type    = string
-  default = "t4g.micro"
+  default = "t4g.small"
 }
 
 variable "data_volume_size_gb" {
