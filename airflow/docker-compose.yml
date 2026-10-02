@@ -5,7 +5,7 @@ x-airflow-common:
     context: .
     target: runtime
   group_add:
-    - "963"
+    - "${DOCKER_GID}"
   environment:
     &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: LocalExecutor

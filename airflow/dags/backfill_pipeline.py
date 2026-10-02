@@ -30,7 +30,10 @@ import os
 from airflow.providers.docker.operators.docker import DockerOperator
 from airflow.sdk import dag, task
 
-APP_IMAGE = "stock-news-app:latest"
+APP_IMAGE = os.environ.get(
+    "APP_IMAGE",
+    "stock-news-app:latest",
+)
 NETWORK = "stock_news_net"
 BACKFILL_YEARS = 1
 

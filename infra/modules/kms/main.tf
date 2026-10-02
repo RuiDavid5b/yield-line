@@ -9,18 +9,20 @@ resource "aws_kms_alias" "byok" {
   target_key_id = aws_kms_key.byok.key_id
 }
 
-# The app runs locally for now, once it's fully migrated to AWS an ECS task 
-# role permission is needed to actually use the key.
-#resource "aws_iam_role_policy" "backend_kms_access" {
-#  name = "yieldline-${var.environment}-byok-kms-access"
-#  role = var.backend_role_name
-#
-#  policy = jsonencode({
-#    Version = "2012-10-17"
-#    Statement = [{
-#      Effect   = "Allow"
-#      Action   = ["kms:Encrypt", "kms:Decrypt"]
-#      Resource = aws_kms_key.byok.arn
-#    }]
-#  })
-#}
+resource "aws_iam_policy" "byok_kms_access" {
+  name = "yieldline-${var.environment}-byok-kms-access"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["kms:Encrypt", "kms:Decrypt"]
+      Resource = aws_kms_key.byok.arn
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "byok_kms_access" {
+  role       = var.backend_role_name
+  policy_arn = aws_iam_policy.byok_kms_access.arn
+}

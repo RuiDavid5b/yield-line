@@ -8,7 +8,10 @@ from airflow.providers.docker.operators.docker import DockerOperator
 from airflow.operators.python import get_current_context
 from airflow.sdk import dag, task
 
-APP_IMAGE = "stock-news-app:latest"
+APP_IMAGE = os.environ.get(
+    "APP_IMAGE",
+    "stock-news-app:latest",
+)
 NETWORK = "stock_news_net"
 
 # Must be manually kept in sync with config.py's Settings fields when a

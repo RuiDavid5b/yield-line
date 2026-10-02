@@ -20,6 +20,7 @@ from stock_news.auth.dependencies import (
 )
 from stock_news.auth.session import create_session, delete_session
 from stock_news.auth.token_verification import verify_id_token
+from stock_news.config import get_settings
 from stock_news.storage.db import get_session_factory
 from stock_news.storage.loaders import (
     clear_user_api_key,
@@ -126,6 +127,7 @@ def login(body: LoginBody, response: Response):
         secure=True,
         samesite="lax",
         max_age=COOKIE_MAX_AGE,
+        domain=get_settings().cookie_domain,
     )
     return {"email": body.email, "csrf_token": csrf_token}
 

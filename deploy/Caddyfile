@@ -1,0 +1,7 @@
+app.{$PUBLIC_IP}.sslip.io {
+    reverse_proxy frontend:80
+}
+
+api.{$PUBLIC_IP}.sslip.io {
+    reverse_proxy api:8000
+}

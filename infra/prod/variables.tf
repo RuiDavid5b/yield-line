@@ -2,14 +2,21 @@ variable "aws_region" {
   type = string
 }
 
+variable "availability_zone" {
+  description = "AZ within aws_region to deploy into"
+  type        = string
+}
+
 variable "environment" {
   type = string
 }
 
-variable "callback_urls" {
-  type = list(string)
+variable "ssh_ingress_cidr" {
+  description = "Your own IP, as a /32 CIDR"
+  type        = string
 }
 
-variable "logout_urls" {
-  type = list(string)
+variable "edgar_user_agent" {
+  type      = string
+  sensitive = true
 }
