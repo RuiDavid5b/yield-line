@@ -135,6 +135,8 @@ jobs:
 
               "cd /opt/yieldline",
 
+              "git config --global --add safe.directory /opt/yieldline",
+
               "git fetch origin '"$GITHUB_SHA"'",
               "git reset --hard '"$GITHUB_SHA"'",
 
