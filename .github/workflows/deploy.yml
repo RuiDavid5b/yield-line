@@ -31,9 +31,6 @@ jobs:
   build-and-push:
     runs-on: ubuntu-latest
 
-    env:
-      START_AIRFLOW: ${{ github.event_name == 'workflow_dispatch' && inputs.start_airflow || false }}
-
     outputs:
       image_tag: ${{ steps.vars.outputs.sha }}
 
@@ -110,6 +107,9 @@ jobs:
     #if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
     needs: build-and-push
     runs-on: ubuntu-latest
+
+    env:
+      START_AIRFLOW: ${{ github.event_name == 'workflow_dispatch' && inputs.start_airflow || false }}
 
     steps:
       - name: Configure AWS credentials
