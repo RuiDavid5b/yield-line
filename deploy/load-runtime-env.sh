@@ -92,6 +92,14 @@ EDGAR_USER_AGENT="$(
     get_parameter "$SSM_PREFIX/edgar_user_agent"
 )"
 
+FRONTEND_ORIGIN="$(
+    get_parameter "$SSM_PREFIX/frontend_origin"
+)"
+
+COOKIE_DOMAIN="$(
+    get_parameter "$SSM_PREFIX/cookie_domain"
+)"
+
 echo "Extracting PostgreSQL configuration..."
 
 python3 - "$DATABASE_URL" "$POSTGRES_ENV_FILE" <<'PY'
@@ -156,6 +164,8 @@ COGNITO_CLIENT_ID=$COGNITO_CLIENT_ID
 COGNITO_USER_POOL_ID=$COGNITO_USER_POOL_ID
 BYOK_KMS_KEY_ALIAS=$BYOK_KMS_KEY_ALIAS
 EDGAR_USER_AGENT=$EDGAR_USER_AGENT
+FRONTEND_ORIGIN=$FRONTEND_ORIGIN
+COOKIE_DOMAIN=$COOKIE_DOMAIN
 EOF
 
 chown root:root "$APP_TMP"
