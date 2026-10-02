@@ -12,8 +12,6 @@ on:
         default: false
         type: boolean
 
-  pull_request:
-
 permissions:
   id-token: write
   contents: read
