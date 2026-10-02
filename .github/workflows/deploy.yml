@@ -5,6 +5,12 @@ on:
     branches: [main]
 
   workflow_dispatch:
+    inputs:
+      start_airflow:
+        description: "Start Airflow services (recommended with 4+ GiB RAM)"
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   id-token: write
@@ -22,6 +28,9 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+
+    env:
+      START_AIRFLOW: ${{ github.event_name == 'workflow_dispatch' && inputs.start_airflow || false }}
 
     outputs:
       image_tag: ${{ steps.vars.outputs.sha }}
@@ -80,6 +89,8 @@ jobs:
           tags: |
             ${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_FRONTEND_REPOSITORY }}:${{ steps.vars.outputs.sha }}
             ${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_FRONTEND_REPOSITORY }}:latest
+          build-args: |
+            VITE_API_URL=${{ vars.STAGING_API_URL }}
 
       - name: Build and push Airflow image
         uses: docker/build-push-action@v6
@@ -128,6 +139,7 @@ jobs:
               "export AWS_REGION='"$AWS_REGION"'",
               "export ENVIRONMENT='"$ENVIRONMENT"'",
               "export IMAGE_TAG='"$IMAGE_TAG"'",
+              "export START_AIRFLOW='"$START_AIRFLOW"'",
 
               "AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)",
               "export ECR_REGISTRY=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com",
@@ -147,8 +159,17 @@ jobs:
               "docker compose -f docker-compose.yml -f docker-compose.staging.yml pull",
               "docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d --remove-orphans",
 
-              "docker compose -f airflow/docker-compose.yml -f airflow/docker-compose.staging.yml pull",
-              "docker compose -f airflow/docker-compose.yml -f airflow/docker-compose.staging.yml up -d --remove-orphans",
+              "if [ \"$START_AIRFLOW\" = \"true\" ]; then
+                docker compose \
+                  -f airflow/docker-compose.yml \
+                  -f airflow/docker-compose.staging.yml \
+                  pull
+
+                docker compose \
+                  -f airflow/docker-compose.yml \
+                  -f airflow/docker-compose.staging.yml \
+                  up -d --remove-orphans
+              fi",
 
               "docker image prune -af --filter \"until=24h\""
             ]' \

@@ -7,8 +7,10 @@ RUN npm ci
 
 COPY . .
 
-RUN npm run build
+ARG VITE_API_URL
+ENV VITE_API_URL=$VITE_API_URL
 
+RUN npm run build
 
 FROM caddy:2.11.4-alpine
 
