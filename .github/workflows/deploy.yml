@@ -93,6 +93,7 @@ jobs:
             ${{ steps.ecr-login.outputs.registry }}/${{ matrix.repository }}:latest
           build-args: |
             ${{ matrix.name == 'frontend' && format('VITE_API_URL={0}', vars.STAGING_API_URL) || '' }}
+            ${{ matrix.name == 'frontend' && format('VITE_LOGODEV_TOKEN={0}', secrets.VITE_LOGODEV_TOKEN) || '' }}
 
   deploy:
     #if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
