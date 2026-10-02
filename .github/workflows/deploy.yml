@@ -12,6 +12,8 @@ on:
         default: false
         type: boolean
 
+  pull_request:
+
 permissions:
   id-token: write
   contents: read
@@ -105,7 +107,7 @@ jobs:
             ${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_AIRFLOW_REPOSITORY }}:latest
 
   deploy:
-    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    #if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
     needs: build-and-push
     runs-on: ubuntu-latest
 
