@@ -130,6 +130,87 @@ flowchart LR
 - **Agent** - one LangGraph agent calls tools to acess filings, news and prices in the database, and a tool to access the company graph. It's used two ways: automatically to explain newly detected anomalies, and interactively via the frontend's chat, where it also picks up whichever company is currently selected in the UI.
 - **API / Frontend** - FastAPI (OpenAPI-documented) and a minimal React UI.
 
+```mermaid
+flowchart TB
+    Internet((Internet))
+
+    subgraph DNS["Addressing"]
+        EIP["Elastic IP / public IPv4"]
+        SSLIP["sslip.io hostname<br/>(derived from the IP)"]
+        EIP --> SSLIP
+    end
+
+    Internet --> EIP
+
+    subgraph EC2Host["EC2 t4g.small - ARM64 AMI"]
+        direction TB
+
+        IAMRole["EC2 IAM instance role"]
+        IAMRole --> ECRRead["ECR read"]
+        IAMRole --> SSMRead["SSM Parameter Store read"]
+        IAMRole --> SecretsRead["Secrets Manager read"]
+        IAMRole --> KMSAccess["KMS access (BYOK encrypt/decrypt)"]
+
+        Caddy["Caddy<br/>Reverse proxy + TLS termination (Let's Encrypt)<br/>subdomain-based routing"]
+        SSLIP -.-> Caddy
+
+        Caddy -->|"app.*.sslip.io"| Frontend["frontend container"]
+        Caddy -->|"api.*.sslip.io"| API["api container"]
+
+        API --> Postgres["postgres container"]
+        API --> Redis["redis container"]
+
+        subgraph AirflowOnDemand["Airflow (needs 4 GiB RAM to run comfortably)"]
+            direction TB
+            AirflowScheduler["Airflow scheduler"]
+            AirflowPG["Airflow metadata Postgres"]
+            AirflowScheduler --> DockerOperator["DockerOperator"]
+            DockerOperator --> BackendImage["backend/pipeline image<br/>(runs DAG task code)"]
+            AirflowScheduler --> AirflowPG
+        end
+
+        BackendImage --> Postgres
+
+        subgraph DataVolume["EBS data volume (persistent)"]
+            direction LR
+            PGPath["/data/postgres"]
+            AirflowPGPath["/data/airflow-postgres"]
+            RedisPath["/data/redis"]
+        end
+
+        Postgres --> PGPath
+        AirflowPG --> AirflowPGPath
+        Redis --> RedisPath
+    end
+
+    subgraph AWSServices["AWS services"]
+        ECR[("ECR<br/>app / api / frontend images")]
+        SSM[("SSM Parameter Store<br/>non-secret config")]
+        SecretsMgr[("Secrets Manager<br/>DB/Redis/API key secrets")]
+        KMS[("KMS<br/>encrypts BYOK keys at rest")]
+        Cognito[("Cognito<br/>direct API auth, no Hosted UI")]
+    end
+
+    ECRRead -.-> ECR
+    SSMRead -.-> SSM
+    SecretsRead -.-> SecretsMgr
+    KMSAccess -.-> KMS
+    API -.->|"auth"| Cognito
+
+    subgraph CI["GitHub Actions"]
+        direction TB
+        OIDC["Github OIDC → AWS STS <br/>assumes IAM role"]
+        Build["build ARM64 images"]
+        Push["push to ECR, tagged with Git SHA"]
+        Trigger["SSM Run Command → EC2"]
+
+        OIDC --> Build --> Push --> Trigger
+    end
+
+    Trigger -.->|"1. fetch exact Git SHA\n2. pull ECR images\n3. fetch runtime config\n4. docker compose up"| EC2Host
+    Push --> ECR
+```
+
 ## Tech stack
 
 **Backend:** Python · FastAPI · Uvicorn · SQLAlchemy · Alembic · Pydantic  
