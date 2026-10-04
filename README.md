@@ -132,13 +132,13 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-    Internet((Internet))
-
     subgraph DNS["Addressing"]
         EIP["Elastic IP / public IPv4"]
         SSLIP["sslip.io hostname<br/>(derived from the IP)"]
         EIP --> SSLIP
     end
+
+    Internet((Internet))
 
     Internet --> EIP
 
@@ -222,6 +222,25 @@ flowchart TB
 
     Trigger -.->|"1. fetch exact Git SHA\n2. pull ECR images\n3. fetch runtime config\n4. docker compose up"| EC2Host
     Push --> ECR
+
+
+    %% GitHub Safe Theme-Adaptive Alpha Colors
+    classDef dbStyle fill:#2e7d3233,stroke:#4caf50,stroke-width:2px;
+    classDef anomalyStyle fill:#e6510033,stroke:#ff9800,stroke-width:2px;
+    classDef digestStyle fill:#7b1fa233,stroke:#ba68c8,stroke-width:2px;
+    classDef inputStyle fill:#01579b33,stroke:#29b6f6,stroke-width:2px;
+
+    %% AWS services — DB-style green
+    class ECR,SSM,SecretsMgr,KMS,Cognito dbStyle;
+
+    %% Application containers — anomaly-style orange
+    class Frontend,API,Postgres,Redis anomalyStyle;
+
+    %% Persistent data mount paths — digest-style purple
+    class PGPath,AirflowPGPath,RedisPath digestStyle;
+
+    %% External addressing input — input-style blue
+    class SSLIP inputStyle;
 ```
 
 ## Tech stack
