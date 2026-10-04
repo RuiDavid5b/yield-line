@@ -29,7 +29,7 @@ YieldLine automates that loop. It tracks a curated graph of companies (currently
 The companies are shown in the left pane, with a fuzzy search query to filter, and the main screen shows information regarding the selected company. At the top, the drop-down menu selects a timeframe, which updates the returns of the left pane to and the stock price chart to that range. Below the price chart are 2 sections: one to view anomaly explanations and another to ask questions to the agent. More details show in [Features](#features).
 
 <p align="center">
-  <img src="assets/full_screen.png" width="900" alt="Screenshot with SNPS ticker selected">
+  <img src="assets/full_screen.png" width="800" alt="Screenshot with SNPS ticker selected">
 </p>
 
 ## Features
@@ -137,7 +137,10 @@ flowchart LR
 - **Anomaly detection** - Two independent types of stock price anomalies are persisted, a rolling z-score against each company's own history and a same-day cross-sectional z-score against all tracked companies.
 - **Digest** - daily cross-company snapshot: each company's return vs. its industry peers and sector benchmarks (SOXX/SMH/SPY), cached in Redis with a Postgres fallback beyond the cache window.
 - **Agent** - one LangGraph agent calls tools to acess filings, news and prices in the database, and a tool to access the company graph. It's used two ways: automatically to explain newly detected anomalies, and interactively via the frontend's chat, where it also picks up whichever company is currently selected in the UI.
+- **Accounts & BYOK** - Cognito-backed auth (custom UI) gates the agent chat. Each user supplies and encrypts (AWS KMS) their own LLM API key/provider/model - the Bring Your Own Key (BYOK) model.
 - **API / Frontend** - FastAPI (OpenAPI-documented) and a minimal React UI.
+
+The app can be deployed to the cloud through AWS services. As mentioned previously, Cognito and KMS were used for user account registration/login and storing the user's API key safely, respectively. The design deliberately uses a small number of managed AWS services, opting instead for a single EC2 host to keep the environment inexpensive for the current scale.
 
 ```mermaid
 flowchart TB
@@ -252,6 +255,16 @@ flowchart TB
     class SSLIP inputStyle;
 ```
 
+\* Note: This deployment does not use a purchased domain. Caddy uses an sslip.io hostname derived from the EC2 Elastic IP, which provides DNS resolution for the temporary staging environment and allows Caddy to obtain publicly trusted Let's Encrypt certificates. Once the staging/prod is hardened, a domain name can be bought and easily used instead.
+
+- **Compute** - single EC2 instance (t4g.small, ARM64) runs the full stack via Docker Compose - API, frontend, Postgres, Redis, and Airflow. At this stage, for this project's data volume/operations and single-DAG-per-day schedule, managed services (RDS/ElastiCache/MWAA) don't justify the significant bill increase.
+- **Networking** - the instance sits in the default VPC's public subnet behind a security group. Inbound SSH is restricted to my IP for administration; HTTP/HTTPS are open for web traffic and ACME certificate issuance. PostgreSQL and Redis ports are never exposed externally.
+- **TLS** - Caddy acts as the public reverse proxy and TLS termination point, automatically obtaining and renewing publicly trusted Let's Encrypt certificates. In this temporary staging environment, the hostname is provided through sslip.io; production would use a normal application domain.
+- **Persistence** - PostgreSQL and Airflow's metadata database use a separate EBS volume, allowing their data to survive instance replacement independently of the instance's root volume. Redis is also mounted there, although it is treated as a disposable 90-day TTL.
+- **Secrets & config** - non-secret configuration lives in SSM Parameter Store; credentials and API keys live in Secrets Manager. Runtime configuration is fetched during deployment and exposed to containers through ephemeral /run environment files, nothing sensitive is baked into the images.
+- **Identity** - the EC2 instance role and GitHub Actions (via OIDC) are each scoped to exactly the AWS actions they need (ECR pull/push, SSM/Secrets read, KMS encrypt/decrypt, SSM Run Command) rather than broad permissions.
+- **Deploy** - GitHub Actions builds and pushes images to ECR, then triggers the instance via SSM Run Command to pull and restart.
+
 ## Tech stack
 
 **Backend:** Python · FastAPI · Uvicorn · SQLAlchemy · Alembic · Pydantic  
@@ -260,6 +273,7 @@ flowchart TB
 **Data Pipelines:** Apache Airflow  
 **Infrastructure & Testing:** Docker · Pytest  
 **Frontend:** React · TypeScript · Vite  
+**Cloud:** AWS (EC2 · ECR · SSM · Secrets Manager · SSM Parameter Store · KMS · Cognito) · GitHub Actions
 
 ## Running locally
 
