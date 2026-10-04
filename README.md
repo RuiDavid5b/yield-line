@@ -191,6 +191,15 @@ flowchart TB
         Cognito[("Cognito<br/>direct API auth, no Hosted UI")]
     end
 
+    %% Multiple invisible edges from deep-nested EC2Host nodes into
+    %% AWSServices - a single subgraph-to-subgraph invisible edge is
+    %% usually too weak to overcome the pull of the real dotted edges
+    %% below, which originate from nodes nested inside EC2Host.
+    PGPath ~~~ AWSServices
+    RedisPath ~~~ AWSServices
+    AirflowPGPath ~~~ AWSServices
+    DataVolume ~~~ AWSServices
+
     ECRRead -.-> ECR
     SSMRead -.-> SSM
     SecretsRead -.-> SecretsMgr
