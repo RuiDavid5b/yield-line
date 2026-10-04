@@ -65,7 +65,8 @@
 .layout {
   display: grid;
   grid-template-columns: 320px 1fr;
-  height: 100vh;
+  flex: 1;
+  min-height: 0;
   width: 100%;
 }
 
@@ -87,6 +88,19 @@
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+}
+
+#root {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  text-align: initial;
+  border-inline: none;
+  height: 100svh;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 body {
