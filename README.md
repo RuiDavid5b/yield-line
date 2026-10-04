@@ -188,8 +188,6 @@ flowchart TB
             AirflowPG --> AirflowPGPath
             Redis --> RedisPath
         end
-
-        IAM ~~~ Runtime
     end
 
     SSLIP -.-> Caddy
