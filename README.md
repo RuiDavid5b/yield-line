@@ -13,11 +13,13 @@
 - [Features](#features)
 - [Architecture](#architecture)
 - [Tech stack](#tech-stack)
+- [Project evolution](#project-evolution)
 - [Running locally](#running-locally)
   - [Starting the app](#starting-the-app)
   - [Editing the company graph](#editing-the-company-graph)
   - [Backfilling historical data](#backfilling-historical-data)
   - [API testing](#api-testing)
+- [AWS staging](#aws-staging)
 - [Known limitations / open work](#known-limitations-%2F-open-work)
 
 ## What this is
