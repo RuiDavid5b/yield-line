@@ -132,10 +132,15 @@ flowchart LR
 
 ```mermaid
 flowchart TB
+    Internet((Internet))
 
-    Internet((Internet)) --> EIP["Elastic IP / public IPv4"] --> SSLIP["sslip.io hostname<br/>(derived from the IP)"]
+    subgraph DNS["Addressing"]
+        EIP["Elastic IP / public IPv4"]
+        SSLIP["sslip.io hostname<br/>(derived from the IP)"]
+        EIP --> SSLIP
+    end
 
-    SSLIP ~~~ EC2Host
+    Internet --> EIP
 
     subgraph EC2Host["EC2 t4g.small - ARM64 AMI"]
         direction LR
