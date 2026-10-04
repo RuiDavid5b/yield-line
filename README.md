@@ -143,47 +143,58 @@ flowchart TB
     Internet --> EIP
 
     subgraph EC2Host["EC2 t4g.small - ARM64 AMI"]
-        direction TB
+        direction LR
 
-        IAMRole["EC2 IAM instance role"]
-        IAMRole --> ECRRead["ECR read"]
-        IAMRole --> SSMRead["SSM Parameter Store read"]
-        IAMRole --> SecretsRead["Secrets Manager read"]
-        IAMRole --> KMSAccess["KMS access (BYOK encrypt/decrypt)"]
-
-        Caddy["Caddy<br/>Reverse proxy + TLS termination (Let's Encrypt)<br/>subdomain-based routing"]
-        SSLIP -.-> Caddy
-
-        Caddy -->|"app.*.sslip.io"| Frontend["frontend container"]
-        Caddy -->|"api.*.sslip.io"| API["api container"]
-
-        API --> Postgres["postgres container"]
-        API --> Redis["redis container"]
-
-        subgraph AirflowOnDemand["Airflow (needs 4 GiB RAM to run comfortably)"]
+        subgraph IAM[" "]
             direction TB
-            AirflowScheduler["Airflow scheduler"]
-            AirflowPG["Airflow metadata Postgres"]
-            AirflowScheduler --> DockerOperator["DockerOperator"]
-            DockerOperator --> BackendImage["backend/pipeline image<br/>(runs DAG task code)"]
-            AirflowScheduler --> AirflowPG
+
+            IAMRole["EC2 IAM instance role"]
+            IAMRole --> ECRRead["ECR read"]
+            IAMRole --> SSMRead["SSM Parameter Store read"]
+            IAMRole --> SecretsRead["Secrets Manager read"]
+            IAMRole --> KMSAccess["KMS access<br/>(BYOK encrypt/decrypt)"]
         end
 
-        BackendImage --> Postgres
+        subgraph Runtime[" "]
+            direction TB
 
-        subgraph DataVolume["EBS data volume (persistent)"]
-            direction LR
-            PGPath["/data/postgres"]
-            AirflowPGPath["/data/airflow-postgres"]
-            RedisPath["/data/redis"]
+            Caddy["Caddy<br/>Reverse proxy + TLS termination<br/>(Let's Encrypt)"]
+
+            Caddy -->|"app.*.sslip.io"| Frontend["frontend container"]
+            Caddy -->|"api.*.sslip.io"| API["api container"]
+
+            API --> Postgres["postgres container"]
+            API --> Redis["redis container"]
+
+            subgraph AirflowOnDemand["Airflow (on-demand)"]
+                direction TB
+                AirflowScheduler["Airflow scheduler"]
+                AirflowPG["Airflow metadata Postgres"]
+                AirflowScheduler --> DockerOperator["DockerOperator"]
+                DockerOperator --> BackendImage["backend/pipeline image<br/>(runs DAG task code)"]
+                AirflowScheduler --> AirflowPG
+            end
+
+            BackendImage --> Postgres
+
+            subgraph DataVolume["EBS data volume (persistent)"]
+                direction LR
+                PGPath["/data/postgres"]
+                AirflowPGPath["/data/airflow-postgres"]
+                RedisPath["/data/redis"]
+            end
+
+            Postgres --> PGPath
+            AirflowPG --> AirflowPGPath
+            Redis --> RedisPath
         end
-
-        Postgres --> PGPath
-        AirflowPG --> AirflowPGPath
-        Redis --> RedisPath
     end
 
+    SSLIP -.-> Caddy
+
     subgraph AWSServices["AWS services"]
+        direction LR
+
         ECR[("ECR<br/>app / api / frontend images")]
         SSM[("SSM Parameter Store<br/>non-secret config")]
         SecretsMgr[("Secrets Manager<br/>DB/Redis/API key secrets")]
@@ -191,14 +202,7 @@ flowchart TB
         Cognito[("Cognito<br/>direct API auth, no Hosted UI")]
     end
 
-    %% Multiple invisible edges from deep-nested EC2Host nodes into
-    %% AWSServices - a single subgraph-to-subgraph invisible edge is
-    %% usually too weak to overcome the pull of the real dotted edges
-    %% below, which originate from nodes nested inside EC2Host.
-    PGPath ~~~ AWSServices
-    RedisPath ~~~ AWSServices
-    AirflowPGPath ~~~ AWSServices
-    DataVolume ~~~ AWSServices
+    EC2Host ~~~ AWSServices
 
     ECRRead -.-> ECR
     SSMRead -.-> SSM
@@ -208,7 +212,7 @@ flowchart TB
 
     subgraph CI["GitHub Actions"]
         direction TB
-        OIDC["Github OIDC → AWS STS <br/>assumes IAM role"]
+        OIDC["Github OIDC → AWS STS<br/>assumes IAM role"]
         Build["build ARM64 images"]
         Push["push to ECR, tagged with Git SHA"]
         Trigger["SSM Run Command → EC2"]
