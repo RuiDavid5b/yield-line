@@ -95,14 +95,14 @@ flowchart LR
         Frontend[React UI]
         API[FastAPI]
         Agent{{LangGraph Agent}}
-        KMS[["KMS: decrypt user API key"]]
+        KMS[["KMS: encrypt / decrypt user API key"]]
 
         Frontend <-->|"REST / JSON"| API
-        API <-->|"user prompt/AI response"| Agent
+        API <-->|"user prompt / AI response"| Agent
 
         API -->|"fetch encrypted key"| PG
-        API -->|"decrypt"| KMS
-        API -->|"per-request LLM (BYOK, unrate-limited)"| Agent
+        API -->|"decrypt key"| KMS
+        API -->|"build LLM client (BYOK)"| Agent
 
         AutoExplain -->|"internal Gemini, rate-limited"| Agent
         Agent <-->|"tool calls"| PG
