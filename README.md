@@ -95,13 +95,16 @@ flowchart LR
         Frontend[React UI]
         API[FastAPI]
         Agent{{LangGraph Agent}}
+        KMS[["KMS: decrypt user API key"]]
 
-        %% Force vertical hierarchy
         Frontend <-->|"REST / JSON"| API
         API <-->|"user prompt/AI response"| Agent
 
-        %% Subgraph-internal layout anchors
-        AutoExplain --> Agent
+        API -->|"fetch encrypted key"| PG
+        API -->|"decrypt"| KMS
+        API -->|"per-request LLM (BYOK, unrate-limited)"| Agent
+
+        AutoExplain -->|"internal Gemini, rate-limited"| Agent
         Agent <-->|"tool calls"| PG
         Agent -->|"read cache"| Redis
         Agent <-->|"tool calls"| CompanyGraph
