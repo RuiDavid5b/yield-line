@@ -271,13 +271,13 @@ flowchart TB
 **AI / Agent frameworks:** LangChain · LangGraph  
 **Data & Storage:** PostgreSQL · Redis  
 **Data Pipelines:** Apache Airflow  
-**Infrastructure & Testing:** Docker · Pytest  
 **Frontend:** React · TypeScript · Vite  
+**Infrastructure & Testing:** Docker · Pytest · Terraform  
 **Cloud:** AWS (EC2 · ECR · SSM · Secrets Manager · SSM Parameter Store · KMS · Cognito) · GitHub Actions
 
 ## Project evolution
 
-| Version | Focus |
+| Version | Description |
 | --- | --- |
 | **v0.2.0** | Fully local application. Gemini API access is configured through `.env`; there are no user accounts or BYOK. |
 | **v0.3.0** | Introduced user accounts with AWS Cognito and encrypted per-user BYOK API keys using AWS KMS. The application can still be run mostly locally; Cognito and KMS are the only AWS services required, which are inexpensive. |
@@ -355,8 +355,7 @@ The infrastructure can be provisioned with Terraform and the application deploye
 
 Tracked as open issues:
 
-- **AWS migration** - currently local-only (docker-compose); MWAA/ECS/RDS migration is scoped but not started.
-- **Bring-your-own API key** - currently uses a single shared LLM key; supporting per-user keys is planned.
+- **Staging/prod separation** - only one environment is deployed; no approval gate or tested isolation between a safe-to-break environment and a stable one. The main gap before this could reasonably face public use.
 - **Pending-edges automation** - filings mention customers/competitors not yet in the graph; promoting those into tracked relationships is still a manual review step.
 - **6-K classification** - not yet implemented (foreign private issuers' interim filings).
 - **FX conversion** - non-USD reported financials aren't yet normalized to USD for cross-company comparison.
