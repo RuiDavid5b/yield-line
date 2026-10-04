@@ -29,7 +29,7 @@ YieldLine automates that loop. It tracks a curated graph of companies (currently
 The companies are shown in the left pane, with a fuzzy search query to filter, and the main screen shows information regarding the selected company. At the top, the drop-down menu selects a timeframe, which updates the returns of the left pane to and the stock price chart to that range. Below the price chart are 2 sections: one to view anomaly explanations and another to ask questions to the agent. More details show in [Features](#features).
 
 <p align="center">
-  <img src="assets/full_screen.png" width="800" alt="Screenshot with SNPS ticker selected">
+  <img src="assets/full_screen.png" width="900" alt="Screenshot with SNPS ticker selected">
 </p>
 
 ## Features
