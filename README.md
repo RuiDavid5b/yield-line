@@ -132,21 +132,15 @@ flowchart LR
 
 ```mermaid
 flowchart TB
+    Internet((Internet))
 
-    subgraph Top[" "]
-        direction LR
-
-        Internet((Internet))
-
-        subgraph DNS["Addressing"]
-            direction LR
-            EIP["Elastic IP / public IPv4"]
-            SSLIP["sslip.io hostname<br/>(derived from the IP)"]
-            EIP --> SSLIP
-        end
-
-        Internet --> EIP
+    subgraph DNS["Addressing"]
+        EIP["Elastic IP / public IPv4"]
+        SSLIP["sslip.io hostname<br/>(derived from the IP)"]
+        EIP --> SSLIP
     end
+
+    Internet --> EIP
 
     subgraph EC2Host["EC2 t4g.small - ARM64 AMI"]
         direction LR
@@ -155,11 +149,10 @@ flowchart TB
             direction TB
 
             IAMRole["EC2 IAM instance role"]
-
+            IAMRole --> ECRRead["ECR read"]
             IAMRole --> SSMRead["SSM Parameter Store read"]
             IAMRole --> SecretsRead["Secrets Manager read"]
             IAMRole --> KMSAccess["KMS access<br/>(BYOK encrypt/decrypt)"]
-            IAMRole --> ECRRead["ECR read"]
         end
 
         subgraph Runtime[" "]
@@ -197,31 +190,28 @@ flowchart TB
         end
     end
 
-    Top ~~~ EC2Host
-
     SSLIP -.-> Caddy
 
     subgraph AWSServices["AWS services"]
         direction LR
 
+        ECR[("ECR<br/>app / api / frontend images")]
         SSM[("SSM Parameter Store<br/>non-secret config")]
         SecretsMgr[("Secrets Manager<br/>DB/Redis/API key secrets")]
         KMS[("KMS<br/>encrypts BYOK keys at rest")]
         Cognito[("Cognito<br/>direct API auth, no Hosted UI")]
-        ECR[("ECR<br/>app / api / frontend images")]
     end
 
     EC2Host ~~~ AWSServices
 
+    ECRRead -.-> ECR
     SSMRead -.-> SSM
     SecretsRead -.-> SecretsMgr
     KMSAccess -.-> KMS
-    ECRRead -.-> ECR
     API -.->|"auth"| Cognito
 
     subgraph CI["GitHub Actions"]
         direction TB
-
         OIDC["Github OIDC → AWS STS<br/>assumes IAM role"]
         Build["build ARM64 images"]
         Push["push to ECR, tagged with Git SHA"]
@@ -229,8 +219,6 @@ flowchart TB
 
         OIDC --> Build --> Push --> Trigger
     end
-
-    EC2Host ~~~ CI
 
     Trigger -.->|"1. fetch exact Git SHA\n2. pull ECR images\n3. fetch runtime config\n4. docker compose up"| EC2Host
     Push --> ECR
