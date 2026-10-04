@@ -277,8 +277,6 @@ flowchart TB
 
 ## Project evolution
 
-The project evolved from a fully local application into a cloud-deployed staging environment while keeping local development and self-hosting possible.
-
 | Version | Focus |
 | --- | --- |
 | **v0.2.0** | Fully local application. Gemini API access is configured through `.env`; there are no user accounts or BYOK. |
