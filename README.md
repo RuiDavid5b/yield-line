@@ -134,65 +134,68 @@ flowchart LR
 flowchart TB
     Internet((Internet))
 
-    subgraph DNS["Addressing"]
-        direction LR
-        EIP["Elastic IP / public IPv4"]
-        SSLIP["sslip.io hostname<br/>(derived from the IP)"]
-        EIP --> SSLIP
+    subgraph Deployment[" "]
+        direction TB
+
+        subgraph DNS["Addressing"]
+            direction LR
+            EIP["Elastic IP / public IPv4"]
+            SSLIP["sslip.io hostname<br/>(derived from the IP)"]
+            EIP --> SSLIP
+        end
+
+        subgraph EC2Host["EC2 t4g.small - ARM64 AMI"]
+            direction LR
+
+            subgraph IAM[" "]
+                direction TB
+
+                IAMRole["EC2 IAM instance role"]
+                IAMRole --> ECRRead["ECR read"]
+                IAMRole --> SSMRead["SSM Parameter Store read"]
+                IAMRole --> SecretsRead["Secrets Manager read"]
+                IAMRole --> KMSAccess["KMS access<br/>(BYOK encrypt/decrypt)"]
+            end
+
+            subgraph Runtime[" "]
+                direction TB
+
+                Caddy["Caddy<br/>Reverse proxy + TLS termination<br/>(Let's Encrypt)"]
+
+                Caddy -->|"app.*.sslip.io"| Frontend["frontend container"]
+                Caddy -->|"api.*.sslip.io"| API["api container"]
+
+                API --> Postgres["postgres container"]
+                API --> Redis["redis container"]
+
+                subgraph AirflowOnDemand["Airflow (on-demand)"]
+                    direction TB
+                    AirflowScheduler["Airflow scheduler"]
+                    AirflowPG["Airflow metadata Postgres"]
+                    AirflowScheduler --> DockerOperator["DockerOperator"]
+                    DockerOperator --> BackendImage["backend/pipeline image<br/>(runs DAG task code)"]
+                    AirflowScheduler --> AirflowPG
+                end
+
+                BackendImage --> Postgres
+
+                subgraph DataVolume["EBS data volume (persistent)"]
+                    direction LR
+                    PGPath["/data/postgres"]
+                    AirflowPGPath["/data/airflow-postgres"]
+                    RedisPath["/data/redis"]
+                end
+
+                Postgres --> PGPath
+                AirflowPG --> AirflowPGPath
+                Redis --> RedisPath
+            end
+        end
+
+        SSLIP -.-> Caddy
     end
 
     Internet --> EIP
-    DNS ~~~ EC2Host
-
-    subgraph EC2Host["EC2 t4g.small - ARM64 AMI"]
-        direction LR
-
-        subgraph IAM[" "]
-            direction TB
-
-            IAMRole["EC2 IAM instance role"]
-            IAMRole --> ECRRead["ECR read"]
-            IAMRole --> SSMRead["SSM Parameter Store read"]
-            IAMRole --> SecretsRead["Secrets Manager read"]
-            IAMRole --> KMSAccess["KMS access<br/>(BYOK encrypt/decrypt)"]
-        end
-
-        subgraph Runtime[" "]
-            direction TB
-
-            Caddy["Caddy<br/>Reverse proxy + TLS termination<br/>(Let's Encrypt)"]
-
-            Caddy -->|"app.*.sslip.io"| Frontend["frontend container"]
-            Caddy -->|"api.*.sslip.io"| API["api container"]
-
-            API --> Postgres["postgres container"]
-            API --> Redis["redis container"]
-
-            subgraph AirflowOnDemand["Airflow (on-demand)"]
-                direction TB
-                AirflowScheduler["Airflow scheduler"]
-                AirflowPG["Airflow metadata Postgres"]
-                AirflowScheduler --> DockerOperator["DockerOperator"]
-                DockerOperator --> BackendImage["backend/pipeline image<br/>(runs DAG task code)"]
-                AirflowScheduler --> AirflowPG
-            end
-
-            BackendImage --> Postgres
-
-            subgraph DataVolume["EBS data volume (persistent)"]
-                direction LR
-                PGPath["/data/postgres"]
-                AirflowPGPath["/data/airflow-postgres"]
-                RedisPath["/data/redis"]
-            end
-
-            Postgres --> PGPath
-            AirflowPG --> AirflowPGPath
-            Redis --> RedisPath
-        end
-    end
-
-    SSLIP -.-> Caddy
 
     subgraph AWSServices["AWS services"]
         direction LR
