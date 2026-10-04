@@ -275,6 +275,18 @@ flowchart TB
 **Frontend:** React · TypeScript · Vite  
 **Cloud:** AWS (EC2 · ECR · SSM · Secrets Manager · SSM Parameter Store · KMS · Cognito) · GitHub Actions
 
+## Project evolution
+
+The project evolved from a fully local application into a cloud-deployed staging environment while keeping local development and self-hosting possible.
+
+| Version | Focus |
+| --- | --- |
+| **v0.2.0** | Fully local application. Gemini API access is configured through `.env`; there are no user accounts or BYOK. |
+| **v0.3.0** | Introduced user accounts with AWS Cognito and encrypted per-user BYOK API keys using AWS KMS. The application can still be run mostly locally; Cognito and KMS are the only AWS services required, which are inexpensive. |
+| **v0.4.0** | Added the AWS staging environment, managed with Terraform and deployed through GitHub Actions. This adds EC2, ECR, SSM, Secrets Manager, and the remaining infrastructure required to run the full stack in AWS. |
+
+The local setup remains available at every stage. In particular, `v0.3.0` and `v0.4.0` can both be run locally; `v0.4.0` simply adds the option of deploying the same application to the AWS staging environment. A minimal `v0.4.0` AWS setup can also provision only Cognito and KMS when running the application locally.
+
 ## Running locally
 
 1. Copy `.env.example` to `.env` and fill in the required keys and variables. Do the same for `backend/api/.env.example` and `airflow/.env.example`.
@@ -334,6 +346,12 @@ Note that the [SEC EDGAR submissions API](https://www.sec.gov/search-filings/edg
 ### API testing
 
 A Bruno API client collection is included in `bruno/` for exercising both the application's API and the external EDGAR and Currents News APIs directly.
+
+## AWS staging
+
+v0.4.0 introduces a reproducible AWS staging environment managed with Terraform and deployed through GitHub Actions.
+
+The infrastructure can be provisioned with Terraform and the application deployed automatically from GitHub Actions using AWS OIDC. The staging environment is intended to be temporary and can be removed with Terraform when no longer needed. For more details on the services and inner workings, please see [Architecture](#architecture).
 
 ## Known limitations / open work
 
