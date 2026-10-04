@@ -193,8 +193,6 @@ flowchart TB
     SSLIP -.-> Caddy
 
     subgraph AWSServices["AWS services"]
-        direction LR
-
         ECR[("ECR<br/>app / api / frontend images")]
         SSM[("SSM Parameter Store<br/>non-secret config")]
         SecretsMgr[("Secrets Manager<br/>DB/Redis/API key secrets")]
@@ -202,9 +200,14 @@ flowchart TB
         Cognito[("Cognito<br/>direct API auth, no Hosted UI")]
     end
 
-    EC2Host ~~~ AWSServices
+    PGPath ~~~ AWSServices
+    RedisPath ~~~ AWSServices
+    AirflowPGPath ~~~ AWSServices
+    DataVolume ~~~ AWSServices
 
     ECRRead -.-> ECR
+    Push --> ECR
+
     SSMRead -.-> SSM
     SecretsRead -.-> SecretsMgr
     KMSAccess -.-> KMS
