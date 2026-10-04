@@ -46,6 +46,12 @@ The companies are shown in the left pane, with a fuzzy search query to filter, a
 | --- | --- |
 | <img src="assets/feat2_1.png" width="390"><br><img src="assets/feat2_2.png" width="390"> | <img src="assets/feat2.gif" width="390"> |
 
+**Bring Your Own Key (BYOK) in agent chat** - Agent chat requires the user to sign in into their account (register first if not already done) and insert their LLM API key in the account settings. Currently supports 3 providers: Anthropic, OpenAI and Google.
+
+| Screenshot | Video |
+| --- | --- |
+| <img src="assets/feat4.png" width="390"> | <img src="assets/feat4.gif" width="390"> |
+
 **Fuzzy company search and anomaly history** - searching a misspelled ticker still resolves correctly. Once a company is selected, older anomalies remain browsable, each labeled with which signals flagged it that day.
 
 | Screenshot | Video |
