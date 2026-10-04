@@ -135,12 +135,14 @@ flowchart TB
     Internet((Internet))
 
     subgraph DNS["Addressing"]
+        direction LR
         EIP["Elastic IP / public IPv4"]
         SSLIP["sslip.io hostname<br/>(derived from the IP)"]
         EIP --> SSLIP
     end
 
     Internet --> EIP
+    DNS ~~~ EC2Host
 
     subgraph EC2Host["EC2 t4g.small - ARM64 AMI"]
         direction LR
