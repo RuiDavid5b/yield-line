@@ -13,11 +13,13 @@
 - [Features](#features)
 - [Architecture](#architecture)
 - [Tech stack](#tech-stack)
+- [Project evolution](#project-evolution)
 - [Running locally](#running-locally)
   - [Starting the app](#starting-the-app)
   - [Editing the company graph](#editing-the-company-graph)
   - [Backfilling historical data](#backfilling-historical-data)
   - [API testing](#api-testing)
+- [AWS staging](#aws-staging)
 - [Known limitations / open work](#known-limitations-%2F-open-work)
 
 ## What this is
@@ -45,6 +47,12 @@ The companies are shown in the left pane, with a fuzzy search query to filter, a
 | Screenshot | Video |
 | --- | --- |
 | <img src="assets/feat2_1.png" width="390"><br><img src="assets/feat2_2.png" width="390"> | <img src="assets/feat2.gif" width="390"> |
+
+**Bring Your Own Key (BYOK) in agent chat** - Agent chat requires the user to sign in into their account (register first if not already done) and insert their LLM API key in the account settings. Currently supports 3 providers: Anthropic, OpenAI and Google.
+
+| Screenshot | Video |
+| --- | --- |
+| <img src="assets/feat4.png" width="390"> | <img src="assets/feat4.gif" width="390"> |
 
 **Fuzzy company search and anomaly history** - searching a misspelled ticker still resolves correctly. Once a company is selected, older anomalies remain browsable, each labeled with which signals flagged it that day.
 
@@ -95,13 +103,16 @@ flowchart LR
         Frontend[React UI]
         API[FastAPI]
         Agent{{LangGraph Agent}}
+        KMS[["KMS: encrypt / decrypt user API key"]]
 
-        %% Force vertical hierarchy
         Frontend <-->|"REST / JSON"| API
-        API <-->|"user prompt/AI response"| Agent
+        API <-->|"user prompt / AI response"| Agent
 
-        %% Subgraph-internal layout anchors
-        AutoExplain --> Agent
+        API -->|"fetch encrypted key"| PG
+        API -->|"decrypt key"| KMS
+        API -->|"build LLM client (BYOK)"| Agent
+
+        AutoExplain -->|"internal Gemini, rate-limited"| Agent
         Agent <-->|"tool calls"| PG
         Agent -->|"read cache"| Redis
         Agent <-->|"tool calls"| CompanyGraph
@@ -128,7 +139,133 @@ flowchart LR
 - **Anomaly detection** - Two independent types of stock price anomalies are persisted, a rolling z-score against each company's own history and a same-day cross-sectional z-score against all tracked companies.
 - **Digest** - daily cross-company snapshot: each company's return vs. its industry peers and sector benchmarks (SOXX/SMH/SPY), cached in Redis with a Postgres fallback beyond the cache window.
 - **Agent** - one LangGraph agent calls tools to acess filings, news and prices in the database, and a tool to access the company graph. It's used two ways: automatically to explain newly detected anomalies, and interactively via the frontend's chat, where it also picks up whichever company is currently selected in the UI.
+- **Accounts & BYOK** - Cognito-backed auth (custom UI) gates the agent chat. Each user supplies and encrypts (AWS KMS) their own LLM API key/provider/model - the Bring Your Own Key (BYOK) model.
 - **API / Frontend** - FastAPI (OpenAPI-documented) and a minimal React UI.
+
+The app can be deployed to the cloud through AWS services. As mentioned previously, Cognito and KMS were used for user account registration/login and storing the user's API key safely, respectively. The design deliberately uses a small number of managed AWS services, opting instead for a single EC2 host to keep the environment inexpensive for the current scale.
+
+```mermaid
+flowchart TB
+    subgraph DNS["Addressing"]
+        EIP["Elastic IP / public IPv4"]
+        SSLIP["sslip.io hostname<br/>(derived from the IP)"]
+        EIP --> SSLIP
+    end
+
+    Internet((Internet))
+
+    Internet --> EIP
+
+    subgraph EC2Host["EC2 t4g.small - ARM64 AMI"]
+        direction LR
+
+        subgraph IAM[" "]
+            direction TB
+
+            IAMRole["EC2 IAM instance role"]
+            IAMRole --> ECRRead["ECR read"]
+            IAMRole --> SSMRead["SSM Parameter Store read"]
+            IAMRole --> SecretsRead["Secrets Manager read"]
+            IAMRole --> KMSAccess["KMS access<br/>(BYOK encrypt/decrypt)"]
+        end
+
+        subgraph Runtime[" "]
+            direction TB
+
+            Caddy["Caddy<br/>Reverse proxy + TLS termination<br/>(Let's Encrypt)"]
+
+            Caddy -->|"app.*.sslip.io"| Frontend["frontend container"]
+            Caddy -->|"api.*.sslip.io"| API["api container"]
+
+            API --> Postgres["postgres container"]
+            API --> Redis["redis container"]
+
+            subgraph AirflowOnDemand["Airflow (on-demand)"]
+                direction TB
+                AirflowScheduler["Airflow scheduler"]
+                AirflowPG["Airflow metadata Postgres"]
+                AirflowScheduler --> DockerOperator["DockerOperator"]
+                DockerOperator --> BackendImage["backend/pipeline image<br/>(runs DAG task code)"]
+                AirflowScheduler --> AirflowPG
+            end
+
+            BackendImage --> Postgres
+
+            subgraph DataVolume["EBS data volume (persistent)"]
+                direction LR
+                PGPath["/data/postgres"]
+                AirflowPGPath["/data/airflow-postgres"]
+                RedisPath["/data/redis"]
+            end
+
+            Postgres --> PGPath
+            AirflowPG --> AirflowPGPath
+            Redis --> RedisPath
+        end
+    end
+
+    SSLIP -.-> Caddy
+
+    subgraph AWSServices["AWS services"]
+        direction LR
+
+        ECR[("ECR<br/>app / api / frontend images")]
+        SSM[("SSM Parameter Store<br/>non-secret config")]
+        SecretsMgr[("Secrets Manager<br/>DB/Redis/API key secrets")]
+        KMS[("KMS<br/>encrypts BYOK keys at rest")]
+        Cognito[("Cognito<br/>direct API auth, no Hosted UI")]
+    end
+
+    EC2Host ~~~ AWSServices
+
+    ECRRead -.-> ECR
+    SSMRead -.-> SSM
+    SecretsRead -.-> SecretsMgr
+    KMSAccess -.-> KMS
+    API -.->|"auth"| Cognito
+
+    subgraph CI["GitHub Actions"]
+        direction TB
+        OIDC["Github OIDC → AWS STS<br/>assumes IAM role"]
+        Build["build ARM64 images"]
+        Push["push to ECR, tagged with Git SHA"]
+        Trigger["SSM Run Command → EC2"]
+
+        OIDC --> Build --> Push --> Trigger
+    end
+
+    Trigger -.->|"1. fetch exact Git SHA\n2. pull ECR images\n3. fetch runtime config\n4. docker compose up"| EC2Host
+    Push --> ECR
+
+
+    %% GitHub Safe Theme-Adaptive Alpha Colors
+    classDef dbStyle fill:#2e7d3233,stroke:#4caf50,stroke-width:2px;
+    classDef anomalyStyle fill:#e6510033,stroke:#ff9800,stroke-width:2px;
+    classDef digestStyle fill:#7b1fa233,stroke:#ba68c8,stroke-width:2px;
+    classDef inputStyle fill:#01579b33,stroke:#29b6f6,stroke-width:2px;
+
+    %% AWS services — DB-style green
+    class ECR,SSM,SecretsMgr,KMS,Cognito dbStyle;
+
+    %% Application containers — anomaly-style orange
+    class Frontend,API,Postgres,Redis anomalyStyle;
+
+    %% Persistent data mount paths — digest-style purple
+    class PGPath,AirflowPGPath,RedisPath digestStyle;
+
+    %% External addressing input — input-style blue
+    class SSLIP inputStyle;
+```
+
+\* Note: This deployment does not use a purchased domain. Caddy uses an sslip.io hostname derived from the EC2 Elastic IP, which provides DNS resolution for the temporary staging environment and allows Caddy to obtain publicly trusted Let's Encrypt certificates. Once the staging/prod is hardened, a domain name can be bought and easily used instead.
+
+- **Compute** - single EC2 instance (t4g.small, ARM64) runs the full stack via Docker Compose - API, frontend, Postgres, Redis, and Airflow. At this stage, for this project's data volume/operations and single-DAG-per-day schedule, managed services (RDS/ElastiCache/MWAA) don't justify the significant bill increase.
+- **Networking** - the instance sits in the default VPC's public subnet behind a security group. Inbound SSH is restricted to my IP for administration; HTTP/HTTPS are open for web traffic and ACME certificate issuance. PostgreSQL and Redis ports are never exposed externally.
+- **TLS** - Caddy acts as the public reverse proxy and TLS termination point, automatically obtaining and renewing publicly trusted Let's Encrypt certificates. In this temporary staging environment, the hostname is provided through sslip.io; production would use a normal application domain.
+- **Persistence** - PostgreSQL and Airflow's metadata database use a separate EBS volume, allowing their data to survive instance replacement independently of the instance's root volume. Redis is also mounted there, although it is treated as a disposable 90-day TTL.
+- **Secrets & config** - non-secret configuration lives in SSM Parameter Store; credentials and API keys live in Secrets Manager. Runtime configuration is fetched during deployment and exposed to containers through ephemeral /run environment files, nothing sensitive is baked into the images.
+- **Identity** - the EC2 instance role and GitHub Actions (via OIDC) are each scoped to exactly the AWS actions they need (ECR pull/push, SSM/Secrets read, KMS encrypt/decrypt, SSM Run Command) rather than broad permissions.
+- **Deploy** - GitHub Actions builds and pushes images to ECR, then triggers the instance via SSM Run Command to pull and restart.
 
 ## Tech stack
 
@@ -136,8 +273,19 @@ flowchart LR
 **AI / Agent frameworks:** LangChain · LangGraph  
 **Data & Storage:** PostgreSQL · Redis  
 **Data Pipelines:** Apache Airflow  
-**Infrastructure & Testing:** Docker · Pytest  
 **Frontend:** React · TypeScript · Vite  
+**Infrastructure & Testing:** Docker · Pytest · Terraform  
+**Cloud:** AWS (EC2 · ECR · SSM · Secrets Manager · SSM Parameter Store · KMS · Cognito) · GitHub Actions
+
+## Project evolution
+
+| Version | Description |
+| --- | --- |
+| **v0.2.0** | Fully local application. Gemini API access is configured through `.env`; there are no user accounts or BYOK. |
+| **v0.3.0** | Introduced user accounts with AWS Cognito and encrypted per-user BYOK API keys using AWS KMS. The application can still be run mostly locally; Cognito and KMS are the only AWS services required, which are inexpensive. |
+| **v0.4.0** | Added the AWS staging environment, managed with Terraform and deployed through GitHub Actions. This adds EC2, ECR, SSM, Secrets Manager, and the remaining infrastructure required to run the full stack in AWS. |
+
+The local setup remains available at every stage. In particular, `v0.3.0` and `v0.4.0` can both be run locally; `v0.4.0` simply adds the option of deploying the same application to the AWS staging environment. A minimal `v0.4.0` AWS setup can also provision only Cognito and KMS when running the application locally.
 
 ## Running locally
 
@@ -199,12 +347,17 @@ Note that the [SEC EDGAR submissions API](https://www.sec.gov/search-filings/edg
 
 A Bruno API client collection is included in `bruno/` for exercising both the application's API and the external EDGAR and Currents News APIs directly.
 
+## AWS staging
+
+v0.4.0 introduces a reproducible AWS staging environment managed with Terraform and deployed through GitHub Actions.
+
+The infrastructure can be provisioned with Terraform and the application deployed automatically from GitHub Actions using AWS OIDC. The staging environment is intended to be temporary and can be removed with Terraform when no longer needed. For more details on the services and inner workings, please see [Architecture](#architecture).
+
 ## Known limitations / open work
 
 Tracked as open issues:
 
-- **AWS migration** - currently local-only (docker-compose); MWAA/ECS/RDS migration is scoped but not started.
-- **Bring-your-own API key** - currently uses a single shared LLM key; supporting per-user keys is planned.
+- **Staging/prod separation** - only one environment is deployed; no approval gate or tested isolation between a safe-to-break environment and a stable one. The main gap before this could reasonably face public use.
 - **Pending-edges automation** - filings mention customers/competitors not yet in the graph; promoting those into tracked relationships is still a manual review step.
 - **6-K classification** - not yet implemented (foreign private issuers' interim filings).
 - **FX conversion** - non-USD reported financials aren't yet normalized to USD for cross-company comparison.
