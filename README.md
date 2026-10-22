@@ -82,11 +82,15 @@ flowchart TB
         end
 
         subgraph Processing["2. Processing"]
-            Sections -->|"LangChain structured extraction"| PG
-            XBRL -->|"direct parse"| PG
+            Extract["LangChain structured extraction"]
+            Parse["Direct XBRL parse"]
+            Rolling["Rolling anomaly detection"]
+
+            Sections --> Extract --> PG
+            XBRL --> Parse --> PG
             Prices --> PG
             NewsData --> PG
-            Prices --> Rolling[Rolling anomaly detection] --> PG
+            Prices --> Rolling --> PG
         end
 
         subgraph Analytics["3. Digest & Caching"]
