@@ -94,7 +94,6 @@ flowchart TB
         end
 
         subgraph Analytics["3. Digest & Caching"]
-            direction LR
             GetDigest["get_digest(): cache-aside read"]
 
             API -->|"digest endpoints"| GetDigest
@@ -114,7 +113,7 @@ flowchart TB
 
     subgraph OneOff["Manually-triggered DAGs"]
         Seed[seed_company_graph] --> PG
-        Backfill["backfill_pipeline"] --> PG
+        Backfill -->|"historical data, excluding news"| Ingestion
     end
 
     CompanyGraph[["Company graph (YAML)"]]
