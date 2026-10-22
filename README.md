@@ -67,7 +67,7 @@ One Airflow DAG (`daily_pipeline`, scheduled after US market close) handles fili
 ```mermaid
 flowchart TB
     subgraph Airflow["Airflow: daily_pipeline (Post-US Market Close)"]
-        direction LR
+        direction TB
         subgraph Ingestion["1. Ingestion"]
             EDGAR[SEC EDGAR] --> XBRL[Financial facts]
             EDGAR --> Sections[Filing sections]
@@ -84,10 +84,20 @@ flowchart TB
         end
 
         subgraph Analytics["3. Digest & Caching"]
-            PG -->|"today's prices"| Digest[Digest: peer avg, benchmarks, cross-sectional anomaly]
-            Digest -->|"permanent record"| PG
-            Digest -->|"90d cache"| Redis[(Redis)]
-            Digest --> AutoExplain[Trigger: explain anomalies]
+            GetDigest["get_digest(): cache-aside read"]
+
+            API -->|"digest endpoints"| GetDigest
+            Agent -->|"digest tool"| GetDigest
+            GetDigest -->|"1. try cache"| Redis
+            GetDigest -.->|"2. on any miss"| PG
+            GetDigest -.->|"3. repopulate"| Redis
+
+            API -->|"prices, filings, news, etc."| PG
+            PG -->|"unexplained anomalies"| AutoExplain
+
+            Cognito[["Cognito: sign-up / login"]]
+            API <-->|"auth"| Cognito
+            API <-->|"sessions + CSRF token"| Redis
         end
     end
 
@@ -99,7 +109,7 @@ flowchart TB
     CompanyGraph[["Company graph (YAML)"]]
 
     subgraph Serving["Serving & Agents"]
-        direction LR
+        direction TB
         Frontend[React UI]
         API[FastAPI]
         Agent{{LangGraph Agent}}
