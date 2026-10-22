@@ -67,7 +67,7 @@ One Airflow DAG (`daily_pipeline`, scheduled after US market close) handles fili
 ```mermaid
 flowchart TB
     subgraph Airflow["Airflow: daily_pipeline (Post-US Market Close)"]
-        direction TB
+        direction LR
         subgraph Ingestion["1. Ingestion"]
             EDGAR[SEC EDGAR] --> XBRL[Financial facts]
             EDGAR --> Sections[Filing sections]
