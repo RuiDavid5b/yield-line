@@ -69,7 +69,6 @@ flowchart TB
     subgraph Airflow["Airflow: daily_pipeline (Post-US Market Close)"]
         direction TB
         subgraph Ingestion["1. Ingestion"]
-            direction LR
             EDGAR[SEC EDGAR] --> XBRL[Financial facts]
             EDGAR --> Sections[Filing sections]
             YF[yfinance] --> Prices[Stock prices]
@@ -77,7 +76,6 @@ flowchart TB
         end
 
         subgraph Processing["2. Processing"]
-            direction LR
             Sections -->|"LangChain structured extraction"| PG[(Postgres)]
             XBRL -->|"direct parse"| PG
             Prices --> PG
@@ -86,11 +84,13 @@ flowchart TB
         end
 
         subgraph Analytics["3. Digest & Caching"]
+            Redis[(Redis)]
+
             GetDigest["get_digest(): cache-aside read"]
 
             API -->|"digest endpoints"| GetDigest
             Agent -->|"digest tool"| GetDigest
-            GetDigest -->|"1. try cache"| Redis[(Redis)]
+            GetDigest -->|"1. try cache"| Redis
             GetDigest -.->|"2. on any miss"| PG
             GetDigest -.->|"3. repopulate"| Redis
 
