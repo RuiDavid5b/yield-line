@@ -69,6 +69,7 @@ flowchart TB
     subgraph Airflow["Airflow: daily_pipeline (Post-US Market Close)"]
         direction TB
         subgraph Ingestion["1. Ingestion"]
+            direction LR
             EDGAR[SEC EDGAR] --> XBRL[Financial facts]
             EDGAR --> Sections[Filing sections]
             YF[yfinance] --> Prices[Stock prices]
@@ -76,6 +77,7 @@ flowchart TB
         end
 
         subgraph Processing["2. Processing"]
+            direction LR
             Sections -->|"LangChain structured extraction"| PG[(Postgres)]
             XBRL -->|"direct parse"| PG
             Prices --> PG
@@ -98,12 +100,6 @@ flowchart TB
             Cognito[["Cognito: sign-up / login"]]
             API <-->|"auth"| Cognito
             API <-->|"sessions + CSRF token"| Redis
-        end
-
-        subgraph Databases["Data Stores"]
-            direction LR
-            PG[(Postgres)]
-            Redis[(Redis)]
         end
     end
 
