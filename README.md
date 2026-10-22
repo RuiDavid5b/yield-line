@@ -94,6 +94,7 @@ flowchart TB
         end
 
         subgraph Analytics["3. Digest & Caching"]
+            direction LR
             GetDigest["get_digest(): cache-aside read"]
 
             API -->|"digest endpoints"| GetDigest
@@ -150,7 +151,7 @@ flowchart TB
 
     %% Apply Styles
     class PG,Redis dbStyle;
-    class Rolling,AutoExplain anomalyStyle;
+    class Extract,Parse,Rolling,AutoExplain anomalyStyle;
     class Digest digestStyle;
     class EDGAR,YF,NewsAPI,CompanyGraph inputStyle;
 ```
