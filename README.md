@@ -100,7 +100,11 @@ flowchart TB
             API <-->|"sessions + CSRF token"| Redis
         end
 
-        PG ~~~ Redis
+        subgraph Databases["Data Stores"]
+            direction LR
+            PG[(Postgres)]
+            Redis[(Redis)]
+        end
     end
 
     subgraph OneOff["Manually-triggered DAGs"]
