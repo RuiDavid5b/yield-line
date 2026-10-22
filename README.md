@@ -76,7 +76,7 @@ flowchart TB
         end
 
         subgraph Processing["2. Processing"]
-            Sections -->|"LangChain structured extraction"| PG[(Postgres)]
+            Sections -->|"LangChain structured extraction"| PG
             XBRL -->|"direct parse"| PG
             Prices --> PG
             NewsData --> PG
@@ -85,12 +85,11 @@ flowchart TB
 
         subgraph Databases["Data Stores"]
             direction LR
-            PG[(Postgres)] ~~~ Redis[(Redis)]
+            PG[(Postgres)]
+            Redis[(Redis)]
         end
 
         subgraph Analytics["3. Digest & Caching"]
-            Redis[(Redis)]
-
             GetDigest["get_digest(): cache-aside read"]
 
             API -->|"digest endpoints"| GetDigest
