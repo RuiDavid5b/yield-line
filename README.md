@@ -75,18 +75,18 @@ flowchart TB
             NewsAPI[Currents API] --> NewsData[News]
         end
 
+        subgraph Databases["Data Stores"]
+            direction LR
+            PG[(Postgres)]
+            Redis[(Redis)]
+        end
+
         subgraph Processing["2. Processing"]
             Sections -->|"LangChain structured extraction"| PG
             XBRL -->|"direct parse"| PG
             Prices --> PG
             NewsData --> PG
             Prices --> Rolling[Rolling anomaly detection] --> PG
-        end
-
-        subgraph Databases["Data Stores"]
-            direction LR
-            PG[(Postgres)]
-            Redis[(Redis)]
         end
 
         subgraph Analytics["3. Digest & Caching"]
