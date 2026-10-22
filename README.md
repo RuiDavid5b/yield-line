@@ -65,7 +65,7 @@ The companies are shown in the left pane, with a fuzzy search query to filter, a
 One Airflow DAG (`daily_pipeline`, scheduled after US market close) handles filings, prices, news, extraction, and anomaly detection end to end, skipping anything already processed. Two additional manually-triggered DAGs handle one-time setup: seeding the company graph from YAML, and backfilling historical filings/prices for newly added companies.
 
 ```mermaid
-flowchart LR
+flowchart TB
     subgraph Airflow["Airflow: daily_pipeline (Post-US Market Close)"]
         direction TB
         subgraph Ingestion["1. Ingestion"]
@@ -99,6 +99,8 @@ flowchart LR
             API <-->|"auth"| Cognito
             API <-->|"sessions + CSRF token"| Redis
         end
+
+        PG ~~~ Redis
     end
 
     subgraph OneOff["Manually-triggered DAGs"]
