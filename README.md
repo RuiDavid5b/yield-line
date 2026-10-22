@@ -88,6 +88,8 @@ flowchart TB
 
             GetDigest["get_digest(): cache-aside read"]
 
+            Redis ~~~ GetDigest
+
             API -->|"digest endpoints"| GetDigest
             Agent -->|"digest tool"| GetDigest
             GetDigest -->|"1. try cache"| Redis
