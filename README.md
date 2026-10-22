@@ -65,9 +65,9 @@ The companies are shown in the left pane, with a fuzzy search query to filter, a
 One Airflow DAG (`daily_pipeline`, scheduled after US market close) handles filings, prices, news, extraction, and anomaly detection end to end, skipping anything already processed. Two additional manually-triggered DAGs handle one-time setup: seeding the company graph from YAML, and backfilling historical filings/prices for newly added companies.
 
 ```mermaid
-flowchart LR
+flowchart TB
     subgraph Airflow["Airflow: daily_pipeline (Post-US Market Close)"]
-        direction LR
+        direction TB
         subgraph Ingestion["1. Ingestion"]
             EDGAR[SEC EDGAR] --> XBRL[Financial facts]
             EDGAR --> Sections[Filing sections]
@@ -75,25 +75,45 @@ flowchart LR
             NewsAPI[Currents API] --> NewsData[News]
         end
 
+        subgraph Databases["Data Stores"]
+            direction LR
+            PG[(Postgres)]
+            Redis[(Redis)]
+        end
+
         subgraph Processing["2. Processing"]
-            Sections -->|"LangChain structured extraction"| PG[(Postgres)]
-            XBRL -->|"direct parse"| PG
+            Extract["LangChain structured extraction"]
+            Parse["Direct XBRL parse"]
+            Rolling["Rolling anomaly detection"]
+
+            Sections --> Extract --> PG
+            XBRL --> Parse --> PG
             Prices --> PG
             NewsData --> PG
-            Prices --> Rolling[Rolling anomaly detection] --> PG
+            Prices --> Rolling --> PG
         end
 
         subgraph Analytics["3. Digest & Caching"]
-            PG -->|"today's prices"| Digest[Digest: peer avg, benchmarks, cross-sectional anomaly]
-            Digest -->|"permanent record"| PG
-            Digest -->|"90d cache"| Redis[(Redis)]
-            Digest --> AutoExplain[Trigger: explain anomalies]
+            GetDigest["get_digest(): cache-aside read"]
+
+            API -->|"digest endpoints"| GetDigest
+            Agent -->|"digest tool"| GetDigest
+            GetDigest -->|"1. try cache"| Redis
+            GetDigest -.->|"2. on any miss"| PG
+            GetDigest -.->|"3. repopulate"| Redis
+
+            API -->|"prices, filings, news, etc."| PG
+            PG -->|"unexplained anomalies"| AutoExplain
+
+            Cognito[["Cognito: sign-up / login"]]
+            API <-->|"auth"| Cognito
+            API <-->|"sessions + CSRF token"| Redis
         end
     end
 
     subgraph OneOff["Manually-triggered DAGs"]
         Seed[seed_company_graph] --> PG
-        Backfill["backfill_pipeline"] --> PG
+        Backfill -->|"historical data, excluding news"| Ingestion
     end
 
     CompanyGraph[["Company graph (YAML)"]]
@@ -122,7 +142,7 @@ flowchart LR
         API -->|"read digest - many times/day"| Redis
     end
 
-    %% GitHub Safe Theme-Adaptive Alpha Colors
+    %% Theme-Adaptive Alpha Colors
     classDef dbStyle fill:#2e7d3233,stroke:#4caf50,stroke-width:2px;
     classDef anomalyStyle fill:#e6510033,stroke:#ff9800,stroke-width:2px;
     classDef digestStyle fill:#7b1fa233,stroke:#ba68c8,stroke-width:2px;
@@ -130,7 +150,7 @@ flowchart LR
 
     %% Apply Styles
     class PG,Redis dbStyle;
-    class Rolling,AutoExplain anomalyStyle;
+    class Extract,Parse,Rolling,AutoExplain anomalyStyle;
     class Digest digestStyle;
     class EDGAR,YF,NewsAPI,CompanyGraph inputStyle;
 ```
@@ -238,7 +258,7 @@ flowchart TB
     Push --> ECR
 
 
-    %% GitHub Safe Theme-Adaptive Alpha Colors
+    %% Theme-Adaptive Alpha Colors
     classDef dbStyle fill:#2e7d3233,stroke:#4caf50,stroke-width:2px;
     classDef anomalyStyle fill:#e6510033,stroke:#ff9800,stroke-width:2px;
     classDef digestStyle fill:#7b1fa233,stroke:#ba68c8,stroke-width:2px;
