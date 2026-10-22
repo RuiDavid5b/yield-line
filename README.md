@@ -99,7 +99,7 @@ flowchart TB
     CompanyGraph[["Company graph (YAML)"]]
 
     subgraph Serving["Serving & Agents"]
-        direction TB
+        direction LR
         Frontend[React UI]
         API[FastAPI]
         Agent{{LangGraph Agent}}
