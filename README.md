@@ -84,11 +84,6 @@ flowchart TB
         end
 
         subgraph Analytics["3. Digest & Caching"]
-            PG -->|"today's prices"| Digest[Digest: peer avg, benchmarks, cross-sectional anomaly]
-            Digest -->|"permanent record"| PG
-            Digest -->|"90d cache"| Redis[(Redis)]
-            Digest --> AutoExplain[Trigger: explain anomalies]
-
             GetDigest["get_digest(): cache-aside read"]
 
             API -->|"digest endpoints"| GetDigest
