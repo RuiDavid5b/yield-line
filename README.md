@@ -83,12 +83,15 @@ flowchart TB
             Prices --> Rolling[Rolling anomaly detection] --> PG
         end
 
+        subgraph Databases["Data Stores"]
+            direction LR
+            PG[(Postgres)] ~~~ Redis[(Redis)]
+        end
+
         subgraph Analytics["3. Digest & Caching"]
             Redis[(Redis)]
 
             GetDigest["get_digest(): cache-aside read"]
-
-            Redis ~~~ GetDigest
 
             API -->|"digest endpoints"| GetDigest
             Agent -->|"digest tool"| GetDigest
