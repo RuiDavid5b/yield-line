@@ -25,7 +25,7 @@ class TestGetDigest:
         result = queries.get_digest(session=None, date=TEST_DATE)
 
         assert result is cached
-        assert pg_calls == []  # Postgres never touched on a clean hit
+        assert pg_calls == []
 
     def test_cache_miss_falls_back_to_postgres_and_joins_segment(self, monkeypatch):
         monkeypatch.setattr(queries, "read_digest", lambda date: None)
@@ -47,7 +47,9 @@ class TestGetDigest:
         monkeypatch.setattr(
             queries,
             "get_all_companies",
-            lambda s: [{"cik": "A", "industry_segment": "foundry"}],
+            lambda s, include_inactive=False: [
+                {"cik": "A", "industry_segment": "foundry"}
+            ],
         )
         monkeypatch.setattr(
             queries,
@@ -74,9 +76,7 @@ class TestGetDigest:
         monkeypatch.setattr(queries, "read_digest", lambda date: stale)
         monkeypatch.setattr(queries, "get_digest_results", lambda s, d: [])
         result = queries.get_digest(session=None, date=TEST_DATE)
-        assert (
-            result is None
-        )  # no rows in Postgres either - just confirms fallback path was taken, not the cached stale value
+        assert result is None
 
     def test_no_data_anywhere_returns_none(self, monkeypatch):
         monkeypatch.setattr(queries, "read_digest", lambda date: None)
@@ -104,7 +104,9 @@ class TestGetDigest:
         monkeypatch.setattr(
             queries,
             "get_all_companies",
-            lambda s: [{"cik": "A", "industry_segment": "foundry"}],
+            lambda s, include_inactive=False: [
+                {"cik": "A", "industry_segment": "foundry"}
+            ],
         )
         monkeypatch.setattr(queries, "get_benchmark_returns", lambda s, d: {})
 
@@ -114,6 +116,37 @@ class TestGetDigest:
         monkeypatch.setattr(queries, "write_digest", raise_write)
 
         result = queries.get_digest(session=None, date=TEST_DATE)
-        assert (
-            result is not None
-        )  # still returns the reconstructed data despite the failed repopulate
+        assert result is not None
+
+    def test_digest_fallback_includes_inactive_companies(self, monkeypatch):
+        seen = {}
+
+        def fake_get_all_companies(s, include_inactive=False):
+            seen["include_inactive"] = include_inactive
+            return [{"cik": "A", "industry_segment": "foundry"}]
+
+        monkeypatch.setattr(queries, "read_digest", lambda date: None)
+        monkeypatch.setattr(
+            queries,
+            "get_digest_results",
+            lambda s, d: [
+                {
+                    "cik": "A",
+                    "return_pct": 0.05,
+                    "peer_avg_return_pct": None,
+                    "vs_peer_avg": None,
+                    "vs_soxx": None,
+                    "vs_smh": None,
+                    "vs_spy": None,
+                    "cross_sectional_z_score": None,
+                    "is_cross_sectional_anomaly": False,
+                }
+            ],
+        )
+        monkeypatch.setattr(queries, "get_all_companies", fake_get_all_companies)
+        monkeypatch.setattr(queries, "get_benchmark_returns", lambda s, d: {})
+        monkeypatch.setattr(queries, "write_digest", lambda d, x: None)
+
+        queries.get_digest(session=None, date=TEST_DATE)
+
+        assert seen["include_inactive"] is True
