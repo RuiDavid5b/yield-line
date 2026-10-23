@@ -14,7 +14,7 @@ import networkx as nx
 import yaml
 from sqlalchemy.orm import Session
 
-from stock_news.storage.loaders import upsert_companies
+from stock_news.storage.loaders import deactivate_companies_not_in, upsert_companies
 
 logger = logging.getLogger(__name__)
 
@@ -168,6 +168,7 @@ def upsert_companies_from_graph(
                 "reporting_currency": company.reporting_currency,
                 "aliases": company.aliases,
                 "news_disambiguation": company.news_disambiguation,
+                "is_active": True,
             }
         )
 
@@ -179,6 +180,16 @@ def upsert_companies_from_graph(
         )
 
     upsert_companies(session, rows)
+
+    if rows:
+        deactivated = deactivate_companies_not_in(session, [r["cik"] for r in rows])
+        if deactivated:
+            logger.info(
+                "Deactivated companies no longer in the seed graph: %s", deactivated
+            )
+    else:
+        logger.warning("No companies with real CIKs - skipping deactivation")
+
     session.commit()
     return len(rows)
 

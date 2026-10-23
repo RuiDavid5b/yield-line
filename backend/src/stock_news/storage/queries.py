@@ -51,7 +51,8 @@ def get_digest(session: Session, date: dt.date) -> dict[str, Any] | None:
         return None
 
     segment_by_cik = {
-        c["cik"]: c["industry_segment"] for c in get_all_companies(session)
+        c["cik"]: c["industry_segment"]
+        for c in get_all_companies(session, include_inactive=True)
     }
     companies = [
         {**row, "industry_segment": segment_by_cik.get(row["cik"])}

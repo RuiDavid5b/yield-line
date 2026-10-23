@@ -84,7 +84,9 @@ def run_anomaly_explanation_pipeline(
     if not anomalies:
         return result
 
-    companies_by_cik = {c["cik"]: c for c in get_all_companies(session)}
+    companies_by_cik = {
+        c["cik"]: c for c in get_all_companies(session, include_inactive=True)
+    }
 
     for anomaly in anomalies:
         company = companies_by_cik.get(anomaly["cik"])

@@ -40,6 +40,7 @@ class Company(Base):
     industry_segment: Mapped[str] = mapped_column(String(50), index=True)
     reporting_currency: Mapped[str] = mapped_column(String(3), default="USD")
     aliases: Mapped[list[str]] = mapped_column(ARRAY(String(255)), default=list)
+    is_active: Mapped[bool] = mapped_column(default=True, server_default="true")
     news_disambiguation: Mapped[list[str]] = mapped_column(
         ARRAY(String(255)), default=list
     )

@@ -55,7 +55,11 @@ class TestRunAnomalyExplanationPipeline:
             "get_dates_needing_explanation",
             lambda session, max_age_days=7: anomalies,
         )
-        monkeypatch.setattr(pipeline, "get_all_companies", lambda session: companies)
+        monkeypatch.setattr(
+            pipeline,
+            "get_all_companies",
+            lambda session, include_inactive=False: companies,
+        )
 
         responses = iter(agent_responses or [])
         monkeypatch.setattr(
@@ -163,7 +167,11 @@ class TestRunAnomalyExplanationPipeline:
             "get_dates_needing_explanation",
             lambda session, max_age_days=7: anomalies,
         )
-        monkeypatch.setattr(pipeline, "get_all_companies", lambda session: companies)
+        monkeypatch.setattr(
+            pipeline,
+            "get_all_companies",
+            lambda session, include_inactive=False: companies,
+        )
 
         def flaky_agent(prompt, **kwargs):
             if "SNPS" in prompt:
@@ -197,7 +205,11 @@ class TestRunAnomalyExplanationPipeline:
             "get_dates_needing_explanation",
             lambda session, max_age_days=7: anomalies,
         )
-        monkeypatch.setattr(pipeline, "get_all_companies", lambda session: companies)
+        monkeypatch.setattr(
+            pipeline,
+            "get_all_companies",
+            lambda session, include_inactive=False: companies,
+        )
         monkeypatch.setattr(
             pipeline, "run_agent_query", lambda prompt, **kwargs: "Explained."
         )

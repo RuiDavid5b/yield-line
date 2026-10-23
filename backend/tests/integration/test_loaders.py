@@ -13,6 +13,7 @@ from sqlalchemy import select
 from stock_news.processing.edgar.signals import ExtractedFilingSignal
 from stock_news.storage.loaders import (
     clear_user_api_key,
+    deactivate_companies_not_in,
     get_all_companies,
     get_anomalies_with_explanations,
     get_benchmark_returns,
@@ -30,6 +31,7 @@ from stock_news.storage.loaders import (
     set_price_anomaly_explanation,
     set_user_api_key,
     upsert_benchmark_returns,
+    upsert_companies,
     upsert_digest_results,
     upsert_filing_signal,
     upsert_financial_metrics,
@@ -990,11 +992,6 @@ class TestGetNewsArticles:
         assert rows[0]["url"] == "https://example.com/b"  # most recent first
 
     def test_null_published_at_excluded_by_date_filter(self, session):
-        # A row with no published_at can't satisfy a >= comparison in SQL
-        # (NULL comparisons are neither true nor false) - an article with
-        # an unparseable date (_parse_published_at returning None) silently
-        # vanishes from any date-bounded query, though it still appears in
-        # the unfiltered get_news_articles(session, cik) call.
         upsert_news_articles(
             session,
             [
@@ -1010,6 +1007,146 @@ class TestGetNewsArticles:
 
         assert len(rows) == 1
         assert rows[0]["url"] == "https://example.com/dated"
+
+
+def _company_row(**overrides):
+    row = {
+        "cik": "0000111111",
+        "ticker": "UPSX",
+        "name": "Upsert Co",
+        "industry_segment": "test",
+        "reporting_currency": "USD",
+        "aliases": [],
+        "news_disambiguation": [],
+        "is_active": True,
+    }
+    row.update(overrides)
+    return row
+
+
+def _is_active(session, cik):
+    return session.scalar(select(Company.is_active).where(Company.cik == cik))
+
+
+class TestUpsertCompanies:
+    def test_inserts_new_company(self, session):
+        upsert_companies(session, [_company_row()])
+
+        row = session.scalars(select(Company).where(Company.cik == "0000111111")).one()
+        assert row.ticker == "UPSX"
+        assert row.is_active is True
+
+    def test_updates_on_conflict_not_duplicate(self, session):
+        upsert_companies(session, [_company_row(name="Old Name")])
+        upsert_companies(session, [_company_row(name="New Name")])
+
+        rows = session.scalars(select(Company).where(Company.cik == "0000111111")).all()
+        assert len(rows) == 1
+        assert rows[0].name == "New Name"
+
+    def test_persists_aliases_and_disambiguation(self, session):
+        upsert_companies(
+            session, [_company_row(aliases=["Upsert"], news_disambiguation=["chip"])]
+        )
+
+        row = session.scalars(select(Company).where(Company.cik == "0000111111")).one()
+        assert row.aliases == ["Upsert"]
+        assert row.news_disambiguation == ["chip"]
+
+    def test_reactivates_inactive_company(self, session):
+        upsert_companies(session, [_company_row(is_active=False)])
+        assert _is_active(session, "0000111111") is False
+
+        upsert_companies(session, [_company_row(is_active=True)])
+        assert _is_active(session, "0000111111") is True
+
+    def test_empty_list_is_noop(self, session):
+        upsert_companies(session, [])  # should not raise
+
+
+class TestDeactivateCompaniesNotIn:
+    def test_deactivates_company_missing_from_list(self, session_with_second_company):
+        session = session_with_second_company
+
+        deactivate_companies_not_in(session, [TEST_CIK])
+
+        assert _is_active(session, SECONDARY_CIK) is False
+
+    def test_leaves_listed_companies_active(self, session_with_second_company):
+        session = session_with_second_company
+
+        deactivate_companies_not_in(session, [TEST_CIK])
+
+        assert _is_active(session, TEST_CIK) is True
+
+    def test_returns_tickers_of_newly_deactivated(self, session_with_second_company):
+        session = session_with_second_company
+        secondary_ticker = session.scalar(
+            select(Company.ticker).where(Company.cik == SECONDARY_CIK)
+        )
+
+        assert deactivate_companies_not_in(session, [TEST_CIK]) == [secondary_ticker]
+
+    def test_already_inactive_company_not_reported_again(
+        self, session_with_second_company
+    ):
+        session = session_with_second_company
+        deactivate_companies_not_in(session, [TEST_CIK])
+
+        assert deactivate_companies_not_in(session, [TEST_CIK]) == []
+
+    def test_empty_list_raises_and_deactivates_nothing(
+        self, session_with_second_company
+    ):
+        # Guards against an empty/broken YAML silently wiping the whole universe.
+        session = session_with_second_company
+
+        with pytest.raises(ValueError):
+            deactivate_companies_not_in(session, [])
+
+        assert _is_active(session, TEST_CIK) is True
+        assert _is_active(session, SECONDARY_CIK) is True
+
+    def test_historical_rows_survive_deactivation(self, session_with_second_company):
+        # The reason this is a soft delete: child rows must stay intact.
+        session = session_with_second_company
+        session.add(
+            StockPrice(
+                cik=SECONDARY_CIK,
+                date=dt.date(2026, 1, 2),
+                open=10,
+                high=11,
+                low=9,
+                close=10.5,
+                volume=1000,
+            )
+        )
+        session.flush()
+
+        deactivate_companies_not_in(session, [TEST_CIK])
+
+        remaining = session.scalars(
+            select(StockPrice).where(StockPrice.cik == SECONDARY_CIK)
+        ).all()
+        assert len(remaining) == 1
+
+
+class TestGetAllCompaniesInactive:
+    def test_excludes_inactive_by_default(self, session_with_second_company):
+        session = session_with_second_company
+        deactivate_companies_not_in(session, [TEST_CIK])
+
+        ciks = {c["cik"] for c in get_all_companies(session)}
+
+        assert ciks == {TEST_CIK}
+
+    def test_include_inactive_returns_both(self, session_with_second_company):
+        session = session_with_second_company
+        deactivate_companies_not_in(session, [TEST_CIK])
+
+        ciks = {c["cik"] for c in get_all_companies(session, include_inactive=True)}
+
+        assert ciks == {TEST_CIK, SECONDARY_CIK}
 
 
 class TestGetAllCompanies:

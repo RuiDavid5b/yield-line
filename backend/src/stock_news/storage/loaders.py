@@ -624,18 +624,41 @@ def upsert_companies(session: Session, rows: list[dict[str, Any]]) -> None:
             "reporting_currency": stmt.excluded.reporting_currency,
             "aliases": stmt.excluded.aliases,
             "news_disambiguation": stmt.excluded.news_disambiguation,
+            "is_active": stmt.excluded.is_active,
         },
     )
     session.execute(stmt)
 
 
-def get_all_companies(session: Session) -> list[dict[str, Any]]:
+def deactivate_companies_not_in(session: Session, active_ciks: list[str]) -> list[str]:
+    """Mark every company absent from the seed graph inactive. Returns the deactivated tickers."""
+    if not active_ciks:
+        raise ValueError(
+            "Refusing to deactivate all companies: seed graph has no active CIKs"
+        )
+    result = session.execute(
+        update(Company)
+        .where(Company.cik.not_in(active_ciks), Company.is_active.is_(True))
+        .values(is_active=False)
+        .returning(Company.ticker)
+    )
+    return [row[0] for row in result]
+
+
+def get_all_companies(
+    session: Session, include_inactive: bool = False
+) -> list[dict[str, Any]]:
     """
     Return all tracked companies as plain dicts, for Airflow dynamic task
     mapping (.expand()) over ingestion tasks. Plain dicts, not ORM
     instances, since these cross into Airflow's XCom/serialization layer.
+    By default it only returns active companies, include_inactive can be set
+    to true to retrieve all companies.
     """
-    companies = session.scalars(select(Company)).all()
+    stmt = select(Company)
+    if not include_inactive:
+        stmt = stmt.where(Company.is_active.is_(True))
+    companies = session.scalars(stmt).all()
     return [
         {
             "cik": c.cik,
