@@ -3,7 +3,7 @@
 </p>
 
 <h1 align="center">YieldLine</h1>
-<p align="center"><em>Catch unusual stock moves, uncover what drove them, and ask anything about your companies.</em></p>
+<p align="center"><em>Catch unusual stock moves, uncover what drove them, and explore your companies with AI.</em></p>
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -155,11 +155,11 @@ flowchart TB
     class EDGAR,YF,NewsAPI,CompanyGraph inputStyle;
 ```
 
-- **Ingestion & Processing** - filings are classified and parsed into structured fields (guidance, named customers/competitors, capex commentary) via LangChain + Gemini, rate-limited against the free-tier API quota. The remaining data is parsed more directly.
+- **Ingestion & Processing** - SEC filings are classified, and relevant sections are passed through LangChain + Gemini for structured qualitative extraction, covering forward-looking guidance, segment and end-market commentary, management commentary, and named customers and competitors. API calls are rate-limited against the free-tier quota. Other filing data is parsed using more deterministic methods.
 - **Anomaly detection** - Two independent types of stock price anomalies are persisted, a rolling z-score against each company's own history and a same-day cross-sectional z-score against all tracked companies.
-- **Digest** - daily cross-company snapshot: each company's return vs. its industry peers and sector benchmarks (SOXX/SMH/SPY), cached in Redis with a Postgres fallback beyond the cache window.
-- **Agent** - one LangGraph agent calls tools to acess filings, news and prices in the database, and a tool to access the company graph. It's used two ways: automatically to explain newly detected anomalies, and interactively via the frontend's chat, where it also picks up whichever company is currently selected in the UI.
-- **Accounts & BYOK** - Cognito-backed auth (custom UI) gates the agent chat. Each user supplies and encrypts (AWS KMS) their own LLM API key/provider/model - the Bring Your Own Key (BYOK) model.
+- **Digest** - Daily cross-company snapshot: each company's return vs. its industry peers and sector benchmarks (SOXX/SMH/SPY), cached in Redis with a Postgres fallback beyond the cache window.
+- **Agent** - One LangGraph agent calls tools to acess filings, news and prices in the database, and a tool to access the company graph. It's used two ways: automatically to explain newly detected anomalies, and interactively via the frontend's chat, where it also picks up whichever company is currently selected in the UI.
+- **Accounts & BYOK** - Cognito-backed auth (custom UI) gates the agent chat. Each user supplies and encrypts (AWS KMS) their own LLM API key/provider/model, following the Bring Your Own Key (BYOK) model.
 - **API / Frontend** - FastAPI (OpenAPI-documented) and a minimal React UI.
 
 The app can be deployed to the cloud through AWS services. As mentioned previously, Cognito and KMS were used for user account registration/login and storing the user's API key safely, respectively. The design deliberately uses a small number of managed AWS services, opting instead for a single EC2 host to keep the environment inexpensive for the current scale.
@@ -279,12 +279,12 @@ flowchart TB
 
 \* Note: This deployment does not use a purchased domain. Caddy uses an sslip.io hostname derived from the EC2 Elastic IP, which provides DNS resolution for the temporary staging environment and allows Caddy to obtain publicly trusted Let's Encrypt certificates. Once the staging/prod is hardened, a domain name can be bought and easily used instead.
 
-- **Compute** - single EC2 instance (t4g.small, ARM64) runs the full stack via Docker Compose - API, frontend, Postgres, Redis, and Airflow. At this stage, for this project's data volume/operations and single-DAG-per-day schedule, managed services (RDS/ElastiCache/MWAA) don't justify the significant bill increase.
-- **Networking** - the instance sits in the default VPC's public subnet behind a security group. Inbound SSH is restricted to my IP for administration; HTTP/HTTPS are open for web traffic and ACME certificate issuance. PostgreSQL and Redis ports are never exposed externally.
-- **TLS** - Caddy acts as the public reverse proxy and TLS termination point, automatically obtaining and renewing publicly trusted Let's Encrypt certificates. In this temporary staging environment, the hostname is provided through sslip.io; production would use a normal application domain.
+- **Compute** - Single EC2 instance (t4g.small, ARM64) runs the full stack via Docker Compose - API, frontend, Postgres, Redis, and Airflow. At this stage, for this project's data volume/operations and single-DAG-per-day schedule, managed services (RDS/ElastiCache/MWAA) don't justify the significant bill increase.
+- **Networking** - The instance runs in a public subnet of the default VPC, protected by a security group. Inbound SSH is restricted to a trusted IP address for administration; HTTP/HTTPS are open for web traffic and ACME certificate issuance. PostgreSQL and Redis ports are never exposed externally.
+- **TLS** - Caddy acts as the public reverse proxy and TLS termination point, automatically obtaining and renewing publicly trusted Let's Encrypt certificates.
 - **Persistence** - PostgreSQL and Airflow's metadata database use a separate EBS volume, allowing their data to survive instance replacement independently of the instance's root volume. Redis is also mounted there, although it is treated as a disposable 90-day TTL.
-- **Secrets & config** - non-secret configuration lives in SSM Parameter Store; credentials and API keys live in Secrets Manager. Runtime configuration is fetched during deployment and exposed to containers through ephemeral /run environment files, nothing sensitive is baked into the images.
-- **Identity** - the EC2 instance role and GitHub Actions (via OIDC) are each scoped to exactly the AWS actions they need (ECR pull/push, SSM/Secrets read, KMS encrypt/decrypt, SSM Run Command) rather than broad permissions.
+- **Secrets & config** - Non-secret configuration lives in SSM Parameter Store; credentials and API keys live in Secrets Manager. Runtime configuration is fetched during deployment and exposed to containers through ephemeral /run environment files, nothing sensitive is baked into the images.
+- **Identity** - The EC2 instance role and GitHub Actions (via OIDC) are each scoped to exactly the AWS actions they need (ECR pull/push, SSM/Secrets read, KMS encrypt/decrypt, SSM Run Command) rather than broad permissions.
 - **Deploy** - GitHub Actions builds and pushes images to ECR, then triggers the instance via SSM Run Command to pull and restart.
 
 ## Tech stack
